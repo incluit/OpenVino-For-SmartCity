@@ -21,4 +21,20 @@ modName=vehicle-attributes-recognition-barrier-0039
 export mVA16=$modelDir/$modName/FP16/$modName.xml
 export mVA32=$modelDir/$modName/FP32/$modName.xml
 
+modName=person-vehicle-bike-detection-crossroad-0078
+export vehicle216=$modelDir/$modName/FP16/$modName.xml
+export vehicle232=$modelDir/$modName/FP32/$modName.xml
+
+modName=pedestrian-and-vehicle-detector-adas-0001
+export pv16=$modelDir/$modName/FP16/$modName.xml
+export pv32=$modelDir/$modName/FP32/$modName.xml
+
+modName=person-detection-retail-0013
+export person116=$modelDir/$modName/FP16/$modName.xml
+export person132=$modelDir/$modName/FP32/$modName.xml
+
+modName=pedestrian-detection-adas-0002
+export person216=$modelDir/$modName/FP16/$modName.xml
+export person232=$modelDir/$modName/FP32/$modName.xml
+
 
