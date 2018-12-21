@@ -6,7 +6,7 @@ before_install:
   - sudo apt-get update
 
 before_script:
-  - docker pull hernang/openvino:testing || true
+  - docker pull openvinoincluit/openvino:latest || true
 script:
   - docker run --name openvinocont -t -d openvinoincluit/openvino:latest
   - docker exec openvinocont git clone https://github.com/incluit/OpenVino-For-SmartCity
