@@ -1,0 +1,16 @@
+sudo: required
+services:
+  - docker
+
+before_install:
+  - sudo apt-get update
+
+before_script:
+  - docker pull hernang/openvino:testing || true
+script:
+  - docker run --name openvinocont -t -d openvinoincluit/openvino:latest
+  - docker exec openvinocont git clone https://github.com/incluit/OpenVino-For-SmartCity
+  - docker exec openvinocont bash -c 'source /opt/intel/computer_vision_sdk/bin/setupvars.sh && cd /app/OpenVino-For-SmartCity && mkdir build && cd build && cmake .. && make'
+
+after_script:
+  - docker images
