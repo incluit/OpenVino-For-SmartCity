@@ -1,5 +1,7 @@
 # OpenVino-For-SmartCity
 
+[![Build Status](https://travis-ci.org/incluit/OpenVino-For-SmartCity.svg?branch=master)](https://travis-ci.org/incluit/OpenVino-For-SmartCity#)
+
 This is a follow-up on the OpenVino's inference tutorials:
 
 https://github.com/intel-iot-devkit/inference-tutorials-generic/tree/openvino_toolkit_r4_0
