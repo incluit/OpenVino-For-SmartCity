@@ -121,6 +121,7 @@ void ParseYOLOV3Output(const CNNLayerPtr &layer, const Blob::Ptr &blob, const un
                        const unsigned long original_im_w,
                        const double threshold, std::vector<DetectionObject> &objects) {
     // --------------------------- Validating output parameters -------------------------------------
+    std::cout << layer->type << std::endl;
     if (layer->type != "RegionYolo")
         throw std::runtime_error("Invalid output type: " + layer->type + ". RegionYolo expected");
     const int out_blob_h = static_cast<int>(blob->getTensorDesc().getDims()[2]);
@@ -134,24 +135,40 @@ void ParseYOLOV3Output(const CNNLayerPtr &layer, const Blob::Ptr &blob, const un
     try { num = layer->GetParamAsInts("mask").size(); } catch (...) {}
     auto coords = layer->GetParamAsInt("coords");
     auto classes = layer->GetParamAsInt("classes");
-    std::vector<float> anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0, 61.0, 62.0, 45.0, 59.0, 119.0, 116.0, 90.0,
-                                  156.0, 198.0, 373.0, 326.0};
+    std::vector<float> anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0, 61.0, 62.0, 45.0, 59.0, 119.0, 116.0, 90.0,156.0, 198.0, 373.0, 326.0};
+    //std::vector<float> anchors = {10.0, 14.0, 23.0, 27.0, 37.0, 58.0, 81.0, 82.0, 135.0, 169.0, 344.0, 319.0};
+    //std::vector<float> anchors = {};
+    //anchors = layer->GetParamAsFloats("anchors");
     try { anchors = layer->GetParamAsFloats("anchors"); } catch (...) {}
     auto side = out_blob_h;
     int anchor_offset = 0;
-    switch (side) {
-        case yolo_scale_13:
-            anchor_offset = 2 * 6;
-            break;
-        case yolo_scale_26:
-            anchor_offset = 2 * 3;
-            break;
-        case yolo_scale_52:
-            anchor_offset = 2 * 0;
-            break;
-        default:
-            throw std::runtime_error("Invalid output size");
+    if (anchors.size() == 12){ //yolo_v3-tiny
+        switch (side) {
+            case yolo_scale_13:
+                anchor_offset = 2 * 3;
+                break;
+            case yolo_scale_26:
+                anchor_offset = 2 * 0;
+                break;
+            default:
+                throw std::runtime_error("Invalid output size");
+        }
+    } else if (anchors.size() == 18){
+        switch (side) {
+            case yolo_scale_13:
+                anchor_offset = 2 * 6;
+                break;
+            case yolo_scale_26:
+                anchor_offset = 2 * 3;
+                break;
+            case yolo_scale_52:
+                anchor_offset = 2 * 0;
+                break;
+            default:
+                throw std::runtime_error("Invalid output size");
+        }
     }
+    
     auto side_square = side * side;
     const float *output_blob = blob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
     // --------------------------- Parsing YOLO Region output -------------------------------------
@@ -162,8 +179,10 @@ void ParseYOLOV3Output(const CNNLayerPtr &layer, const Blob::Ptr &blob, const un
             int obj_index = EntryIndex(side, coords, classes, n * side * side + i, coords);
             int box_index = EntryIndex(side, coords, classes, n * side * side + i, 0);
             float scale = output_blob[obj_index];
-            if (scale < threshold)
+            //std::cout << scale << std::endl;
+            if (scale < threshold){
                 continue;
+            }
             double x = (col + output_blob[box_index + 0 * side_square]) / side * resized_im_w;
             double y = (row + output_blob[box_index + 1 * side_square]) / side * resized_im_h;
             double height = std::exp(output_blob[box_index + 3 * side_square]) * anchors[anchor_offset + 2 * n + 1];
@@ -284,9 +303,9 @@ int main(int argc, char *argv[]) {
         // --------------------------------- Preparing output blobs -------------------------------------------
         slog::info << "Checking that the outputs are as the demo expects" << slog::endl;
         OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
-        if (outputInfo.size() != 3) {
+        /*if (outputInfo.size() != 3) {
             throw std::logic_error("This demo only accepts networks with three layers");
-        }
+        }*/
         for (auto &output : outputInfo) {
             output.second->setPrecision(Precision::FP32);
             output.second->setLayout(Layout::NCHW);
@@ -394,7 +413,9 @@ int main(int argc, char *argv[]) {
                     Blob::Ptr blob = async_infer_request_curr->GetBlob(output_name);
                     ParseYOLOV3Output(layer, blob, resized_im_h, resized_im_w, height, width, FLAGS_t, objects);
                 }
+                std::cout << "hola1" << std::endl;
                 // Filtering overlapping boxes
+                std::cout << objects.size() << std::endl;
                 std::sort(objects.begin(), objects.end());
                 for (int i = 0; i < objects.size(); ++i) {
                     if (objects[i].confidence == 0)
@@ -404,6 +425,7 @@ int main(int argc, char *argv[]) {
                             objects[j].confidence = 0;
                 }
                 // Drawing boxes
+                std::cout << "hola2" << std::endl;
                 for (auto &object : objects) {
                     if (object.confidence < FLAGS_t)
                         continue;
