@@ -37,15 +37,16 @@ static const char video_message[] = "Optional. Path to an video file. Default va
 /// @brief message for model argument
 static const char vehicle_detection_model_message[] = "Required. Path to the Vehicle/License-Plate Detection model (.xml) file.";
 static const char vehicle_attribs_model_message[] = "Optional. Path to the Vehicle Attributes model (.xml) file.";
-
+static const char pedestrians_model_message[] = "Optional. Path to the Pedestrians detection model (.xml) file.";
 /// @brief message for assigning vehicle detection inference to device
 static const char target_device_message[] = "Specify the target device for Vehicle Detection (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
 
 /// @brief message for number of simultaneously vehicle detections using dynamic batch
-static const char num_batch_message[] = "Specify number of maximum simultaneously processed frames for Vehicle Detection ( default is 1).";
+static const char num_batch_message[] = "Specify number of maximum simultaneously processed frames for Vehicle and Pedestrians Detection ( default is 1).";
 
 /// @brief message for assigning vehicle attributes to device
 static const char target_device_message_vehicle_attribs[] = "Specify the target device for Vehicle Attributes (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
+static const char target_device_message_pedestrians[] = "Specify the target device for Pedestrians (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
 
 /// @brief message for number of simultaneously vehicle attributes detections using dynamic batch
 static const char num_batch_va_message[] = "Specify number of maximum simultaneously processed vehicles for Vehicle Attributes Detection ( default is 1).";
@@ -146,6 +147,13 @@ DEFINE_bool(no_show, false, no_show_processed_video);
 /// It is an optional parameter
 DEFINE_uint32(n_async, 1, async_depth_message);
 
+/// 
+
+DEFINE_string(m_p, "", pedestrians_model_message);
+DEFINE_uint32(n_p, 1, num_batch_message);
+DEFINE_string(d_p, "CPU", target_device_message_pedestrians);
+
+
 /**
 * \brief This function show a help message
 */
@@ -157,14 +165,14 @@ static void showUsage() {
     std::cout << "    -h                         " << help_message << std::endl;
     std::cout << "    -i \"<path>\"              " << video_message << std::endl;
     std::cout << "    -m \"<path>\"              " << vehicle_detection_model_message<< std::endl;
-    std::cout << "    -m_va \"<path>\"           " << vehicle_attribs_model_message << std::endl;
+    std::cout << "    -m_p \"<path>\"           " << pedestrians_model_message << std::endl;
     std::cout << "      -l \"<absolute_path>\"   " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "      -c \"<absolute_path>\"   " << custom_cldnn_message << std::endl;
     std::cout << "    -d \"<device>\"            " << target_device_message << std::endl;
     std::cout << "    -n \"<num>\"               " << num_batch_message << std::endl;
-    std::cout << "    -d_va \"<device>\"         " << target_device_message_vehicle_attribs << std::endl;
-    std::cout << "    -n_va \"<num>\"            " << num_batch_va_message << std::endl;
+    std::cout << "    -d_p \"<device>\"         " << target_device_message_pedestrians << std::endl;
+    std::cout << "    -n_p \"<num>\"            " << num_batch_va_message << std::endl;
     std::cout << "    -dyn_va                    " << dyn_va_message << std::endl;
     std::cout << "    -n_aysnc \"<num>\"         " << async_depth_message << std::endl;
     std::cout << "    -auto_resize               " << auto_resize_message << std::endl;
