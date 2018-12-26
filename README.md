@@ -1,6 +1,7 @@
 # OpenVino-For-SmartCity
 
-[![Build Status](https://travis-ci.org/incluit/OpenVino-For-SmartCity.svg?branch=master)](https://travis-ci.org/incluit/OpenVino-For-SmartCity#)
+[![Build Status](https://travis-ci.org/incluit/OpenVino-For-SmartCity.svg?branch=master)](https://travis-ci.org/incluit/OpenVino-For-SmartCity#) [![Sonarcloud Status](https://sonarcloud.io/api/project_badges/measure?project=incluit_OpenVino-For-SmartCity&metric=alert_status)](https://sonarcloud.io/dashboard?id=incluit_OpenVino-For-SmartCity)
+
 
 This is a follow-up on the OpenVino's inference tutorials:
 
