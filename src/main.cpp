@@ -40,7 +40,7 @@
 #include <ext_list.hpp>
 
 #include <opencv2/opencv.hpp>
-#include "car_detection.hpp"
+#include "object_detection.hpp"
 
 using namespace InferenceEngine;
 

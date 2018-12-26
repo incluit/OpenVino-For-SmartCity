@@ -147,7 +147,7 @@ DEFINE_bool(no_show, false, no_show_processed_video);
 /// It is an optional parameter
 DEFINE_uint32(n_async, 1, async_depth_message);
 
-/// 
+///
 
 DEFINE_string(m_p, "", pedestrians_model_message);
 DEFINE_uint32(n_p, 1, num_batch_message);
