@@ -41,6 +41,7 @@
 
 #include <opencv2/opencv.hpp>
 #include "object_detection.hpp"
+#include "drawer.hpp"
 
 using namespace InferenceEngine;
 
@@ -575,6 +576,20 @@ int main(int argc, char *argv[]) {
         for(int fi = 0; fi < maxNumInputFrames; fi++) {
             inputFramePtrs.push(&inputFrames[fi]);
         }
+
+		//-----------------------Define regions of interest-----------------------------------------------------
+		RegionsOfInterest scene;
+
+		cap.read(scene.orig);
+		scene.out = scene.orig;
+        //Add check
+        cv::namedWindow("ImageDisplay",1);
+        cv::setMouseCallback("ImageDisplay", CallBackFunc, &scene);
+		DrawAreasOfInterest(&scene);
+		cv::destroyWindow("ImageDisplay");
+		cv::namedWindow("Result",1);
+		cv::imshow("Result", scene.out);
+		cv::waitKey();
 
         // ----------------------------Do inference-------------------------------------------------------------
         slog::info << "Start inference " << slog::endl;
