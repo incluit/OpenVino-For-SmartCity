@@ -15,9 +15,9 @@
 */
 
 /**
-* \brief The entry point for the Inference Engine interactive_Vehicle_detection sample application
-* \file object_detection_sample_ssd/main.cpp
-* \example object_detection_sample_ssd/main.cpp
+* \brief The entry point for the Inference Engine object_detection demo application
+* \file object_detection_demo_yolov3_async/main.cpp
+* \example object_detection_demo_yolov3_async/main.cpp
 */
 #include <gflags/gflags.h>
 #include <functional>
@@ -26,27 +26,30 @@
 #include <random>
 #include <memory>
 #include <chrono>
+#include <vector>
+#include <string>
 #include <algorithm>
 #include <iterator>
-#include <map>
-#include <string>
-#include <vector>
-#include <queue>
 
 #include <inference_engine.hpp>
 
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
+
+#include "object_detection.hpp"
+
 #include <ext_list.hpp>
 
 #include <opencv2/opencv.hpp>
-#include "object_detection.hpp"
 
 using namespace InferenceEngine;
 
-bool ParseAndCheckCommandLine(int argc, char *argv[]) {
-    // ---------------------------Parsing and validation of input args--------------------------------------
+#define yolo_scale_13 13
+#define yolo_scale_26 26
+#define yolo_scale_52 52
 
+bool ParseAndCheckCommandLine(int argc, char *argv[]) {
+    // ---------------------------Parsing and validating the input arguments--------------------------------------
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
@@ -61,917 +64,415 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     if (FLAGS_m.empty()) {
         throw std::logic_error("Parameter -m is not set");
     }
-
-    if (FLAGS_auto_resize) {
-    	slog::warn << "auto_resize=1, forcing all batch sizes to 1" << slog::endl;
-    	FLAGS_n = 1;
-    	FLAGS_n_va = 1;
-    }
-	
-    if (FLAGS_n_async < 1) {
-        throw std::logic_error("Parameter -n_async must be >= 1");
-    }
-
     return true;
 }
 
-// -------------------------Generic routines for detection networks-------------------------------------------------
-
-struct BaseDetection {
-    ExecutableNetwork net;
-    InferenceEngine::InferencePlugin * plugin;
-
-    std::queue<InferRequest::Ptr> submittedRequests;
-    std::vector<InferRequest::Ptr> requests;
-    int inputRequestIdx;
-    InferRequest::Ptr outputRequest;
-    std::string & commandLineFlag;
-    std::string topoName;
-    int maxBatch;
-    int maxSubmittedRequests;
-
-    BaseDetection(std::string &commandLineFlag, std::string topoName, int maxBatch)
-        : commandLineFlag(commandLineFlag), topoName(topoName), maxBatch(maxBatch), maxSubmittedRequests(FLAGS_n_async),
-		  plugin(nullptr), inputRequestIdx(0), outputRequest(nullptr), requests(FLAGS_n_async) {}
-
-    virtual ~BaseDetection() {}
-
-    ExecutableNetwork* operator ->() {
-        return &net;
+void FrameToBlob(const cv::Mat &frame, InferRequest::Ptr &inferRequest, const std::string &inputName) {
+    if (FLAGS_auto_resize) {
+        /* Just set input blob containing read image. Resize and layout conversion will be done automatically */
+        inferRequest->SetBlob(inputName, wrapMat2Blob(frame));
+    } else {
+        /* Resize and copy data from the image to the input blob */
+        Blob::Ptr frameBlob = inferRequest->GetBlob(inputName);
+        matU8ToBlob<uint8_t>(frame, frameBlob);
     }
-    virtual InferenceEngine::CNNNetwork read()  = 0;
+}
 
-    virtual void submitRequest() {
-        if (!enabled() || nullptr == requests[inputRequestIdx]) return;
-        requests[inputRequestIdx]->StartAsync();
-        submittedRequests.push(requests[inputRequestIdx]);
-        inputRequestIdx++;
-        if (inputRequestIdx >= maxSubmittedRequests) {
-        	inputRequestIdx = 0;
-        }
+static int EntryIndex(int side, int lcoords, int lclasses, int location, int entry) {
+    int n = location / (side * side);
+    int loc = location % (side * side);
+    return n * side * side * (lcoords + lclasses + 1) + entry * side * side + loc;
+}
+
+struct DetectionObject {
+    int xmin, ymin, xmax, ymax, class_id;
+    float confidence;
+
+    DetectionObject(double x, double y, double h, double w, int class_id, float confidence, float h_scale, float w_scale) {
+        this->xmin = static_cast<int>((x - w / 2) * w_scale);
+        this->ymin = static_cast<int>((y - h / 2) * h_scale);
+        this->xmax = static_cast<int>(this->xmin + w * w_scale);
+        this->ymax = static_cast<int>(this->ymin + h * h_scale);
+        this->class_id = class_id;
+        this->confidence = confidence;
     }
 
-    // call before wait() to check status
-    bool resultIsReady() {
-    	if (submittedRequests.size() < 1) return false;
-    	StatusCode state = submittedRequests.front()->Wait(IInferRequest::WaitMode::STATUS_ONLY);
-		return (StatusCode::OK == state);
-    }
-
-    virtual void wait() {
-        if (!enabled()) return;
-
-        // get next request to wait on
-        if (nullptr == outputRequest) {
-        	if (submittedRequests.size() < 1) return;
-        	outputRequest = submittedRequests.front();
-        	submittedRequests.pop();
-        }
-
-        outputRequest->Wait(IInferRequest::WaitMode::RESULT_READY);
-    }
-
-    bool requestsInProcess() {
-    	// request is in progress if number of outstanding requests is > 0
-    	return (submittedRequests.size() > 0);
-    }
-
-    bool canSubmitRequest() {
-    	// ready when another request can be submitted
-    	return (submittedRequests.size() < maxSubmittedRequests);
-    }
-
-    mutable bool enablingChecked = false;
-    mutable bool _enabled = false;
-
-    bool enabled() const  {
-        if (!enablingChecked) {
-            _enabled = !commandLineFlag.empty();
-            if (!_enabled) {
-                slog::info << topoName << " DISABLED" << slog::endl;
-            }
-            enablingChecked = true;
-        }
-        return _enabled;
-    }
-    void printPerformanceCounts() {
-        if (!enabled()) {
-            return;
-        }
-        // use last request used
-        int idx = std::max(0, inputRequestIdx-1);
-        slog::info << "Performance counts for " << topoName << slog::endl << slog::endl;
-        ::printPerformanceCounts(requests[idx]->GetPerformanceCounts(), std::cout, false);
+    bool operator<(const DetectionObject &s2) const {
+        return this->confidence < s2.confidence;
     }
 };
 
-struct VehicleDetection : BaseDetection{
-    std::string input;
-    std::string output;
-    int maxProposalCount = 0;
-    int objectSize = 0;
-    int enquedFrames = 0;
-    float width = 0;
-    float height = 0;
-    using BaseDetection::operator=;
+double IntersectionOverUnion(const DetectionObject &box_1, const DetectionObject &box_2) {
+    double width_of_overlap_area = fmin(box_1.xmax, box_2.xmax) - fmax(box_1.xmin, box_2.xmin);
+    double height_of_overlap_area = fmin(box_1.ymax, box_2.ymax) - fmax(box_1.ymin, box_2.ymin);
+    double area_of_overlap;
+    if (width_of_overlap_area < 0 || height_of_overlap_area < 0)
+        area_of_overlap = 0;
+    else
+        area_of_overlap = width_of_overlap_area * height_of_overlap_area;
+    double box_1_area = (box_1.ymax - box_1.ymin)  * (box_1.xmax - box_1.xmin);
+    double box_2_area = (box_2.ymax - box_2.ymin)  * (box_2.xmax - box_2.xmin);
+    double area_of_union = box_1_area + box_2_area - area_of_overlap;
+    return area_of_overlap / area_of_union;
+}
 
-    struct Result {
-    	int batchIndex;
-        int label;
-        float confidence;
-        cv::Rect location;
-    };
-
-    std::vector<Result> results;
-
-    void submitRequest() override {
-        if (!enquedFrames) return;
-        enquedFrames = 0;
-        BaseDetection::submitRequest();
+void ParseYOLOV3Output(const CNNLayerPtr &layer, const Blob::Ptr &blob, const unsigned long resized_im_h,
+                       const unsigned long resized_im_w, const unsigned long original_im_h,
+                       const unsigned long original_im_w,
+                       const double threshold, std::vector<DetectionObject> &objects) {
+    // --------------------------- Validating output parameters -------------------------------------
+    if (layer->type != "RegionYolo")
+        throw std::runtime_error("Invalid output type: " + layer->type + ". RegionYolo expected");
+    const int out_blob_h = static_cast<int>(blob->getTensorDesc().getDims()[2]);
+    const int out_blob_w = static_cast<int>(blob->getTensorDesc().getDims()[3]);
+    if (out_blob_h != out_blob_w)
+        throw std::runtime_error("Invalid size of output " + layer->name +
+        " It should be in NCHW layout and H should be equal to W. Current H = " + std::to_string(out_blob_h) +
+        ", current W = " + std::to_string(out_blob_h));
+    // --------------------------- Extracting layer parameters -------------------------------------
+    auto num = layer->GetParamAsInt("num");
+    try { num = layer->GetParamAsInts("mask").size(); } catch (...) {}
+    auto coords = layer->GetParamAsInt("coords");
+    auto classes = layer->GetParamAsInt("classes");
+    std::vector<float> anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0, 61.0, 62.0, 45.0, 59.0, 119.0, 116.0, 90.0,
+                                  156.0, 198.0, 373.0, 326.0};
+    try { anchors = layer->GetParamAsFloats("anchors"); } catch (...) {}
+    auto side = out_blob_h;
+    int anchor_offset = 0;
+    switch (side) {
+        case yolo_scale_13:
+            anchor_offset = 2 * 6;
+            break;
+        case yolo_scale_26:
+            anchor_offset = 2 * 3;
+            break;
+        case yolo_scale_52:
+            anchor_offset = 2 * 0;
+            break;
+        default:
+            throw std::runtime_error("Invalid output size");
     }
-
-    void enqueue(const cv::Mat &frame) {
-        if (!enabled()) return;
-
-        if (enquedFrames >= maxBatch) {
-            slog::warn << "Number of frames more than maximum(" << maxBatch << ") processed by Vehicles detector" << slog::endl;
-            return;
-        }
-
-        if (nullptr == requests[inputRequestIdx]) {
-        	requests[inputRequestIdx] = net.CreateInferRequestPtr();
-        }
-
-        width = frame.cols;
-        height = frame.rows;
-
-		InferenceEngine::Blob::Ptr inputBlob;
-        if (FLAGS_auto_resize) {
-            inputBlob = wrapMat2Blob(frame);
-            requests[inputRequestIdx]->SetBlob(input, inputBlob);
-        } else {
-			inputBlob = requests[inputRequestIdx]->GetBlob(input);
-			matU8ToBlob<uint8_t >(frame, inputBlob, enquedFrames);
-    	}
-        enquedFrames++;
-    }
-
-
-    VehicleDetection() : BaseDetection(FLAGS_m, "Vehicle Detection", FLAGS_n) {}
-    InferenceEngine::CNNNetwork read() override {
-        slog::info << "Loading network files for VehicleDetection" << slog::endl;
-        InferenceEngine::CNNNetReader netReader;
-        /** Read network model **/
-        netReader.ReadNetwork(FLAGS_m);
-        netReader.getNetwork().setBatchSize(maxBatch);
-        slog::info << "Batch size is set to " << netReader.getNetwork().getBatchSize() << " for Vehicle Detection" << slog::endl;
-
-        /** Extract model name and load it's weights **/
-        std::string binFileName = fileNameNoExt(FLAGS_m) + ".bin";
-        netReader.ReadWeights(binFileName);
-        // -----------------------------------------------------------------------------------------------------
-
-        /** SSD-based network should have one input and one output **/
-        // ---------------------------Check inputs ------------------------------------------------------
-        slog::info << "Checking Vehicle Detection inputs" << slog::endl;
-        InferenceEngine::InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
-        if (inputInfo.size() != 1) {
-            throw std::logic_error("Vehicle Detection network should have only one input");
-        }
-        auto& inputInfoFirst = inputInfo.begin()->second;
-        inputInfoFirst->setInputPrecision(Precision::U8);
-        
-		if (FLAGS_auto_resize) {
-	        // set resizing algorithm
-	        inputInfoFirst->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-			inputInfoFirst->getInputData()->setLayout(Layout::NHWC);
-		} else {
-			inputInfoFirst->getInputData()->setLayout(Layout::NCHW);
-		}
-
-        // -----------------------------------------------------------------------------------------------------
-
-        // ---------------------------Check outputs ------------------------------------------------------
-        slog::info << "Checking Vehicle Detection outputs" << slog::endl;
-        InferenceEngine::OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
-        if (outputInfo.size() != 1) {
-            throw std::logic_error("Vehicle Detection network should have only one output");
-        }
-        auto& _output = outputInfo.begin()->second;
-        const InferenceEngine::SizeVector outputDims = _output->dims;
-        output = outputInfo.begin()->first;
-        maxProposalCount = outputDims[1];
-        objectSize = outputDims[0];
-        if (objectSize != 7) {
-            throw std::logic_error("Output should have 7 as a last dimension");
-        }
-        if (outputDims.size() != 4) {
-            throw std::logic_error("Incorrect output dimensions for SSD");
-        }
-        _output->setPrecision(Precision::FP32);
-        _output->setLayout(Layout::NCHW);
-
-        slog::info << "Loading Vehicle Detection model to the "<< FLAGS_d << " plugin" << slog::endl;
-        input = inputInfo.begin()->first;
-        return netReader.getNetwork();
-    }
-
-    void fetchResults(int inputBatchSize) {
-        if (!enabled()) return;
-
-        if (nullptr == outputRequest) {
-        	return;
-        }
-
-        results.clear();
-
-        const float *detections = outputRequest->GetBlob(output)->buffer().as<float *>();
-        // pretty much regular SSD post-processing
-		for (int i = 0; i < maxProposalCount; i++) {
-			int proposalOffset = i * objectSize;
-			float image_id = detections[proposalOffset + 0];
-			Result r;
-			r.batchIndex = image_id;
-			r.label = static_cast<int>(detections[proposalOffset + 1]);
-			r.confidence = detections[proposalOffset + 2];
-			if (r.confidence <= FLAGS_t) {
-				continue;
-			}
-			r.location.x = detections[proposalOffset + 3] * width;
-			r.location.y = detections[proposalOffset + 4] * height;
-			r.location.width = detections[proposalOffset + 5] * width - r.location.x;
-			r.location.height = detections[proposalOffset + 6] * height - r.location.y;
-
-			if ((image_id < 0) || (image_id >= inputBatchSize)) {  // indicates end of detections
-				break;
-			}
-			if (FLAGS_r) {
-				std::cout << "[bi=" << r.batchIndex << "][" << i << "," << r.label << "] element, prob = " << r.confidence <<
-						  "    (" << r.location.x << "," << r.location.y << ")-(" << r.location.width << ","
-						  << r.location.height << ")"
-						  << ((r.confidence > FLAGS_t) ? " WILL BE RENDERED!" : "") << std::endl;
-			}
-			results.push_back(r);
-		}
-		// done with request
-		outputRequest = nullptr;
-    }
-};
-
-struct PedestriansDetection : BaseDetection{
-    std::string input;
-    std::string output;
-    int maxProposalCount = 0;
-    int objectSize = 0;
-    int enquedFrames = 0;
-    float width = 0;
-    float height = 0;
-    using BaseDetection::operator=;
-
-    struct Result {
-        int batchIndex;
-        int label;
-        float confidence;
-        cv::Rect location;
-    };
-
-    std::vector<Result> results;
-
-    void submitRequest() override {
-        if (!enquedFrames) return;
-        enquedFrames = 0;
-        BaseDetection::submitRequest();
-    }
-
-    void enqueue(const cv::Mat &frame) {
-        if (!enabled()) return;
-
-        if (enquedFrames >= maxBatch) {
-            slog::warn << "Number of frames more than maximum(" << maxBatch << ") processed by Pedestrians detector" << slog::endl;
-            return;
-        }
-
-        if (nullptr == requests[inputRequestIdx]) {
-            requests[inputRequestIdx] = net.CreateInferRequestPtr();
-        }
-
-        width = frame.cols;
-        height = frame.rows;
-
-        InferenceEngine::Blob::Ptr inputBlob;
-        if (FLAGS_auto_resize) {
-            inputBlob = wrapMat2Blob(frame);
-            requests[inputRequestIdx]->SetBlob(input, inputBlob);
-        } else {
-            inputBlob = requests[inputRequestIdx]->GetBlob(input);
-            matU8ToBlob<uint8_t >(frame, inputBlob, enquedFrames);
-        }
-        enquedFrames++;
-    }
-
-
-    PedestriansDetection() : BaseDetection(FLAGS_m_p, "Pedestrians Detection", FLAGS_n_p) {}
-    InferenceEngine::CNNNetwork read() override {
-        slog::info << "Loading network files for Pedestrians Detection" << slog::endl;
-        InferenceEngine::CNNNetReader netReader;
-        /** Read network model **/
-        netReader.ReadNetwork(FLAGS_m_p);
-        netReader.getNetwork().setBatchSize(maxBatch);
-        slog::info << "Batch size is set to " << netReader.getNetwork().getBatchSize() << " for Pedestrians Detection" << slog::endl;
-
-        /** Extract model name and load it's weights **/
-        std::string binFileName = fileNameNoExt(FLAGS_m_p) + ".bin";
-        netReader.ReadWeights(binFileName);
-        // -----------------------------------------------------------------------------------------------------
-
-        /** SSD-based network should have one input and one output **/
-        // ---------------------------Check inputs ------------------------------------------------------
-        slog::info << "Checking Pedestrians Detection inputs" << slog::endl;
-        InferenceEngine::InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
-        if (inputInfo.size() != 1) {
-            throw std::logic_error("Pedestrians Detection network should have only one input");
-        }
-        auto& inputInfoFirst = inputInfo.begin()->second;
-        inputInfoFirst->setInputPrecision(Precision::U8);
-        
-        if (FLAGS_auto_resize) {
-            // set resizing algorithm
-            inputInfoFirst->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-            inputInfoFirst->getInputData()->setLayout(Layout::NHWC);
-        } else {
-            inputInfoFirst->getInputData()->setLayout(Layout::NCHW);
-        }
-
-        // -----------------------------------------------------------------------------------------------------
-
-        // ---------------------------Check outputs ------------------------------------------------------
-        slog::info << "Checking Pedestrians Detection outputs" << slog::endl;
-        InferenceEngine::OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
-        if (outputInfo.size() != 1) {
-            throw std::logic_error("Pedestrians Detection network should have only one output");
-        }
-        auto& _output = outputInfo.begin()->second;
-        const InferenceEngine::SizeVector outputDims = _output->dims;
-        output = outputInfo.begin()->first;
-        maxProposalCount = outputDims[1];
-        objectSize = outputDims[0];
-        if (objectSize != 7) {
-            throw std::logic_error("Output should have 7 as a last dimension");
-        }
-        if (outputDims.size() != 4) {
-            throw std::logic_error("Incorrect output dimensions for SSD");
-        }
-        _output->setPrecision(Precision::FP32);
-        _output->setLayout(Layout::NCHW);
-
-        slog::info << "Loading Vehicle Detection model to the "<< FLAGS_d_p << " plugin" << slog::endl;
-        input = inputInfo.begin()->first;
-        return netReader.getNetwork();
-    }
-
-    void fetchResults(int inputBatchSize) {
-        if (!enabled()) return;
-
-        if (nullptr == outputRequest) {
-            return;
-        }
-
-        results.clear();
-
-        const float *detections = outputRequest->GetBlob(output)->buffer().as<float *>();
-        // pretty much regular SSD post-processing
-        for (int i = 0; i < maxProposalCount; i++) {
-            int proposalOffset = i * objectSize;
-            float image_id = detections[proposalOffset + 0];
-            Result r;
-            r.batchIndex = image_id;
-            r.label = static_cast<int>(detections[proposalOffset + 1]);
-            r.confidence = detections[proposalOffset + 2];
-            if (r.confidence <= FLAGS_t) {
+    auto side_square = side * side;
+    const float *output_blob = blob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
+    // --------------------------- Parsing YOLO Region output -------------------------------------
+    for (int i = 0; i < side_square; ++i) {
+        int row = i / side;
+        int col = i % side;
+        for (int n = 0; n < num; ++n) {
+            int obj_index = EntryIndex(side, coords, classes, n * side * side + i, coords);
+            int box_index = EntryIndex(side, coords, classes, n * side * side + i, 0);
+            float scale = output_blob[obj_index];
+            if (scale < threshold)
                 continue;
+            double x = (col + output_blob[box_index + 0 * side_square]) / side * resized_im_w;
+            double y = (row + output_blob[box_index + 1 * side_square]) / side * resized_im_h;
+            double height = std::exp(output_blob[box_index + 3 * side_square]) * anchors[anchor_offset + 2 * n + 1];
+            double width = std::exp(output_blob[box_index + 2 * side_square]) * anchors[anchor_offset + 2 * n];
+            for (int j = 0; j < classes; ++j) {
+                int class_index = EntryIndex(side, coords, classes, n * side_square + i, coords + 1 + j);
+                float prob = scale * output_blob[class_index];
+                if (prob < threshold)
+                    continue;
+                DetectionObject obj(x, y, height, width, j, prob,
+                        static_cast<float>(original_im_h) / static_cast<float>(resized_im_h),
+                        static_cast<float>(original_im_w) / static_cast<float>(resized_im_w));
+                objects.push_back(obj);
             }
-            r.location.x = detections[proposalOffset + 3] * width;
-            r.location.y = detections[proposalOffset + 4] * height;
-            r.location.width = detections[proposalOffset + 5] * width - r.location.x;
-            r.location.height = detections[proposalOffset + 6] * height - r.location.y;
-
-            if ((image_id < 0) || (image_id >= inputBatchSize)) {  // indicates end of detections
-                break;
-            }
-            if (FLAGS_r) {
-                std::cout << "[bi=" << r.batchIndex << "][" << i << "," << r.label << "] element, prob = " << r.confidence <<
-                          "    (" << r.location.x << "," << r.location.y << ")-(" << r.location.width << ","
-                          << r.location.height << ")"
-                          << ((r.confidence > FLAGS_t) ? " WILL BE RENDERED!" : "") << std::endl;
-            }
-            results.push_back(r);
-        }
-        // done with request
-        outputRequest = nullptr;
-    }
-};
-
-struct Load {
-    BaseDetection& detector;
-    explicit Load(BaseDetection& detector) : detector(detector) { }
-
-    void into(InferenceEngine::InferencePlugin & plg, bool enable_dynamic_batch = false) const {
-        if (detector.enabled()) {
-            std::map<std::string, std::string> config;
-            // if specified, enable Dynamic Batching
-            if (enable_dynamic_batch) {
-                config[PluginConfigParams::KEY_DYN_BATCH_ENABLED] = PluginConfigParams::YES;
-            }
-            detector.net = plg.LoadNetwork(detector.read(), config);
-            detector.plugin = &plg;
         }
     }
-};
+}
+
 
 int main(int argc, char *argv[]) {
     try {
-        /** This sample covers 2 certain topologies and cannot be generalized **/
-        std::cout << "InferenceEngine: " << InferenceEngine::GetInferenceEngineVersion() << std::endl;
+        /** This demo covers a certain topology and cannot be generalized for any object detection **/
+        std::cout << "InferenceEngine: " << GetInferenceEngineVersion() << std::endl;
 
-        // ---------------------------Parsing and validation of input args--------------------------------------
+        // ------------------------------ Parsing and validating the input arguments ---------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
 
-        // -----------------------------Read input -----------------------------------------------------
         slog::info << "Reading input" << slog::endl;
         cv::VideoCapture cap;
-        const bool isCamera = FLAGS_i == "cam";
-        if (!(FLAGS_i == "cam" ? cap.open(0) : cap.open(FLAGS_i))) {
+        if (!((FLAGS_i == "cam") ? cap.open(0) : cap.open(FLAGS_i.c_str()))) {
             throw std::logic_error("Cannot open input file or camera: " + FLAGS_i);
         }
+
+        // read input (video) frame
+        cv::Mat frame;  cap >> frame;
+        cv::Mat next_frame;
+
         const size_t width  = (size_t) cap.get(cv::CAP_PROP_FRAME_WIDTH);
         const size_t height = (size_t) cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 
-        // ---------------------Load plugins for inference engine------------------------------------------------
-        std::map<std::string, InferencePlugin> pluginsForDevices;
-        std::vector<std::pair<std::string, std::string>> cmdOptions = {
-            {FLAGS_d, FLAGS_m}, {FLAGS_d_p, FLAGS_m_p}
-        };
+        if (!cap.grab()) {
+            throw std::logic_error("This demo supports only video (or camera) inputs !!! "
+                                   "Failed to get next frame from the " + FLAGS_i);
+        }
+        // -----------------------------------------------------------------------------------------------------
 
-        const bool runningAsync = (FLAGS_n_async > 1);
-        slog::info << "FLAGS_n_async=" << FLAGS_n_async << ", inference pipeline will operate "
-                << (runningAsync ? "asynchronously" : "synchronously")
-                << slog::endl;
+        // --------------------------- 1. Load Plugin for inference engine -------------------------------------
+        slog::info << "Loading plugin" << slog::endl;
+        InferencePlugin plugin = PluginDispatcher({"../../../lib/intel64", ""}).getPluginByDevice(FLAGS_d);
+        printPluginVersion(plugin, std::cout);
 
-        VehicleDetection VehicleDetection;
-        PedestriansDetection PedestriansDetection;
-        
-        for (auto && option : cmdOptions) {
-            auto deviceName = option.first;
-            auto networkName = option.second;
+        /**Loading extensions to the plugin **/
 
-            if (deviceName == "" || networkName == "") {
-                continue;
-            }
-
-            if (pluginsForDevices.find(deviceName) != pluginsForDevices.end()) {
-                continue;
-            }
-            slog::info << "Loading plugin " << deviceName << slog::endl;
-            InferencePlugin plugin = PluginDispatcher({"../../../lib/intel64", ""}).getPluginByDevice(deviceName);
-
-            /** Printing plugin version **/
-            printPluginVersion(plugin, std::cout);
-
-            /** Load extensions for the CPU plugin **/
-            if ((deviceName.find("CPU") != std::string::npos)) {
-                plugin.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>());
-
-                if (!FLAGS_l.empty()) {
-                    // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
-                    auto extension_ptr = make_so_pointer<IExtension>(FLAGS_l);
-                    plugin.AddExtension(extension_ptr);
-                }
-            } else if (!FLAGS_c.empty()) {
-                // Load Extensions for other plugins not CPU
-                plugin.SetConfig({ { PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c } });
-            }
-
-            pluginsForDevices[deviceName] = plugin;
+        /** Loading default extensions **/
+        if (FLAGS_d.find("CPU") != std::string::npos) {
+            /**
+             * cpu_extensions library is compiled from the "extension" folder containing
+             * custom CPU layer implementations.
+            **/
+            plugin.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>());
         }
 
-        /** Per layer metrics **/
+        if (!FLAGS_l.empty()) {
+            // CPU extensions are loaded as a shared library and passed as a pointer to the base extension
+            IExtensionPtr extension_ptr = make_so_pointer<IExtension>(FLAGS_l.c_str());
+            plugin.AddExtension(extension_ptr);
+        }
+        if (!FLAGS_c.empty()) {
+            // GPU extensions are loaded from an .xml description and OpenCL kernel files
+            plugin.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}});
+        }
+
+        /** Per-layer metrics **/
         if (FLAGS_pc) {
-            for (auto && plugin : pluginsForDevices) {
-                plugin.second.SetConfig({{PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES}});
-            }
+            plugin.SetConfig({ { PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES } });
         }
+        // -----------------------------------------------------------------------------------------------------
 
-        // --------------------Load networks (Generated xml/bin files)-------------------------------------------
-        Load(VehicleDetection).into(pluginsForDevices[FLAGS_d], false);
-        Load(PedestriansDetection).into(pluginsForDevices[FLAGS_d_p], false);
+        // --------------- 2. Reading the IR generated by the Model Optimizer (.xml and .bin files) ------------
+        slog::info << "Loading network files" << slog::endl;
+        CNNNetReader netReader;
+        /** Reading network model **/
+        netReader.ReadNetwork(FLAGS_m);
+        /** Setting batch size to 1 **/
+        slog::info << "Batch size is forced to  1." << slog::endl;
+        netReader.getNetwork().setBatchSize(1);
+        /** Extracting the model name and loading its weights **/
+        std::string binFileName = fileNameNoExt(FLAGS_m) + ".bin";
+        netReader.ReadWeights(binFileName);
+        /** Reading labels (if specified) **/
+        std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
+        std::vector<std::string> labels;
+        std::ifstream inputFile(labelFileName);
+        std::copy(std::istream_iterator<std::string>(inputFile),
+                  std::istream_iterator<std::string>(),
+                  std::back_inserter(labels));
+        // -----------------------------------------------------------------------------------------------------
 
-        // read input (video) frames, need to keep multiple frames stored
-        //  for batching and for when using asynchronous API.
-        const int maxNumInputFrames = FLAGS_n_async * VehicleDetection.maxBatch + 1;  // +1 to avoid overwrite
-        cv::Mat* inputFrames = new cv::Mat[maxNumInputFrames];
-        std::queue<cv::Mat*> inputFramePtrs;
-        for(int fi = 0; fi < maxNumInputFrames; fi++) {
-            inputFramePtrs.push(&inputFrames[fi]);
+        /** YOLOV3-based network should have one input and three output **/
+        // --------------------------- 3. Configuring input and output -----------------------------------------
+        // --------------------------------- Preparing input blobs ---------------------------------------------
+        slog::info << "Checking that the inputs are as the demo expects" << slog::endl;
+        InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
+        if (inputInfo.size() != 1) {
+            throw std::logic_error("This demo accepts networks that have only one input");
         }
+        InputInfo::Ptr& input = inputInfo.begin()->second;
+        auto inputName = inputInfo.begin()->first;
+        input->setPrecision(Precision::U8);
+        if (FLAGS_auto_resize) {
+            input->getPreProcess().setResizeAlgorithm(ResizeAlgorithm::RESIZE_BILINEAR);
+            input->getInputData()->setLayout(Layout::NHWC);
+        } else {
+            input->getInputData()->setLayout(Layout::NCHW);
+        }
+        // --------------------------------- Preparing output blobs -------------------------------------------
+        slog::info << "Checking that the outputs are as the demo expects" << slog::endl;
+        OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
+        if (outputInfo.size() != 3) {
+            throw std::logic_error("This demo only accepts networks with three layers");
+        }
+        for (auto &output : outputInfo) {
+            output.second->setPrecision(Precision::FP32);
+            output.second->setLayout(Layout::NCHW);
+        }
+        // -----------------------------------------------------------------------------------------------------
 
-        // ----------------------------Do inference-------------------------------------------------------------
+        // --------------------------- 4. Loading model to the plugin ------------------------------------------
+        slog::info << "Loading model to the plugin" << slog::endl;
+        ExecutableNetwork network = plugin.LoadNetwork(netReader.getNetwork(), {});
+
+        // -----------------------------------------------------------------------------------------------------
+
+        // --------------------------- 5. Creating infer request -----------------------------------------------
+        InferRequest::Ptr async_infer_request_next = network.CreateInferRequestPtr();
+        InferRequest::Ptr async_infer_request_curr = network.CreateInferRequestPtr();
+        // -----------------------------------------------------------------------------------------------------
+
+        // --------------------------- 6. Doing inference ------------------------------------------------------
         slog::info << "Start inference " << slog::endl;
+
+        bool isLastFrame = false;
+        bool isAsyncMode = false;  // execution is always started using SYNC mode
+        bool isModeChanged = false;  // set to TRUE when execution mode is changed (SYNC<->ASYNC)
+
         typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
-        std::chrono::high_resolution_clock::time_point wallclockStart, wallclockEnd;
+        auto total_t0 = std::chrono::high_resolution_clock::now();
+        auto wallclock = std::chrono::high_resolution_clock::now();
+        double ocv_decode_time = 0, ocv_render_time = 0;
 
-        bool firstFrame = true;
-        bool haveMoreFrames = true;
-        bool done = false;
-        int numFrames = 0;
-        int numSyncFrames = 0;
-        int totalFrames = 0;
-        double ocv_decode_time_vehicle = 0, ocv_decode_time_pedestrians = 0 , ocv_render_time = 0;
-        cv::Mat* lastOutputFrame;
-
-        // structure to hold frame and associated data which are passed along
-        //  from stage to stage for each to do its work
-        typedef struct {
-            std::vector<cv::Mat*> batchOfInputFrames;
-            bool vehicleDetectionDone;
-            bool pedestriansDetectionDone;
-            cv::Mat* outputFrame;
-            std::vector<cv::Rect> vehicleLocations;
-            int numVehiclesInferred;
-            std::vector<cv::Rect> pedestriansLocations;
-            int numPedestriansInferred;
-        } FramePipelineFifoItem;
-        typedef std::queue<FramePipelineFifoItem> FramePipelineFifo;
-        // Queues to pass information across pipeline stages
-        FramePipelineFifo pipeS0toS1Fifo;
-        FramePipelineFifo pipeS0toS2Fifo;
-        FramePipelineFifo pipeS1toS2Fifo;
-        FramePipelineFifo pipeS2toS3Fifo;
-        FramePipelineFifo pipeS3toS4Fifo;
-        FramePipelineFifo pipeS1toS4Fifo;
-
-        wallclockStart = std::chrono::high_resolution_clock::now();
-        /** Start inference & calc performance **/
-        do {
-            ms detection_time;
-            std::chrono::high_resolution_clock::time_point t0,t1;
-
-            /* *** Pipeline Stage 0: Prepare and Start Inferring a Batch of Frames *** */
-            // if there are more frames to do and a request available, then prepare and start batch
-            if (haveMoreFrames && (inputFramePtrs.size() >= VehicleDetection.maxBatch) && VehicleDetection.canSubmitRequest()) {
-                // prepare a batch of frames
-                //std::cout << "STAGE 0.1 - OK"  << std::endl;
-                FramePipelineFifoItem ps0s1i;
-                for(numFrames = 0; numFrames < VehicleDetection.maxBatch; numFrames++) {
-                    // read in a frame
-                    cv::Mat* curFrame = inputFramePtrs.front();
-                    inputFramePtrs.pop();
-                    haveMoreFrames = cap.read(*curFrame);
-                    if (!haveMoreFrames) {
-                        break;
-                    }
-
-                    totalFrames++;
-
-                    t0 = std::chrono::high_resolution_clock::now();
-                    VehicleDetection.enqueue(*curFrame);
-                    t1 = std::chrono::high_resolution_clock::now();
-                    ocv_decode_time_vehicle += std::chrono::duration_cast<ms>(t1 - t0).count();
-
-                    // queue frame for next pipeline stage
-                    ps0s1i.batchOfInputFrames.push_back(curFrame);
-
-                    if (firstFrame && !FLAGS_no_show) {
-                        slog::info << "Press 's' key to save a snapshot, press any other key to stop" << slog::endl;
-                    }
-
-                    firstFrame = false;
-                }
-
-                // ----------------------------Run Vehicle detection inference------------------------------------------
-                // if there are frames to be processed, then submit the request
-                if (numFrames > 0) {
-                    numSyncFrames = numFrames;
-                    // start request
-                    t0 = std::chrono::high_resolution_clock::now();
-                    // start inference
-                    VehicleDetection.submitRequest();
-                    // queue data for next pipeline stage
-                    pipeS0toS1Fifo.push(ps0s1i);
-                    pipeS0toS2Fifo.push(ps0s1i);
+        while (true) {
+            auto t0 = std::chrono::high_resolution_clock::now();
+            // Here is the first asynchronous point:
+            // in the Async mode, we capture frame to populate the NEXT infer request
+            // in the regular mode, we capture frame to the CURRENT infer request
+            if (!cap.read(next_frame)) {
+                if (next_frame.empty()) {
+                    isLastFrame = true;  // end of video file
+                } else {
+                    throw std::logic_error("Failed to get frame from cv::VideoCapture");
                 }
             }
+            if (isAsyncMode) {
+                if (isModeChanged) {
+                    FrameToBlob(frame, async_infer_request_curr, inputName);
+                }
+                if (!isLastFrame) {
+                    FrameToBlob(next_frame, async_infer_request_next, inputName);
+                }
+            } else if (!isModeChanged) {
+                FrameToBlob(frame, async_infer_request_curr, inputName);
+            }
+            auto t1 = std::chrono::high_resolution_clock::now();
+            ocv_decode_time = std::chrono::duration_cast<ms>(t1 - t0).count();
 
-            /* *** Pipeline Stage 1: Process Vehicles Inference Results *** */
-            // sync: wait for results if a request was just submitted
-            // async: if results are ready, then fetch and process in next stage of pipeline
-            if ((!runningAsync && VehicleDetection.requestsInProcess()) || VehicleDetection.resultIsReady()) {
-                // wait for results, async will be ready
-                //std::cout << "STAGE 1.1 - OK"  << std::endl;
+            t0 = std::chrono::high_resolution_clock::now();
+            // Main sync point:
+            // in the true Async mode, we start the NEXT infer request while waiting for the CURRENT to complete
+            // in the regular mode, we start the CURRENT request and wait for its completion
+            if (isAsyncMode) {
+                if (isModeChanged) {
+                    async_infer_request_curr->StartAsync();
+                }
+                if (!isLastFrame) {
+                    async_infer_request_next->StartAsync();
+                }
+            } else if (!isModeChanged) {
+                async_infer_request_curr->StartAsync();
+            }
 
-                VehicleDetection.wait();
+            if (OK == async_infer_request_curr->Wait(IInferRequest::WaitMode::RESULT_READY)) {
                 t1 = std::chrono::high_resolution_clock::now();
-                detection_time = std::chrono::duration_cast<ms>(t1 - t0);
+                ms detection = std::chrono::duration_cast<ms>(t1 - t0);
 
-                // get associated data from last pipeline stage to use with results
-                FramePipelineFifoItem ps0s1i = pipeS0toS1Fifo.front();
-                pipeS0toS1Fifo.pop();
-                // parse inference results internally (e.g. apply a threshold, etc)
-                VehicleDetection.fetchResults(ps0s1i.batchOfInputFrames.size());
-
-                // prepare a FramePipelineFifoItem for each batched frame to get its detection results
-                std::vector<FramePipelineFifoItem> batchedFifoItems;
-                for (auto && bFrame : ps0s1i.batchOfInputFrames) {
-                    FramePipelineFifoItem fpfi;
-                    fpfi.outputFrame = bFrame;
-                    batchedFifoItems.push_back(fpfi);
-                }
-
-                // store results for next pipeline stage
-                for (auto && result : VehicleDetection.results) {
-                    FramePipelineFifoItem& fpfi = batchedFifoItems[result.batchIndex];
-                    fpfi.vehicleLocations.push_back(result.location);
-                }
-
-                // done with results, clear them
-                VehicleDetection.results.clear();
-
-                // queue up output for next pipeline stage to process
-                for (auto && item : batchedFifoItems) {
-                    item.numVehiclesInferred = 0;
-                    item.vehicleDetectionDone = true;
-                    item.pedestriansDetectionDone = false;
-                    pipeS1toS4Fifo.push(item);
-                }
-            }
-
-            /* *** Pipeline Stage 2: Start Inferring Vehicle Attributes *** */
-            // ----------------------------Process the results down the pipeline---------------------------------
-            ms AttribsNetworkTime(0);
-            if (PedestriansDetection.enabled()) {
-                if (!pipeS0toS2Fifo.empty() && PedestriansDetection.canSubmitRequest()) {
-                    //std::cout << "STAGE 2.1 - OK"  << std::endl;
-                    // grab reference to first item in FIFO, but do not pop until done inferring all vehicles in it
-                    FramePipelineFifoItem& ps0s2i = pipeS0toS2Fifo.front();
-                    for(numFrames = 0; numFrames < PedestriansDetection.maxBatch; numFrames++) {
-                        // read in a frame
-                        for (auto && bFrame : ps0s2i.batchOfInputFrames) {
-                            cv::Mat* curFrame = bFrame;
-
-                            t0 = std::chrono::high_resolution_clock::now();
-                            PedestriansDetection.enqueue(*curFrame);
-                            t1 = std::chrono::high_resolution_clock::now();
-                            ocv_decode_time_pedestrians += std::chrono::duration_cast<ms>(t1 - t0).count();
-
-                        }    
-                    }
-
-                    // ----------------------------Run Pedestrians detection inference------------------------------------------
-                    // if there are frames to be processed, then submit the request
-                    if (numFrames > 0) {
-
-
-                        numSyncFrames = numFrames;
-                        // start request
-                        t0 = std::chrono::high_resolution_clock::now();
-                        // start inference
-                        PedestriansDetection.submitRequest();
-
-                        // queue data for next pipeline stage
-                        pipeS2toS3Fifo.push(ps0s2i);
-                        pipeS0toS2Fifo.pop();
-                    }
-                }
-            } else {
-                // not running vehicle attributes, just pass along frames
-                if (!pipeS0toS2Fifo.empty()) {
-                    FramePipelineFifoItem fpfi = pipeS0toS2Fifo.front();
-                    pipeS0toS2Fifo.pop();
-                    fpfi.pedestriansDetectionDone = true;
-                    pipeS2toS3Fifo.push(fpfi);
-                }
-            }
-
-            /* *** Pipeline Stage 3: Process Vehicle Attribute Inference Results *** */
-            if (PedestriansDetection.enabled()) {
-                if (!pipeS2toS3Fifo.empty()) {
-                    //std::cout << "STAGE 3.1 - OK"  << std::endl;
-                    
-                    if ((!runningAsync && PedestriansDetection.requestsInProcess()) || PedestriansDetection.resultIsReady()) {
-                        // wait for results, async will be ready
-
-                        //std::cout << "STAGE 3.2 - OK"  << std::endl;
-
-                        PedestriansDetection.wait();
-                        t1 = std::chrono::high_resolution_clock::now();
-                        detection_time = std::chrono::duration_cast<ms>(t1 - t0);
-
-                        // get associated data from last pipeline stage to use with results
-                        FramePipelineFifoItem ps2s3i = pipeS2toS3Fifo.front();
-                        pipeS2toS3Fifo.pop();
-
-                        // parse inference results internally (e.g. apply a threshold, etc)
-                        PedestriansDetection.fetchResults(ps2s3i.batchOfInputFrames.size());
-
-                        // prepare a FramePipelineFifoItem for each batched frame to get its detection results
-                        std::vector<FramePipelineFifoItem> batchedFifoItems;
-                        for (auto && bFrame : ps2s3i.batchOfInputFrames) {
-                            FramePipelineFifoItem fpfi;
-                            fpfi.outputFrame = bFrame;
-                            batchedFifoItems.push_back(fpfi);
-                        }
-
-                        // store results for next pipeline stage
-                        for (auto && result : PedestriansDetection.results) {
-                            FramePipelineFifoItem& fpfi = batchedFifoItems[result.batchIndex];
-                           
-                            fpfi.pedestriansLocations.push_back(result.location);
-                        }
-
-                        // done with results, clear them
-                        PedestriansDetection.results.clear();
-
-                        // queue up output for next pipeline stage to process
-                        for (auto && item : batchedFifoItems) {
-                            item.batchOfInputFrames.clear(); // done with batch storage
-                            item.numPedestriansInferred = 0;
-                            item.pedestriansDetectionDone = true;
-                            pipeS3toS4Fifo.push(item);
-                        }
-                    }
-                }
-            } else {
-                // not running pedestrians locations, just pass along frames
-                if (!pipeS2toS3Fifo.empty()) {
-                    FramePipelineFifoItem fpfi = pipeS2toS3Fifo.front();
-                    pipeS2toS3Fifo.pop();
-                    fpfi.pedestriansDetectionDone = true;
-                    pipeS3toS4Fifo.push(fpfi);
-                }
-            }
-
-            /* *** Pipeline Stage 4: Render Results *** */
-            if (!pipeS3toS4Fifo.empty() && !pipeS1toS4Fifo.empty()) {
-                //std::cout << "STAGE 4.1 - OK"  << std::endl;
-
-                FramePipelineFifoItem ps3s4i = pipeS3toS4Fifo.front();
-                pipeS3toS4Fifo.pop();
-                FramePipelineFifoItem ps1s4i = pipeS1toS4Fifo.front();
-                pipeS1toS4Fifo.pop();
-
-                cv::Mat& outputFrame = *(ps3s4i.outputFrame);
-
-                // draw box around vehicles and license plates
-                for (auto && loc : ps1s4i.vehicleLocations) {
-                    cv::rectangle(outputFrame, loc, cv::Scalar(0, 255, 0), 2);
-                }
-                // draw box around license plates
-                for (auto && loc : ps3s4i.pedestriansLocations) {
-                    cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 2);
-                }
-
-                // label vehicle attributes
-                /*int numVehicles = ps3s4i.vehicleAttributes.size();
-                for(int vi = 0; vi < numVehicles; vi++) {
-                    VehicleAttribsDetection::Attributes& res = ps3s4i.vehicleAttributes[vi];
-                    cv::Rect vLoc = ps3s4i.vehicleLocations[vi];
-                    cv::putText(outputFrame,
-                                res.color,
-                                cv::Point2f(vLoc.x, vLoc.y + 15),
-                                cv::FONT_HERSHEY_COMPLEX_SMALL,
-                                0.8,
-                                cv::Scalar(255, 255, 255));
-                    cv::putText(outputFrame,
-                                res.type,
-                                cv::Point2f(vLoc.x, vLoc.y + 30),
-                                cv::FONT_HERSHEY_COMPLEX_SMALL,
-                                0.8,
-                                cv::Scalar(255, 255, 255));
-                    if (FLAGS_r) {
-                        std::cout << "Vehicle Attributes results:" << res.color << ";" << res.type << std::endl;
-                    }
-                }*/
-
-                // ----------------------------Execution statistics -----------------------------------------------------
-                std::ostringstream out,out1,out2;
-                if (VehicleDetection.maxBatch > 1) {
-                    out1 << "OpenCV cap/render (avg) Vehicles time: " << std::fixed << std::setprecision(2)
-                        << (ocv_decode_time_vehicle / numSyncFrames + ocv_render_time / totalFrames) << " ms";
-                } else {
-                    out1 << "OpenCV cap/render Vehicles time: " << std::fixed << std::setprecision(2)
-                        << (ocv_decode_time_vehicle + ocv_render_time) << " ms";
-                    ocv_render_time = 0;
-                }
-                if (PedestriansDetection.maxBatch > 1) {
-                    out2 << "OpenCV cap/render (avg) pedestrians time: " << std::fixed << std::setprecision(2)
-                        << (ocv_decode_time_pedestrians / numSyncFrames + ocv_render_time / totalFrames) << " ms";
-                } else {
-                    out2 << "OpenCV cap/render pedestrians time: " << std::fixed << std::setprecision(2)
-                        << (ocv_decode_time_pedestrians + ocv_render_time) << " ms";
-                    ocv_render_time = 0;
-                }
-                ocv_decode_time_pedestrians = 0;
-                ocv_decode_time_vehicle = 0;
-
-                cv::putText(outputFrame, out1.str(), cv::Point2f(0, 25), cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 0, 0));
-                cv::putText(outputFrame, out2.str(), cv::Point2f(0, 50), cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 255, 0));
-
-                // When running asynchronously, timing metrics are not accurate so do not display them
-                if (!runningAsync) {
-                    out.str("");
-                    out << "Vehicle detection time ";
-                    if (VehicleDetection.maxBatch > 1) {
-                        out << "(batch size = " << VehicleDetection.maxBatch << ") ";
-                    }
-                    out << ": " << std::fixed << std::setprecision(2) << detection_time.count()
-                        << " ms ("
-                        << 1000.f * numSyncFrames / detection_time.count() << " fps)";
-                    cv::putText(outputFrame, out.str(), cv::Point2f(0, 75), cv::FONT_HERSHEY_TRIPLEX, 0.5,
-                                cv::Scalar(255, 0, 0));
-
-                    /*if (VehicleAttribs.enabled() && AttribsInferred > 0) {
-                        float average_time = AttribsNetworkTime.count() / AttribsInferred;
-                        out.str("");
-                        out << "Vehicle Attribs time (averaged over " << AttribsInferred << " detections) :" << std::fixed
-                            << std::setprecision(2) << average_time << " ms " << "(" << 1000.f / average_time << " fps)";
-                        cv::putText(outputFrame, out.str(), cv::Point2f(0, 65), cv::FONT_HERSHEY_SIMPLEX, 0.5,
-                                    cv::Scalar(255, 0, 0));
-                    }*/
-                }
-
-                // -----------------------Display Results ---------------------------------------------
                 t0 = std::chrono::high_resolution_clock::now();
-                if (!FLAGS_no_show) {
-                    cv::imshow("Detection results", outputFrame);
-                    lastOutputFrame = &outputFrame;
-                }
-                t1 = std::chrono::high_resolution_clock::now();
-                ocv_render_time += std::chrono::duration_cast<ms>(t1 - t0).count();
+                ms wall = std::chrono::duration_cast<ms>(t0 - wallclock);
+                wallclock = t0;
 
-                // watch for keypress to stop or snapshot
-                int keyPressed;
-                if (-1 != (keyPressed = cv::waitKey(1)))
-                {
-                    if ('s' == keyPressed) {
-                        // save screen to output file
-                        slog::info << "Saving snapshot of image" << slog::endl;
-                        cv::imwrite("snapshot.bmp", outputFrame);
-                    } else {
-                        haveMoreFrames = false;
+                t0 = std::chrono::high_resolution_clock::now();
+                std::ostringstream out;
+                out << "OpenCV cap/render time: " << std::fixed << std::setprecision(2)
+                    << (ocv_decode_time + ocv_render_time) << " ms";
+                cv::putText(frame, out.str(), cv::Point2f(0, 25), cv::FONT_HERSHEY_TRIPLEX, 0.6, cv::Scalar(0, 255, 0));
+                out.str("");
+                out << "Wallclock time " << (isAsyncMode ? "(TRUE ASYNC):      " : "(SYNC, press Tab): ");
+                out << std::fixed << std::setprecision(2) << wall.count() << " ms (" << 1000.f / wall.count() << " fps)";
+                cv::putText(frame, out.str(), cv::Point2f(0, 50), cv::FONT_HERSHEY_TRIPLEX, 0.6, cv::Scalar(0, 0, 255));
+                if (!isAsyncMode) {  // In the true async mode, there is no way to measure detection time directly
+                    out.str("");
+                    out << "Detection time  : " << std::fixed << std::setprecision(2) << detection.count()
+                        << " ms ("
+                        << 1000.f / detection.count() << " fps)";
+                    cv::putText(frame, out.str(), cv::Point2f(0, 75), cv::FONT_HERSHEY_TRIPLEX, 0.6,
+                                cv::Scalar(255, 0, 0));
+                }
+
+                // ---------------------------Processing output blobs--------------------------------------------------
+                // Processing results of the CURRENT request
+                unsigned long resized_im_h = inputInfo.begin()->second.get()->getDims()[0];
+                unsigned long resized_im_w = inputInfo.begin()->second.get()->getDims()[1];
+                std::vector<DetectionObject> objects;
+                // Parsing outputs
+                for (auto &output : outputInfo) {
+                    auto output_name = output.first;
+                    CNNLayerPtr layer = netReader.getNetwork().getLayerByName(output_name.c_str());
+                    Blob::Ptr blob = async_infer_request_curr->GetBlob(output_name);
+                    ParseYOLOV3Output(layer, blob, resized_im_h, resized_im_w, height, width, FLAGS_t, objects);
+                }
+                // Filtering overlapping boxes
+                std::sort(objects.begin(), objects.end());
+                for (int i = 0; i < objects.size(); ++i) {
+                    if (objects[i].confidence == 0)
+                        continue;
+                    for (int j = i + 1; j < objects.size(); ++j)
+                        if (IntersectionOverUnion(objects[i], objects[j]) >= FLAGS_iou_t)
+                            objects[j].confidence = 0;
+                }
+                // Drawing boxes
+                for (auto &object : objects) {
+                    if (object.confidence < FLAGS_t)
+                        continue;
+                    auto label = object.class_id;
+                    float confidence = object.confidence;
+                    if (FLAGS_r) {
+                        std::cout << "[" << label << "] element, prob = " << confidence <<
+                                  "    (" << object.xmin << "," << object.ymin << ")-(" << object.xmax << "," << object.ymax << ")"
+                                  << ((confidence > FLAGS_t) ? " WILL BE RENDERED!" : "") << std::endl;
+                    }
+                    if (confidence > FLAGS_t) {
+                        /** Drawing only objects when >confidence_threshold probability **/
+                        std::ostringstream conf;
+                        conf << ":" << std::fixed << std::setprecision(3) << confidence;
+                        cv::putText(frame,
+                                (label < labels.size() ? labels[label] : std::string("label #") + std::to_string(label))
+                                    + conf.str(),
+                                    cv::Point2f(object.xmin, object.ymin - 5), cv::FONT_HERSHEY_COMPLEX_SMALL, 1,
+                                    cv::Scalar(0, 0, 255));
+                        cv::rectangle(frame, cv::Point2f(object.xmin, object.ymin), cv::Point2f(object.xmax, object.ymax), cv::Scalar(0, 0, 255));
                     }
                 }
+            }
+            cv::imshow("Detection results", frame);
 
-                // done with frame buffer, return to queue
-                inputFramePtrs.push(ps3s4i.outputFrame);
+            t1 = std::chrono::high_resolution_clock::now();
+            ocv_render_time = std::chrono::duration_cast<ms>(t1 - t0).count();
+
+            if (isLastFrame) {
+                break;
             }
 
-            // wait until break from key press after all pipeline stages have completed
-            done = !haveMoreFrames && pipeS0toS1Fifo.empty() && pipeS1toS2Fifo.empty() && pipeS2toS3Fifo.empty()
-                        && pipeS3toS4Fifo.empty() && pipeS0toS2Fifo.empty();
-            // end of file we just keep last image/frame displayed to let user check what was shown
-            if (done) {
-                // done processing, save time
-                wallclockEnd = std::chrono::high_resolution_clock::now();
-
-                if (!FLAGS_no_wait && !FLAGS_no_show) {
-                    slog::info << "Press 's' key to save a snapshot, press any other key to exit" << slog::endl;
-                    while (cv::waitKey(0) == 's') {
-                        // save screen to output file
-                        slog::info << "Saving snapshot of image" << slog::endl;
-                        cv::imwrite("snapshot.bmp", *lastOutputFrame);
-                    }
-                    haveMoreFrames = false;
-                    break;
-                }
+            if (isModeChanged) {
+                isModeChanged = false;
             }
-        } while(!done);
 
-        // calculate total run time
-        ms total_wallclock_time = std::chrono::duration_cast<ms>(wallclockEnd - wallclockStart);
 
-        // report loop time
-        slog::info << "     Total main-loop time:" << std::fixed << std::setprecision(2)
-                << total_wallclock_time.count() << " ms " <<  slog::endl;
-        slog::info << "           Total # frames:" << totalFrames <<  slog::endl;
-        float avgTimePerFrameMs = total_wallclock_time.count() / (float)totalFrames;
-        slog::info << "   Average time per frame:" << std::fixed << std::setprecision(2)
-                    << avgTimePerFrameMs << " ms "
-                    << "(" << 1000.0f / avgTimePerFrameMs << " fps)" << slog::endl;
+            // Final point:
+            // in the truly Async mode, we swap the NEXT and CURRENT requests for the next iteration
+            frame = next_frame;
+            next_frame = cv::Mat();
+            if (isAsyncMode) {
+                async_infer_request_curr.swap(async_infer_request_next);
+            }
 
-        // ---------------------------Some perf data--------------------------------------------------
-        if (FLAGS_pc) {
-            VehicleDetection.printPerformanceCounts();
+            const int key = cv::waitKey(1);
+            if (27 == key)  // Esc
+                break;
+            if (9 == key) {  // Tab
+                isAsyncMode ^= true;
+                isModeChanged = true;
+            }
         }
+        // -----------------------------------------------------------------------------------------------------
+        auto total_t1 = std::chrono::high_resolution_clock::now();
+        ms total = std::chrono::duration_cast<ms>(total_t1 - total_t0);
+        std::cout << "Total Inference time: " << total.count() << std::endl;
 
-        delete [] inputFrames;
+        /** Showing performace results **/
+        if (FLAGS_pc) {
+            printPerformanceCounts(*async_infer_request_curr, std::cout);
+        }
     }
     catch (const std::exception& error) {
-        slog::err << error.what() << slog::endl;
+        std::cerr << "[ ERROR ] " << error.what() << std::endl;
         return 1;
     }
     catch (...) {
-        slog::err << "Unknown/internal exception happened." << slog::endl;
+        std::cerr << "[ ERROR ] Unknown/internal exception happened." << std::endl;
         return 1;
     }
 
