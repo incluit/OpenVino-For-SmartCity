@@ -581,8 +581,9 @@ int main(int argc, char *argv[]) {
 		RegionsOfInterest scene;
 
 		cap.read(scene.orig);
-		scene.out = scene.orig;
-        //Add check
+		// Do deep copy to preserve original frame
+		scene.out = scene.orig.clone();
+        // Add check
         cv::namedWindow("ImageDisplay",1);
         cv::setMouseCallback("ImageDisplay", CallBackFunc, &scene);
 		DrawAreasOfInterest(&scene);
@@ -640,9 +641,12 @@ int main(int argc, char *argv[]) {
                 FramePipelineFifoItem ps0s1i;
                 for(numFrames = 0; numFrames < VehicleDetection.maxBatch; numFrames++) {
                     // read in a frame
-                    cv::Mat* curFrame = inputFramePtrs.front();
-                    inputFramePtrs.pop();
-                    haveMoreFrames = cap.read(*curFrame);
+					cv::Mat* curFrame = &scene.orig;
+                    if (totalFrames > 0) {
+					   curFrame = inputFramePtrs.front();
+					   inputFramePtrs.pop();
+                       haveMoreFrames = cap.read(*curFrame);
+					}
                     if (!haveMoreFrames) {
                         break;
                     }
