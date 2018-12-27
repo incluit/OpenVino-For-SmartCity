@@ -26,7 +26,9 @@ specifically for near misses detection.
 
 == Introduction
 
-This project consists on showcasing the advantages of the Intel's OpenVINO toolkit. We will develop a __Near Misses__ case scenario, where we will detect vehicles and pedestrian and, somehow, estimate a metric of a crossroad's dangerousness. For that we will use the OpenVINO toolkit and OpenCV, all written in `{cpp}`.
+This project consists on showcasing the advantages of the Intel's OpenVINO toolkit. We will develop a __Near Misses__ case scenario, where we will detect vehicles and pedestrian and estimate a metric of a crossroad's dangerousness. For that, we will use the OpenVINO toolkit and OpenCV, all written in `{cpp}`.
+
+As mentioned previously, we will take the https://github.com/intel-iot-devkit/inference-tutorials-generic/tree/openvino_toolkit_r4_0/car_detection_tutorial/step_4[step 4] as a starting point, as it provides us with the options to run and stack different models synchronously or asynchronously. Once the proper models for vehicle and pedestrian detection are defined, we proceed to develop a feature to let the user define the different areas of interest (in this case, sidewalks and streets) that will help in identifying dangerous situations later on. Then, we will work on object tracking to recognize the same object across successive frames, giving us the ability to estimate trajectories, speeds and positions of the objects. Finally, we will have to define what are considered __dangerous situations__ and check that the system detects them correctly.
 
 == Build
 
