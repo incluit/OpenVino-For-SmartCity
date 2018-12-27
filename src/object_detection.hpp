@@ -83,6 +83,8 @@ static const char no_wait_for_keypress_message[] = "No wait for key press in the
 /// @brief message no show processed video
 static const char no_show_processed_video[] = "No show processed video.";
 
+static const char no_show_interes_areas_selection[] = "No show interest areas locations.";
+
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -149,6 +151,8 @@ DEFINE_uint32(n_async, 1, async_depth_message);
 
 ///
 
+DEFINE_bool(no_show_selection, false, no_show_interes_areas_selection);
+
 DEFINE_string(m_p, "", pedestrians_model_message);
 DEFINE_uint32(n_p, 1, num_batch_message);
 DEFINE_string(d_p, "CPU", target_device_message_pedestrians);
@@ -178,6 +182,7 @@ static void showUsage() {
     std::cout << "    -auto_resize               " << auto_resize_message << std::endl;
     std::cout << "    -no_wait                   " << no_wait_for_keypress_message << std::endl;
     std::cout << "    -no_show                   " << no_show_processed_video << std::endl;
+    std::cout << "    -no_show_selection         " << no_show_interes_areas_selection << std::endl;
     std::cout << "    -pc                        " << performance_counter_message << std::endl;
     std::cout << "    -r                         " << raw_output_message << std::endl;
     std::cout << "    -t                         " << thresh_output_message << std::endl;

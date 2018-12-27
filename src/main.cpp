@@ -578,20 +578,21 @@ int main(int argc, char *argv[]) {
         }
 
 		//-----------------------Define regions of interest-----------------------------------------------------
-		RegionsOfInterest scene;
+            RegionsOfInterest scene;
 
-		cap.read(scene.orig);
-		// Do deep copy to preserve original frame
-		scene.out = scene.orig.clone();
-        // Add check
-        cv::namedWindow("ImageDisplay",1);
-        cv::setMouseCallback("ImageDisplay", CallBackFunc, &scene);
-		DrawAreasOfInterest(&scene);
-		cv::destroyWindow("ImageDisplay");
-		cv::namedWindow("Result",1);
-		cv::imshow("Result", scene.out);
-		cv::waitKey();
-
+    		cap.read(scene.orig);
+    		// Do deep copy to preserve original frame
+    		scene.out = scene.orig.clone();
+            // Add check
+        if (!FLAGS_no_show_selection){
+            cv::namedWindow("ImageDisplay",1);
+            cv::setMouseCallback("ImageDisplay", CallBackFunc, &scene);
+    		DrawAreasOfInterest(&scene);
+    		cv::destroyWindow("ImageDisplay");
+    		cv::namedWindow("Result",1);
+    		cv::imshow("Result", scene.out);
+    		cv::waitKey();
+        }
         // ----------------------------Do inference-------------------------------------------------------------
         slog::info << "Start inference " << slog::endl;
         typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
