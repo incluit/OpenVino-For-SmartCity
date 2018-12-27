@@ -13,20 +13,21 @@ Status]]
 https://sonarcloud.io/dashboard?id=incluit_OpenVino-For-SmartCity[image:https://sonarcloud.io/api/project_badges/measure?project=incluit_OpenVino-For-SmartCity&metric=alert_status[Sonarcloud
 Status]]
 
+.Foreword
+****
 This is a follow-up on the OpenVino's inference tutorials:
 
 https://github.com/intel-iot-devkit/inference-tutorials-generic/tree/openvino_toolkit_r4_0
 
 We will work on and extend this tutorial as a demo app for smart cities,
 specifically for near misses detection.
-
-**Table of contents**
+****
 
 toc::[]
 
 == Introduction
 
-asdfasfadf
+This project consists on showcasing the advantages of the Intel's OpenVINO toolkit. We will develop a __Near Misses__ case scenario, where we will detect vehicles and pedestrian and, somehow, estimate a metric of a crossroad's dangerousness. For that we will use the OpenVINO toolkit and OpenCV, all written in `{cpp}`.
 
 == Build
 
@@ -130,3 +131,21 @@ in parallel more and more with the GPU. The absence of improvement shows
 when the CPU is doing less in parallel and is waiting on the other
 devices. This is referred to as “diminishing returns” and will vary
 across devices and inference models.
+
+== To Do
+
+=== README
+
+* [x] Short README with usage examples
+* [x] Travis + Sonarcloud
+* [ ] Include diagrams and images
+* [ ] Elaborate on the wiki
+
+=== Development
+
+* [x] Try with different models
+* [x] Detect vehicles and pedestrians
+* [x] Draw Areas of Interest
+* [ ] Object Tracking
+* [ ] Elaborate on dangerous situations to be detected
+* [ ] Detect these situations
