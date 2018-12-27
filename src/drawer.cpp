@@ -30,6 +30,7 @@ void CallBackFunc(int event, int x, int y, int flags, void *scn)
 void DrawAreasOfInterest(RegionsOfInterest *scn)
 {
    bool finished = false;
+   bool can_finish = false;
    RegionsOfInterest* scene = (RegionsOfInterest*) scn;
    RegionsOfInterest& sceneRef = *scene;
 
@@ -40,27 +41,32 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
 	  case 'c':
          if(sceneRef.vertices.size()<2){
 			 std::cout << "You need a minimum of three points!" << std::endl;
+			 can_finish = false;
          }
 		 else {
-         // Close polygon
-		 cv::line(sceneRef.out,sceneRef.vertices[sceneRef.vertices.size()-1],sceneRef.vertices[0],cv::Scalar(0,255,0),2);
+             // Close polygon
+		     cv::line(sceneRef.out,sceneRef.vertices[sceneRef.vertices.size()-1],sceneRef.vertices[0],cv::Scalar(0,255,0),2);
 
-         // Mask is black with white where our ROI is
-		 cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
-	     std::vector< std::vector< cv::Point > > pts{sceneRef.vertices};
-         fillPoly(roi,pts,cv::Scalar(0,125,0));
-         sceneRef.sidewalks.push_back(roi);
-		 sceneRef.vertices.clear();
+             // Mask is black with white where our ROI is
+		     cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
+	         std::vector< std::vector< cv::Point > > pts{sceneRef.vertices};
+             fillPoly(roi,pts,cv::Scalar(0,125,0));
+             sceneRef.sidewalks.push_back(roi);
+		     sceneRef.vertices.clear();
+		     can_finish = true;
          }
 		 break;
 	  case 'f':
-         finished=true;
+		 if (can_finish) {
+             finished=true;
+		 }
 		 break;
 	  default:
 		 break;
 	  }
    }
    finished = false;
+   can_finish = false;
    sceneRef.drawing_sidewalks = false;
 
    std::cout<<"Select streets, press c to continue, press f to finish." << std::endl;
@@ -70,6 +76,7 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
 	  case 'c':
          if(sceneRef.vertices.size()<2){
 		    std::cout << "You need a minimum of three points!" << std::endl;
+			can_finish = false;
          }
 		 else {
 	        std::cout<<"Define orientation (n, s, e, w)" << std::endl;
@@ -87,10 +94,13 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
             fillPoly(roi, pts, cv::Scalar(0,0,125));
 		    sceneRef.vertices.clear();
 			sceneRef.streets.push_back(std::make_pair(roi, key));
+			can_finish = true;
 		 }
 		 break;
 	  case 'f':
-		 finished=true;
+		 if (can_finish) {
+		     finished=true;
+		 }
 		 break;
 	  default:
 		 break;
