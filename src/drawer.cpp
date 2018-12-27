@@ -37,7 +37,8 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
    std::cout<<"Select sidewalks, press c to continue, press f to finish." << std::endl;
    while(!finished){
 	  cv::imshow("ImageDisplay", sceneRef.out);
-      if('c'==cv::waitKey(50)){
+      switch (cv::waitKey(1)) {
+	  case 'c':
          if(sceneRef.vertices.size()<2){
 			 std::cout << "You need a minimum of three points!" << std::endl;
          }
@@ -52,9 +53,11 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
          sceneRef.sidewalks.push_back(roi);
 		 sceneRef.vertices.clear();
          }
-      }
-	  else if ('f'==cv::waitKey(50))
+		 break;
+	  case 'f':
          finished=true;
+		 break;
+	  }
    }
    finished = false;
    sceneRef.drawing_sidewalks = false;
@@ -62,7 +65,8 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
    std::cout<<"Select streets, press c to continue, press f to finish." << std::endl;
    while(!finished){
 	  cv::imshow("ImageDisplay", sceneRef.out);
-      if('c'==cv::waitKey(50)){
+      switch (cv::waitKey(1)) {
+	  case 'c':
          if(sceneRef.vertices.size()<2){
 		    std::cout << "You need a minimum of three points!" << std::endl;
          }
@@ -81,9 +85,11 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
 		    sceneRef.vertices.clear();
 			sceneRef.streets.push_back(std::make_pair(roi, key));
 		 }
+		 break;
+	  case 'f':
+		 finished=true;
+		 break;
 	  }
-	  else if ('f'==cv::waitKey(50))
-		  finished=true;
    }
 
    double alpha = 0.3;
