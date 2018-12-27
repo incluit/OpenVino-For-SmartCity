@@ -173,7 +173,7 @@ synchronous mode.
 ./intel64/Release/smart_city_tutorial -m $mVDR16 -d GPU -m_p $person232 -d_p GPU -i ../data/cars_768x768.h264 -n_async 16
 ----
 
-. Asynchronous mode should be faster by some amount for "-n_async 2" then a little more for “-n_async 4” and “-n_async 8”, then not as noticeable for “-n_async 16”. The improvements come from the CPU running in parallel more and more with the GPU. The absence of improvement shows when the CPU is doing less in parallel and is waiting on the other devices. This is referred to as “diminishing returns” and will vary across devices and inference models.
+**2.** Asynchronous mode should be faster by some amount for "-n_async 2" then a little more for “-n_async 4” and “-n_async 8”, then not as noticeable for “-n_async 16”. The improvements come from the CPU running in parallel more and more with the GPU. The absence of improvement shows when the CPU is doing less in parallel and is waiting on the other devices. This is referred to as “diminishing returns” and will vary across devices and inference models.
 
 == To Do
 
