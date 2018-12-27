@@ -11,8 +11,8 @@ script:
   - docker run --name openvinocont -t -d openvinoincluit/openvino:latest
   - docker exec openvinocont git clone https://github.com/incluit/OpenVino-For-SmartCity
   - docker exec openvinocont bash -c 'source /opt/intel/computer_vision_sdk/bin/setupvars.sh && cd /app/OpenVino-For-SmartCity && mkdir build && cd build && cmake .. && make'
-  - docker exec openvinocont bash -c 'cd /app/openvino/build && build-wrapper-linux-x86-64 --out-dir bw-output make clean all'
-  - docker exec openvinocont bash -c 'cd /app/openvino/build && sonar-scanner -Dsonar.projectKey=incluit_OpenVino-For-SmartCity -Dsonar.organization=incluit -Dsonar.sources=. -Dsonar.cfamily.build-wrapper-output=bw-output -Dsonar.host.url=https://sonarcloud.io -Dsonar.projectBaseDir=../src -Dproject.home=../src -Dsonar.login=b4374702344cc6949ebbbafcad6b4ea1d002ba1d'
+  - docker exec openvinocont bash -c 'cd /app/OpenVino-For-Smartcity/build && build-wrapper-linux-x86-64 --out-dir bw-output make clean all'
+  - docker exec openvinocont bash -c 'cd /app/OpenVino-For-Smartcity/build && sonar-scanner -Dsonar.projectKey=incluit_OpenVino-For-SmartCity -Dsonar.organization=incluit -Dsonar.sources=. -Dsonar.cfamily.build-wrapper-output=bw-output -Dsonar.host.url=https://sonarcloud.io -Dsonar.projectBaseDir=../src -Dproject.home=../src -Dsonar.login=b4374702344cc6949ebbbafcad6b4ea1d002ba1d'
 
 after_script:
   - docker images
