@@ -83,6 +83,7 @@ class BaseDetection {
 	ExecutableNetwork net;
 
     std::string & commandLineFlag;
+    std::string & deviceName;
     std::string topoName;
     int maxBatch;
     int maxSubmittedRequests;
@@ -92,8 +93,8 @@ class BaseDetection {
     std::vector<InferRequest::Ptr> requests;
     std::queue<InferRequest::Ptr> submittedRequests;
 
-    BaseDetection(std::string &commandLineFlag, std::string topoName, int maxBatch)
-        : commandLineFlag(commandLineFlag), topoName(topoName), maxBatch(maxBatch), maxSubmittedRequests(FLAGS_n_async),
+    BaseDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch)
+        : commandLineFlag(commandLineFlag), deviceName(deviceName),topoName(topoName), maxBatch(maxBatch), maxSubmittedRequests(FLAGS_n_async),
 		  plugin(nullptr), inputRequestIdx(0), outputRequest(nullptr), requests(FLAGS_n_async) {}
 
     virtual ~BaseDetection() {}
@@ -167,7 +168,7 @@ class BaseDetection {
     }
 };
 
-class VehicleDetection : public BaseDetection{
+class ObjectDetection : public BaseDetection{
   public:
 	std::string input;
     std::string output;
@@ -220,26 +221,27 @@ class VehicleDetection : public BaseDetection{
     }
 
 
-    VehicleDetection() : BaseDetection(FLAGS_m, "Vehicle Detection", FLAGS_n) {}
+    ObjectDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch) : BaseDetection(commandLineFlag, deviceName, topoName, maxBatch) {}
     InferenceEngine::CNNNetwork read() override {
-        slog::info << "Loading network files for VehicleDetection" << slog::endl;
+        slog::info << "Loading network files for " << topoName << slog::endl;
         InferenceEngine::CNNNetReader netReader;
         /** Read network model **/
-        netReader.ReadNetwork(FLAGS_m);
+        netReader.ReadNetwork(commandLineFlag);
         netReader.getNetwork().setBatchSize(maxBatch);
-        slog::info << "Batch size is set to " << netReader.getNetwork().getBatchSize() << " for Vehicle Detection" << slog::endl;
+        slog::info << "Batch size is set to " << netReader.getNetwork().getBatchSize() << " for " << topoName << slog::endl;
 
         /** Extract model name and load it's weights **/
-        std::string binFileName = fileNameNoExt(FLAGS_m) + ".bin";
+        std::string binFileName = fileNameNoExt(commandLineFlag) + ".bin";
         netReader.ReadWeights(binFileName);
         // -----------------------------------------------------------------------------------------------------
 
         /** SSD-based network should have one input and one output **/
         // ---------------------------Check inputs ------------------------------------------------------
-        slog::info << "Checking Vehicle Detection inputs" << slog::endl;
+        slog::info << "Checking " << topoName << " inputs" << slog::endl;
         InferenceEngine::InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
         if (inputInfo.size() != 1) {
-            throw std::domain_error("Vehicle Detection network should have only one input");
+            std::string msg = topoName + "network should have only one input";
+            throw std::domain_error(msg);
         }
         auto& inputInfoFirst = inputInfo.begin()->second;
         inputInfoFirst->setInputPrecision(Precision::U8);
@@ -255,10 +257,11 @@ class VehicleDetection : public BaseDetection{
         // -----------------------------------------------------------------------------------------------------
 
         // ---------------------------Check outputs ------------------------------------------------------
-        slog::info << "Checking Vehicle Detection outputs" << slog::endl;
+        slog::info << "Checking " << topoName << " outputs" << slog::endl;
         InferenceEngine::OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
         if (outputInfo.size() != 1) {
-            throw std::domain_error("Vehicle Detection network should have only one output");
+            std::string msg = topoName + "network should have only one output";
+            throw std::domain_error(msg);
         }
         auto& _output = outputInfo.begin()->second;
         const InferenceEngine::SizeVector outputDims = _output->dims;
@@ -274,7 +277,7 @@ class VehicleDetection : public BaseDetection{
         _output->setPrecision(Precision::FP32);
         _output->setLayout(Layout::NCHW);
 
-        slog::info << "Loading Vehicle Detection model to the "<< FLAGS_d << " plugin" << slog::endl;
+        slog::info << "Loading " << topoName << " model to the "<< deviceName << " plugin" << slog::endl;
         input = inputInfo.begin()->first;
         return netReader.getNetwork();
     }
@@ -318,160 +321,6 @@ class VehicleDetection : public BaseDetection{
 		}
 		// done with request
 		outputRequest = nullptr;
-    }
-};
-
-class PedestriansDetection : public BaseDetection{
-  public:
-	std::string input;
-    std::string output;
-    int maxProposalCount = 0;
-    int objectSize = 0;
-    int enquedFrames = 0;
-    float width = 0;
-    float height = 0;
-    using BaseDetection::operator=;
-
-    struct Result {
-        int batchIndex;
-        int label;
-        float confidence;
-        cv::Rect location;
-    };
-
-    std::vector<Result> results;
-
-    void submitRequest() override {
-        if (!enquedFrames) return;
-        enquedFrames = 0;
-        BaseDetection::submitRequest();
-    }
-
-    void enqueue(const cv::Mat &frame) {
-        if (!enabled()) return;
-
-        if (enquedFrames >= maxBatch) {
-            slog::warn << "Number of frames more than maximum(" << maxBatch << ") processed by Pedestrians detector" << slog::endl;
-            return;
-        }
-
-        if (nullptr == requests[inputRequestIdx]) {
-            requests[inputRequestIdx] = net.CreateInferRequestPtr();
-        }
-
-        width = frame.cols;
-        height = frame.rows;
-
-        InferenceEngine::Blob::Ptr inputBlob;
-        if (FLAGS_auto_resize) {
-            inputBlob = wrapMat2Blob(frame);
-            requests[inputRequestIdx]->SetBlob(input, inputBlob);
-        } else {
-            inputBlob = requests[inputRequestIdx]->GetBlob(input);
-            matU8ToBlob<uint8_t >(frame, inputBlob, enquedFrames);
-        }
-        enquedFrames++;
-    }
-
-
-    PedestriansDetection() : BaseDetection(FLAGS_m_p, "Pedestrians Detection", FLAGS_n_p) {}
-    InferenceEngine::CNNNetwork read() override {
-        slog::info << "Loading network files for Pedestrians Detection" << slog::endl;
-        InferenceEngine::CNNNetReader netReader;
-        /** Read network model **/
-        netReader.ReadNetwork(FLAGS_m_p);
-        netReader.getNetwork().setBatchSize(maxBatch);
-        slog::info << "Batch size is set to " << netReader.getNetwork().getBatchSize() << " for Pedestrians Detection" << slog::endl;
-
-        /** Extract model name and load it's weights **/
-        std::string binFileName = fileNameNoExt(FLAGS_m_p) + ".bin";
-        netReader.ReadWeights(binFileName);
-        // -----------------------------------------------------------------------------------------------------
-
-        /** SSD-based network should have one input and one output **/
-        // ---------------------------Check inputs ------------------------------------------------------
-        slog::info << "Checking Pedestrians Detection inputs" << slog::endl;
-        InferenceEngine::InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
-        if (inputInfo.size() != 1) {
-            throw std::domain_error("Pedestrians Detection network should have only one input");
-        }
-        auto& inputInfoFirst = inputInfo.begin()->second;
-        inputInfoFirst->setInputPrecision(Precision::U8);
-
-        if (FLAGS_auto_resize) {
-            // set resizing algorithm
-            inputInfoFirst->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-            inputInfoFirst->getInputData()->setLayout(Layout::NHWC);
-        } else {
-            inputInfoFirst->getInputData()->setLayout(Layout::NCHW);
-        }
-
-        // -----------------------------------------------------------------------------------------------------
-
-        // ---------------------------Check outputs ------------------------------------------------------
-        slog::info << "Checking Pedestrians Detection outputs" << slog::endl;
-        InferenceEngine::OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
-        if (outputInfo.size() != 1) {
-            throw std::domain_error("Pedestrians Detection network should have only one output");
-        }
-        auto& _output = outputInfo.begin()->second;
-        const InferenceEngine::SizeVector outputDims = _output->dims;
-        output = outputInfo.begin()->first;
-        maxProposalCount = outputDims[1];
-        objectSize = outputDims[0];
-        if (objectSize != 7) {
-            throw std::domain_error("Output should have 7 as a last dimension");
-        }
-        if (outputDims.size() != 4) {
-            throw std::domain_error("Incorrect output dimensions for SSD");
-        }
-        _output->setPrecision(Precision::FP32);
-        _output->setLayout(Layout::NCHW);
-
-        slog::info << "Loading Vehicle Detection model to the "<< FLAGS_d_p << " plugin" << slog::endl;
-        input = inputInfo.begin()->first;
-        return netReader.getNetwork();
-    }
-
-    void fetchResults(int inputBatchSize) {
-        if (!enabled()) return;
-
-        if (nullptr == outputRequest) {
-            return;
-        }
-
-        results.clear();
-
-        const float *detections = outputRequest->GetBlob(output)->buffer().as<float *>();
-        // pretty much regular SSD post-processing
-        for (int i = 0; i < maxProposalCount; i++) {
-            int proposalOffset = i * objectSize;
-            float image_id = detections[proposalOffset + 0];
-            Result r;
-            r.batchIndex = image_id;
-            r.label = static_cast<int>(detections[proposalOffset + 1]);
-            r.confidence = detections[proposalOffset + 2];
-            if (r.confidence <= FLAGS_t) {
-                continue;
-            }
-            r.location.x = detections[proposalOffset + 3] * width;
-            r.location.y = detections[proposalOffset + 4] * height;
-            r.location.width = detections[proposalOffset + 5] * width - r.location.x;
-            r.location.height = detections[proposalOffset + 6] * height - r.location.y;
-
-            if ((image_id < 0) || (image_id >= inputBatchSize)) {  // indicates end of detections
-                break;
-            }
-            if (FLAGS_r) {
-                std::cout << "[bi=" << r.batchIndex << "][" << i << "," << r.label << "] element, prob = " << r.confidence <<
-                          "    (" << r.location.x << "," << r.location.y << ")-(" << r.location.width << ","
-                          << r.location.height << ")"
-                          << ((r.confidence > FLAGS_t) ? " WILL BE RENDERED!" : "") << std::endl;
-            }
-            results.push_back(r);
-        }
-        // done with request
-        outputRequest = nullptr;
     }
 };
 
@@ -523,8 +372,8 @@ int main(int argc, char *argv[]) {
                 << (runningAsync ? "asynchronously" : "synchronously")
                 << slog::endl;
 
-        VehicleDetection VehicleDetection;
-        PedestriansDetection PedestriansDetection;
+        ObjectDetection VehicleDetection(FLAGS_m, FLAGS_d, "Vehicle Detection", FLAGS_n);
+        ObjectDetection PedestriansDetection(FLAGS_m_p, FLAGS_d_p, "Pedestrians Detection", FLAGS_n_p);
 
         for (auto && option : cmdOptions) {
             auto deviceName = option.first;
