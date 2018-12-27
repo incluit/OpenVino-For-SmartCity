@@ -175,7 +175,7 @@ synchronous mode.
 
 **2.** Asynchronous mode should be faster by some amount for "-n_async 2" then a little more for “-n_async 4” and “-n_async 8”, then not as noticeable for “-n_async 16”. The improvements come from the CPU running in parallel more and more with the GPU. The absence of improvement shows when the CPU is doing less in parallel and is waiting on the other devices. This is referred to as “diminishing returns” and will vary across devices and inference models.
 
-**3.** We run a performance analysis by running each 9 combinations of model/device/precition. The following graph show the results:
+**3.** We run a performance analysis by running each 9 combinations of model/device/precision. The following graph show the results:
 
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Vehicle%20and%20Pedestrian%20detection%20performance.png[performance]
 
