@@ -845,11 +845,11 @@ int main(int argc, char *argv[]) {
 
                 // draw box around vehicles and license plates
                 for (auto && loc : ps1s4i.vehicleLocations) {
-                    cv::rectangle(outputFrame, loc, cv::Scalar(0, 255, 0), 2);
+                    cv::rectangle(outputFrame, loc, cv::Scalar(0, 255, 0), 1);
                 }
                 // draw box around license plates
                 for (auto && loc : ps3s4i.pedestriansLocations) {
-                    cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 2);
+                    cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 1);
                 }
 
                 // ----------------------------Execution statistics -----------------------------------------------------
