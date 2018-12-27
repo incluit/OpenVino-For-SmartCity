@@ -48,7 +48,7 @@ A summary of what is needed:
 
 * Target and development platforms meeting the requirements described in the "System Requirements" section of the OpenVINO™ toolkit documentation which may be found at: [https://software.intel.com/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 
-**Note**: While writing this tutorial, an Intel® i7-8550U with Intel® HD graphics 520 GPU) was used as both the development and target platform.
+**Note**: While writing this tutorial, an Intel® i7-8550U with Intel® HD graphics 520 GPU was used as both the development and target platform.
 
 * Optional:
 
@@ -82,14 +82,14 @@ By now you should have completed the Linux installation guide for the OpenVINO�
 
 == Build
 
-. Clone the repository at desired location:
+**1.** Clone the repository at desired location:
 
 [source,bash]
 ----
 git clone https://github.com/incluit/OpenVino-For-SmartCity.git
 ----
 
-. The first step is to configure the build environment for the OpenCV
+**2.** The first step is to configure the build environment for the OpenCV
 toolkit by sourcing the "setupvars.sh" script.
 
 [source,bash]
@@ -97,14 +97,14 @@ toolkit by sourcing the "setupvars.sh" script.
 source  /opt/intel/computer_vision_sdk/bin/setupvars.sh
 ----
 
-. Change to the top git repository:
+**3.** Change to the top git repository:
 
 [source,bash]
 ----
 cd OpenVino-For-SmartCity
 ----
 
-. Create a directory to build the tutorial in and change to it.
+**4.** Create a directory to build the tutorial in and change to it.
 
 [source,bash]
 ----
@@ -112,7 +112,7 @@ mkdir build
 cd build
 ----
 
-. Compile:
+**5.** Compile:
 
 [source,bash]
 ----
@@ -124,7 +124,7 @@ make
 
 === Run
 
-. Before running each of the following sections, be sure to source the
+**1.** Before running each of the following sections, be sure to source the
 helper script. That will make it easier to use environment variables
 instead of long names to the models:
 
@@ -135,7 +135,7 @@ source ../scripts/setupenv.sh
 
 === CPU
 
-. First, let us see how it works on a single image file using default
+**1.** First, let us see how it works on a single image file using default
 synchronous mode.
 
 [source,bash]
@@ -143,7 +143,7 @@ synchronous mode.
 ./intel64/Release/smart_city_tutorial -m $mVDR32 -m_p $person232 -i ../data/car_1.bmp
 ----
 
-. You can also run the command in asynchronous mode using the option
+**2.** You can also run the command in asynchronous mode using the option
 "-n_async 2":
 
 [source,bash]
@@ -151,7 +151,7 @@ synchronous mode.
 ./intel64/Release/smart_city_tutorial -m $mVDR32 -m_p $person232 -i ../data/car_1.bmp -n_async 2
 ----
 
-. For video files:
+**3.** For video files:
 
 [source,bash]
 ----
@@ -160,11 +160,9 @@ synchronous mode.
 
 === CPU and GPU
 
-**Note**: In order to run this section, the GPU is required to be
-present and correctly configured.
+**Note**: In order to run this section, the GPU is required to be present and correctly configured.
 
-. First we run in synchronous mode then asynchronous with increasing
--n_async values using the commands:
+**1.** First we run in synchronous mode then asynchronous with increasing -n_async values using the commands:
 
 [source,bash]
 ----
