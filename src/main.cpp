@@ -587,7 +587,7 @@ int main(int argc, char *argv[]) {
     		// Do deep copy to preserve original frame
     		scene.out = scene.orig.clone();
             // Add check
-        if (!FLAGS_no_show_selection){
+        if (FLAGS_show_selection){
             cv::namedWindow("ImageDisplay",1);
             cv::setMouseCallback("ImageDisplay", CallBackFunc, &scene);
     		DrawAreasOfInterest(&scene);
