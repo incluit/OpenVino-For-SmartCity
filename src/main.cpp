@@ -121,7 +121,6 @@ void ParseYOLOV3Output(const CNNLayerPtr &layer, const Blob::Ptr &blob, const un
                        const unsigned long original_im_w,
                        const double threshold, std::vector<DetectionObject> &objects) {
     // --------------------------- Validating output parameters -------------------------------------
-    std::cout << layer->type << std::endl;
     if (layer->type != "RegionYolo")
         throw std::runtime_error("Invalid output type: " + layer->type + ". RegionYolo expected");
     const int out_blob_h = static_cast<int>(blob->getTensorDesc().getDims()[2]);
@@ -413,9 +412,7 @@ int main(int argc, char *argv[]) {
                     Blob::Ptr blob = async_infer_request_curr->GetBlob(output_name);
                     ParseYOLOV3Output(layer, blob, resized_im_h, resized_im_w, height, width, FLAGS_t, objects);
                 }
-                std::cout << "hola1" << std::endl;
                 // Filtering overlapping boxes
-                std::cout << objects.size() << std::endl;
                 std::sort(objects.begin(), objects.end());
                 for (int i = 0; i < objects.size(); ++i) {
                     if (objects[i].confidence == 0)
@@ -425,7 +422,6 @@ int main(int argc, char *argv[]) {
                             objects[j].confidence = 0;
                 }
                 // Drawing boxes
-                std::cout << "hola2" << std::endl;
                 for (auto &object : objects) {
                     if (object.confidence < FLAGS_t)
                         continue;
