@@ -30,16 +30,66 @@ This project consists on showcasing the advantages of the Intel's OpenVINO toolk
 
 As mentioned previously, we will take the https://github.com/intel-iot-devkit/inference-tutorials-generic/tree/openvino_toolkit_r4_0/car_detection_tutorial/step_4[step 4] as a starting point, as it provides us with the options to run and stack different models synchronously or asynchronously. Once the proper models for vehicle and pedestrian detection are defined, we proceed to develop a feature to let the user define the different areas of interest (in this case, sidewalks and streets) that will help in identifying dangerous situations later on. Then, we will work on object tracking to recognize the same object across successive frames, giving us the ability to estimate trajectories, speeds and positions of the objects. Finally, we will have to define what are considered __dangerous situations__ and check that the system detects them correctly.
 
+== Prerequisites
+
+To run the application in this tutorial, the OpenVINO™ toolkit and its dependencies must already be installed and verified using the included demos. Installation instructions may be found at: https://software.intel.com/en-us/articles/OpenVINO-Install-Linux
+
+If to be used, any optional hardware must also be installed and verified including:
+
+* USB camera - Standard USB Video Class (UVC) camera.
+
+* GPU - normally embedded with supported Intel® CPUs and requires drivers and updated Linux kernel to run
+
+* VPU - USB Intel® Movidius™ Neural Compute Stick and what is being referred to as "Myriad"
+
+A summary of what is needed:
+
+=== Hardware
+
+* Target and development platforms meeting the requirements described in the "System Requirements" section of the OpenVINO™ toolkit documentation which may be found at: [https://software.intel.com/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
+
+**Note**: While writing this tutorial, an Intel® i7-8550U with Intel® HD graphics 520 GPU) was used as both the development and target platform.
+
+* Optional:
+
+** Intel® Movidius™ Neural Compute Stick
+
+** USB UVC camera
+
+** GPU support
+
+=== Software
+
+* OpenVINO™ toolkit supported Linux operating system. This tutorial was run on 64-bit Ubuntu 16.04.1 LTS updated to kernel 4.15.0-43 following the OpenVINO™ toolkit installation instructions.
+
+* The latest OpenVINO™ toolkit installed and verified. This tutorial was written using version 2018 R4.0.
+
+* Git(git) for downloading from the GitHub repository.
+
+=== Checks
+
+By now you should have completed the Linux installation guide for the OpenVINO™ toolkit, however before continuing, please ensure:
+
+* That after installing the OpenVINO™ toolkit you have run the supplied demo samples 
+
+* If you have and intend to use a GPU: You have installed and tested the GPU drivers 
+
+* If you have and intend to use a USB camera: You have connected and tested the USB camera 
+
+* If you have and intend to use a Myriad: You have connected and tested the USB Intel® Movidius™ Neural Compute Stick
+
+* That your development platform is connected to a network and has Internet access. To download all the files for this tutorial, you will need to access GitHub on the Internet. 
+
 == Build
 
-1.  Clone the repository at desired location:
+. Clone the repository at desired location:
 
 [source,bash]
 ----
 git clone https://github.com/incluit/OpenVino-For-SmartCity.git
 ----
 
-2.  The first step is to configure the build environment for the OpenCV
+. The first step is to configure the build environment for the OpenCV
 toolkit by sourcing the "setupvars.sh" script.
 
 [source,bash]
@@ -47,14 +97,14 @@ toolkit by sourcing the "setupvars.sh" script.
 source  /opt/intel/computer_vision_sdk/bin/setupvars.sh
 ----
 
-3.  Change to the top git repository:
+. Change to the top git repository:
 
 [source,bash]
 ----
 cd OpenVino-For-SmartCity
 ----
 
-4.  Create a directory to build the tutorial in and change to it.
+. Create a directory to build the tutorial in and change to it.
 
 [source,bash]
 ----
@@ -62,7 +112,7 @@ mkdir build
 cd build
 ----
 
-5.  Compile:
+. Compile:
 
 [source,bash]
 ----
@@ -74,7 +124,7 @@ make
 
 === Run
 
-1.  Before running each of the following sections, be sure to source the
+. Before running each of the following sections, be sure to source the
 helper script. That will make it easier to use environment variables
 instead of long names to the models:
 
@@ -85,7 +135,7 @@ source ../scripts/setupenv.sh
 
 === CPU
 
-1.  First, let us see how it works on a single image file using default
+. First, let us see how it works on a single image file using default
 synchronous mode.
 
 [source,bash]
@@ -93,7 +143,7 @@ synchronous mode.
 ./intel64/Release/smart_city_tutorial -m $mVDR32 -m_p $person232 -i ../data/car_1.bmp
 ----
 
-2.  You can also run the command in asynchronous mode using the option
+. You can also run the command in asynchronous mode using the option
 "-n_async 2":
 
 [source,bash]
@@ -101,7 +151,7 @@ synchronous mode.
 ./intel64/Release/smart_city_tutorial -m $mVDR32 -m_p $person232 -i ../data/car_1.bmp -n_async 2
 ----
 
-3.  For video files:
+. For video files:
 
 [source,bash]
 ----
@@ -113,7 +163,7 @@ synchronous mode.
 **Note**: In order to run this section, the GPU is required to be
 present and correctly configured.
 
-1.  First we run in synchronous mode then asynchronous with increasing
+. First we run in synchronous mode then asynchronous with increasing
 -n_async values using the commands:
 
 [source,bash]
@@ -125,13 +175,7 @@ present and correctly configured.
 ./intel64/Release/smart_city_tutorial -m $mVDR16 -d GPU -m_p $person232 -d_p GPU -i ../data/cars_768x768.h264 -n_async 16
 ----
 
-2.  Asynchronous mode should be faster by some amount for "-n_async 2"
-then a little more for “-n_async 4” and “-n_async 8”, then not as
-noticeable for “-n_async 16”. The improvements come from the CPU running
-in parallel more and more with the GPU. The absence of improvement shows
-when the CPU is doing less in parallel and is waiting on the other
-devices. This is referred to as “diminishing returns” and will vary
-across devices and inference models.
+. Asynchronous mode should be faster by some amount for "-n_async 2" then a little more for “-n_async 4” and “-n_async 8”, then not as noticeable for “-n_async 16”. The improvements come from the CPU running in parallel more and more with the GPU. The absence of improvement shows when the CPU is doing less in parallel and is waiting on the other devices. This is referred to as “diminishing returns” and will vary across devices and inference models.
 
 == To Do
 
@@ -148,5 +192,6 @@ across devices and inference models.
 * [x] Detect vehicles and pedestrians
 * [x] Draw Areas of Interest
 * [ ] Object Tracking
+* [ ] Object Trajectories
 * [ ] Elaborate on dangerous situations to be detected
 * [ ] Detect these situations
