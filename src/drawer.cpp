@@ -30,7 +30,6 @@ void CallBackFunc(int event, int x, int y, int flags, void *scn)
 void DrawAreasOfInterest(RegionsOfInterest *scn)
 {
    bool finished = false;
-   cv::Mat roi;
    RegionsOfInterest* scene = (RegionsOfInterest*) scn;
    RegionsOfInterest& sceneRef = *scene;
 
@@ -57,6 +56,8 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
 	  case 'f':
          finished=true;
 		 break;
+	  default:
+		 break;
 	  }
    }
    finished = false;
@@ -73,8 +74,10 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
 		 else {
 	        std::cout<<"Define orientation (n, s, e, w)" << std::endl;
             int key = 'x';
-		    while (key != 'n' && key != 's' && key != 'e' && key !='w')
+		    while (key != 'n' && key != 's' && key != 'e' && key !='w') {
 			   key = cv::waitKey();
+			}
+
 		    // Close polygon
             line(sceneRef.out,sceneRef.vertices[sceneRef.vertices.size()-1],sceneRef.vertices[0],cv::Scalar(0,0,255),2);
 
@@ -88,6 +91,8 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
 		 break;
 	  case 'f':
 		 finished=true;
+		 break;
+	  default:
 		 break;
 	  }
    }

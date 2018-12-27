@@ -1,18 +1,18 @@
-/*
-// Copyright (c) 2018 Intel Corporation
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
+/**
+* Copyright (c) 2018 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*      http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -61,12 +61,10 @@ static const char auto_resize_message[] = "Enable auto-resize (ROI crop & data r
 static const char performance_counter_message[] = "Enables per-layer performance statistics.";
 
 /// @brief message for clDNN custom kernels desc
-static const char custom_cldnn_message[] = "For clDNN (GPU)-targeted custom kernels, if any. "\
-"Absolute path to the xml file with the kernels desc.";
+static const char custom_cldnn_message[] = "For clDNN (GPU)-targeted custom kernels, if any. Absolute path to the xml file with the kernels desc.";
 
 /// @brief message for user library argument
-static const char custom_cpu_library_message[] = "For MKLDNN (CPU)-targeted custom layers, if any. " \
-"Absolute path to a shared library with the kernels impl.";
+static const char custom_cpu_library_message[] = "For MKLDNN (CPU)-targeted custom layers, if any. Absolute path to a shared library with the kernels impl.";
 
 /// @brief message for probability threshold argument
 static const char thresh_output_message[] = "Probability threshold for vehicle/licence-plate detections.";
