@@ -43,6 +43,11 @@
 #include "object_detection.hpp"
 #include "drawer.hpp"
 
+#include <dlib/image_processing.h>
+#include <dlib/gui_widgets.h>
+#include <dlib/image_io.h>
+#include <dlib/dir_nav.h>
+
 using namespace InferenceEngine;
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
