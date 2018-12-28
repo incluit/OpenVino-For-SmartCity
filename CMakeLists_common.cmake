@@ -120,6 +120,8 @@ if(OpenCV_FOUND)
     add_definitions(-DUSE_OPENCV)
 endif()
 
+add_subdirectory(third-party/dlib dlib_build)
+
 ####################################
 ## to use C++11
 set (CMAKE_CXX_STANDARD 11)

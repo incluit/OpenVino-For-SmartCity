@@ -61,5 +61,5 @@ COMPILE_PDB_NAME ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} format_reader IE::ie_cpu_extension ${IE_LIBRARIES} gflags)
 
 if(UNIX)
-    target_link_libraries( ${TARGET_NAME} ${LIB_DL} pthread ${OpenCV_LIBRARIES})
+    target_link_libraries( ${TARGET_NAME} ${LIB_DL} pthread ${OpenCV_LIBRARIES} dlib::dlib)
 endif()
