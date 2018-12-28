@@ -452,6 +452,7 @@ int main(int argc, char *argv[]) {
 		std::chrono::high_resolution_clock::time_point wallclockEnd;
 
         bool firstFrame = true;
+        bool firstFrameWithDetections = true;
         bool haveMoreFrames = true;
         bool done = false;
         int numFrames = 0;
@@ -461,6 +462,7 @@ int main(int argc, char *argv[]) {
 		double ocv_decode_time_pedestrians = 0;
 		double ocv_render_time = 0;
         cv::Mat* lastOutputFrame;
+        std::vector<cv::Rect> firstResults;
 
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
@@ -695,12 +697,23 @@ int main(int argc, char *argv[]) {
                 // draw box around vehicles and license plates
                 for (auto && loc : ps1s4i.vehicleLocations) {
                     cv::rectangle(outputFrame, loc, cv::Scalar(0, 255, 0), 1);
+                    if (firstFrameWithDetections){
+                        firstResults.push_back(loc);
+                    }
                 }
                 // draw box around license plates
                 for (auto && loc : ps3s4i.pedestriansLocations) {
                     cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 1);
+                    if (firstFrameWithDetections){
+                        firstResults.push_back(loc);
+                    }
                 }
 
+                firstFrameWithDetections = false;
+
+                /*for (auto && loc : firstResults) {
+                    cv::rectangle(outputFrame, loc, cv::Scalar(255, 0, 0), 2);
+                }*/
                 // ----------------------------Execution statistics -----------------------------------------------------
                 std::ostringstream out;
 				std::ostringstream out1;
