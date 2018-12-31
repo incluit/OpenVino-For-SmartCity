@@ -19,9 +19,9 @@
 #include "jpeglib.h"
 #include "jdhuff.h"		/* Declarations shared with jdhuff.c */
 
-#ifdef __GNUC__
-#pragma GCC diagnostic ignored "-Wshift-negative-value"
-#endif
+//#ifdef __GNUC__
+//#pragma GCC diagnostic ignored "-Wshift-negative-value"
+//#endif
 
 #ifdef D_PROGRESSIVE_SUPPORTED
 
