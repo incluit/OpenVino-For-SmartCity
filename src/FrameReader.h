@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <string>
-#include <io.h>
+#include <sys/io.h>
 
 #define FAIL  -1
 #define SUCCESS     1
@@ -30,7 +30,7 @@ class FrameReader
 private:
 	std::string		path;			// Frame path
 	std::string		image_type;		// Image type (For now, just "jpg" is available)
-	_finddata_t		fd;
+	//_finddata_t		fd;
 	intptr_t		handle;
 	int				status;			// Reading status (CANNOT_OPEN_DIR = 3 / WAITING_FOR_READING_FRAME = 4 / READING_FRAME_STARTED = 5 / READING_FRAME_DONE = 6)
 
@@ -47,13 +47,13 @@ public:
 	/* Get Function*/
 	std::string getPath() { return this->path; }
 	std::string getImageType() { return this->image_type; }
-	_finddata_t getFileFinder() { return this->fd; }
+	//_finddata_t getFileFinder() { return this->fd; }
 	intptr_t	getHandler() { return this->handle; }
 	int			getStatus() { return this->status; }
 
 	/* Core Function */
 	// Intialize FrameReader object
-	int initFrameReader(std::string _path, std::string _image_type);
+	//int initFrameReader(std::string _path, std::string _image_type);
 
 	// Get next frame image
 	int getNextFrame(cv::Mat& mat_img);

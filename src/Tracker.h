@@ -8,6 +8,10 @@
 #include <dlib/dir_nav.h>
 #include <dlib/opencv.h>
 
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 
 /* ==========================================================================
 
@@ -74,10 +78,10 @@ public:
 
 	/* Core Function */
 	// Initialize
-	int startSingleTracking(cv::Mat& _mat_img);
+	int startSingleTracking(cv::Mat _mat_img);
 
 	// Do tracking
-	int doSingleTracking(cv::Mat& _mat_img);
+	int doSingleTracking(cv::Mat _mat_img);
 
 	// Check the target is inside of the frame
 	int isTargetInsideFrame(int _frame_width, int _frame_height);
@@ -129,7 +133,7 @@ TrackingSystem is using these classes properly and hadling all expected exceptio
 class TrackingSystem
 {
 private:
-	std::string		frame_path;		// Path to the frame image
+	//std::string		frame_path;		// Path to the frame image
 	int				frame_width;	// Frame image width
 	int				frame_height;	// Frame image height
 	cv::Mat			current_frame;	// Current frame
@@ -137,19 +141,20 @@ private:
 
 	TargetRectDrawer	drawer;		// TargetRectDrawer
 	TrackerManager		manager;	// TrackerManager
-	FrameReader			reader;		// FrameReader
+	//FrameReader			reader;		// FrameReader
 
 public:
 	/* Constructor */
-	TrackingSystem(std::string _frame_path)
+	//TrackingSystem(std::string _frame_path)
+	TrackingSystem(cv::Mat _frame)
 	{
 		// Set frame path
-		this->frame_path.assign(_frame_path);
+		//this->frame_path.assign(_frame_path);
 
 		// Initialize TrackingSystem::reader
-		this->reader.initFrameReader(_frame_path, "jpg");
+		//this->reader.initFrameReader(_frame_path, "jpg");
 
-		cv::Mat temp_img = cv::imread(_frame_path + "/" + this->reader.getFileFinder().name, CV_LOAD_IMAGE_COLOR);
+		cv::Mat temp_img = _frame;
 		this->setFrameWidth(temp_img.cols);
 		this->setFrameHeight(temp_img.rows);
 
@@ -157,15 +162,15 @@ public:
 	};
 
 	/* Get Function */
-	std::string  getFramePath() { return this->frame_path; }
+	//std::string  getFramePath() { return this->frame_path; }
 	int    getFrameWidth() { return this->frame_width; }
 	int    getFrameHeight() { return this->frame_height; }
 	cv::Mat   getCurrentFrame() { return this->current_frame; }
 	TrackerManager getTrackerManager() { return this->manager; }
-	FrameReader  getFrameReader() { return this->reader; }
+	//FrameReader  getFrameReader() { return this->reader; }
 
 	/* Set Function */
-	void   setFramePath(std::string _frame_path) { this->frame_path.assign(_frame_path); }
+	//void   setFramePath(std::string _frame_path) { this->frame_path.assign(_frame_path); }
 	void   setFrameWidth(int _frame_width) { this->frame_width = _frame_width; }
 	void   setFrameHeight(int _frame_height) { this->frame_height = _frame_height; }
 	void   setCurrentFrame(cv::Mat _current_frame) { this->current_frame = _current_frame; }

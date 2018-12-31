@@ -71,7 +71,7 @@ Function : startSingleTracking
 Initialize dlib::correlation_tracker tracker using dlib::start_track function
 
 ---------------------------------------------------------------------------------*/
-int SingleTracker::startSingleTracking(cv::Mat& _mat_img)
+int SingleTracker::startSingleTracking(cv::Mat _mat_img)
 {
 	// Exception
 	if (_mat_img.empty())
@@ -129,7 +129,7 @@ SingleTracker::rect is initialized to the target position in the constructor of 
 Using correlation_tracker in dlib, start tracking 'one' target
 
 --------------------------------------------------------------------------------- */
-int SingleTracker::doSingleTracking(cv::Mat& _mat_img)
+int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 {
 	//Exception
 	if (_mat_img.empty())
@@ -246,8 +246,8 @@ If success to find return that iterator, or return TrackerManager::tracker_vec.e
 ----------------------------------------------------------------------------------- */
 int TrackerManager::findTracker(int _target_id)
 {
-	auto target = find_if(tracker_vec.begin(), tracker_vec.end(), [&, _target_id](auto ptr) -> bool {
-		return (ptr.get()->getTargetID() == _target_id);
+	auto target = find_if(tracker_vec.begin(), tracker_vec.end(), [&, _target_id](std::shared_ptr<SingleTracker> ptr) -> bool {
+		return (ptr.get() -> getTargetID() == _target_id);
 	});
 
 	if (target == tracker_vec.end())
@@ -526,7 +526,7 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 		cv::putText(_mat_img,
 			text,
 			text_pos,
-			CV_FONT_HERSHEY_PLAIN,
+			cv::FONT_HERSHEY_TRIPLEX,
 			1,
 			ptr.get()->getColor(),
 			2);

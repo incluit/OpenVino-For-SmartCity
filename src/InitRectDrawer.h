@@ -7,7 +7,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
-//#include <io.h>
+#include <sys/io.h>
 #include <cstdlib>
 
 #define FAIL  -1
