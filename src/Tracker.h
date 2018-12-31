@@ -146,7 +146,7 @@ private:
 public:
 	/* Constructor */
 	//TrackingSystem(std::string _frame_path)
-	TrackingSystem(cv::Mat _frame)
+	TrackingSystem(cv::Mat _frame, std::vector<std::pair<cv::Rect, cv::Scalar>> _rect_vect)
 	{
 		// Set frame path
 		//this->frame_path.assign(_frame_path);
@@ -158,7 +158,8 @@ public:
 		this->setFrameWidth(temp_img.cols);
 		this->setFrameHeight(temp_img.rows);
 
-		this->init_target = this->drawer.drawInitRect(temp_img);
+		//this->init_target = this->drawer.drawInitRect(temp_img);
+		init_target = _rect_vect;
 	};
 
 	/* Get Function */
