@@ -146,6 +146,8 @@ private:
 public:
 	/* Constructor */
 	//TrackingSystem(std::string _frame_path)
+	TrackingSystem(){};
+	
 	TrackingSystem(cv::Mat _frame, std::vector<std::pair<cv::Rect, cv::Scalar>> _rect_vect)
 	{
 		// Set frame path
@@ -175,6 +177,7 @@ public:
 	void   setFrameWidth(int _frame_width) { this->frame_width = _frame_width; }
 	void   setFrameHeight(int _frame_height) { this->frame_height = _frame_height; }
 	void   setCurrentFrame(cv::Mat _current_frame) { this->current_frame = _current_frame; }
+	void   setInitTarget(std::vector<std::pair<cv::Rect, cv::Scalar>> _init_target) { this->init_target = _init_target; }
 
 	/* Core Function */
 	// Initialize TrackingSystem.

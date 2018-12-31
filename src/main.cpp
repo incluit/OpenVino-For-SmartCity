@@ -49,6 +49,8 @@
 #include <dlib/image_io.h>
 #include <dlib/dir_nav.h>
 
+#include "Tracker.h"
+
 using namespace InferenceEngine;
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
@@ -469,6 +471,7 @@ int main(int argc, char *argv[]) {
 		double ocv_render_time = 0;
         cv::Mat* lastOutputFrame;
         std::vector<std::pair<cv::Rect, cv::Scalar>> firstResults;
+        TrackingSystem tracking_system;
 
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
@@ -713,6 +716,22 @@ int main(int argc, char *argv[]) {
                     if (firstFrameWithDetections){
                         firstResults.push_back(std::make_pair(loc, cv::Scalar(255, 255, 0)));
                     }
+                }
+
+                if(firstFrameWithDetections){
+                    tracking_system.setFrameWidth(outputFrame.cols);
+                    tracking_system.setFrameHeight(outputFrame.rows);
+                    tracking_system.setInitTarget(firstResults);
+                    tracking_system.initTrackingSystem();
+                }
+                int tracking_success = tracking_system.startTracking(outputFrame);
+                
+                if (tracking_success == FAIL){
+                    break;
+                }
+
+                if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
+			        tracking_system.drawTrackingResult(outputFrame);
                 }
 
                 firstFrameWithDetections = false;
