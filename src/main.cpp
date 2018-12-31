@@ -32,6 +32,7 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <utility>
 
 #include <inference_engine.hpp>
 
@@ -467,7 +468,7 @@ int main(int argc, char *argv[]) {
 		double ocv_decode_time_pedestrians = 0;
 		double ocv_render_time = 0;
         cv::Mat* lastOutputFrame;
-        std::vector<cv::Rect> firstResults;
+        std::vector<std::pair<cv::Rect, cv::Scalar>> firstResults;
 
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
@@ -699,18 +700,18 @@ int main(int argc, char *argv[]) {
 
                 cv::Mat& outputFrame = *(ps3s4i.outputFrame);
 
-                // draw box around vehicles and license plates
+                // draw box around vehicles
                 for (auto && loc : ps1s4i.vehicleLocations) {
                     cv::rectangle(outputFrame, loc, cv::Scalar(0, 255, 0), 1);
                     if (firstFrameWithDetections){
-                        firstResults.push_back(loc);
+                        firstResults.push_back(std::make_pair(loc, cv::Scalar(0, 255, 0)));
                     }
                 }
-                // draw box around license plates
+                // draw box around pedestrians
                 for (auto && loc : ps3s4i.pedestriansLocations) {
                     cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 1);
                     if (firstFrameWithDetections){
-                        firstResults.push_back(loc);
+                        firstResults.push_back(std::make_pair(loc, cv::Scalar(255, 255, 0)));
                     }
                 }
 
