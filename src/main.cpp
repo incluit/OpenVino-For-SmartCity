@@ -725,6 +725,7 @@ int main(int argc, char *argv[]) {
                 }
                 if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
 			        tracking_system.drawTrackingResult(outputFrame);
+			        tracking_system.detectCollisions(outputFrame);
                 }
                 firstFrameWithDetections = false;
 

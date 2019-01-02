@@ -413,7 +413,6 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 		int a = manager.deleteTracker(i);
 	}
 
-
 	return SUCCESS;
 }
 
@@ -468,6 +467,102 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 			ptr.get()->getColor(),
 			1); //Width
 	});
+
+	return SUCCESS;
+}
+
+/* -----------------------------------------------------------------------------------
+
+Function : isValidCollision
+
+Helper function for detectCollisions. A collision is valid if the ratios and threshold
+between the different objects is the right one. If not, it just means that they get
+occluded but they don't really collide.
+
+----------------------------------------------------------------------------------- */
+bool isValidCollision(std::pair<double, int> area1, std::pair<double, int> area2)
+{
+	const double ratioPtoC = 31;
+	const double ratioPtoB = 6.9;
+	const double ratioBtoC = 4.5;
+	const double threshold = 0.2;
+
+	double a1 = area1.first;
+	int label1 = area1.second;
+	double a2 = area2.first;
+	int label2 = area2.second;
+
+	if (label1 == LABEL_UNKNOWN || label2 == LABEL_UNKNOWN) {
+		return FALSE;
+	}
+
+	if (label1 != label2) {
+		if (label1 == LABEL_CAR) {
+			std::swap(label1, label2);
+			std::swap(area1, area2);
+		}
+		//Extend to further cases if needed
+	}
+
+	if (label1 == LABEL_PERSON) {
+		if (label2 == LABEL_PERSON) {
+			if (a1 > a2*(1-threshold) && a1 < a2*(1+threshold)) {
+				return TRUE;
+			}
+		} else if (label2 == LABEL_CAR) {
+			if (a1*ratioPtoC > a2*(1-threshold) && a1*ratioPtoC < a2*(1+threshold)) {
+				return TRUE;
+			}
+		}
+	} else if (label1 == LABEL_CAR) {
+		if (a1 > a2*(1-threshold) && a1 < a2*(1+threshold)) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+
+/* -----------------------------------------------------------------------------------
+
+Function : detectCollisions
+
+Draw red circle when collision is detected and write to log.
+
+----------------------------------------------------------------------------------- */
+int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
+{
+	TrackerManager manager = this->getTrackerManager();
+
+	// Exception
+	if (manager.getTrackerVec().size() == 0)
+	{
+		std::cout << "======================= Error Occured! ======================" << std::endl;
+		std::cout << "Function : int TrackingSystem::drawTrackingResult" << std::endl;
+		std::cout << "Nothing to draw" << std::endl;
+		std::cout << "=============================================================" << std::endl;
+		return FAIL;
+	}
+
+	std::vector<std::shared_ptr<SingleTracker>> trackerVec = manager.getTrackerVec();
+	for (auto i = trackerVec.begin(); i != trackerVec.end(); ++i) {
+		SingleTracker iRef = *(*i);
+		for (auto j = i + 1; j != trackerVec.end(); ++j) {
+		SingleTracker jRef = *(*j);
+		cv::Rect recti = iRef.getRect();
+		cv::Rect rectj = jRef.getRect();
+		bool intersects = ((recti & rectj).area() > 0);
+		if (intersects && isValidCollision(std::make_pair(recti.area(),iRef.getLabel()),std::make_pair(rectj.area(),jRef.getLabel()))) {
+			std::cout<<"Collision between object "<<iRef.getTargetID()<<" and "<<jRef.getTargetID()<<std::endl;
+			cv::circle(_mat_img,
+					   (iRef.getCenter() + jRef.getCenter())*.5,
+					   10, //radius
+					   cv::Scalar(0,0,255),
+					   3); //width
+			}
+		}
+	}
 
 	return SUCCESS;
 }

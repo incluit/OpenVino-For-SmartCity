@@ -187,6 +187,9 @@ public:
 	// Draw tracking result
 	int drawTrackingResult(cv::Mat& _mat_img);
 
+	// Detect collisions
+	int detectCollisions(cv::Mat& _mat_img);
+
 	// Terminate program
 	void terminateSystem();
 };
