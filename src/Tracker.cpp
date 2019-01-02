@@ -283,7 +283,11 @@ int TrackerManager::deleteTracker(int _target_id)
 
 		// Remove SingleTracker object from the vector
 		this->tracker_vec.erase(tracker_vec.begin() + result_idx);
-		return SUCCESS;
+
+		std::cout << "========================== Notice! ==========================" << std::endl;
+		std::cout << "Target ID : " << _target_id << " is going out of the frame." << std::endl;
+		std::cout << "Target ID : " << _target_id << " is erased!" << std::endl;
+		std::cout << "=============================================================" << std::endl;		return SUCCESS;
 	}
 }
 
@@ -418,7 +422,7 @@ int TrackingSystem::startTracking(int _target_id, cv::Mat& _mat_img)
 	{
 		manager.deleteTracker(_target_id);
 
-		std::cout << "=========================== Notice! =========================" << std::endl;
+		std::cout << "=========================== CHAU =========================" << std::endl;
 		std::cout << "Function int TrackingSystem::startTracking" << std::endl;
 		std::cout << "Target ID : " << _target_id << " is going out of the frame." << std::endl;
 		std::cout << "Target ID : " << _target_id << " is erased!" << std::endl;
@@ -475,19 +479,33 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 		thread_pool[i].join();
 
 	// If target is going out of the frame, delete that tracker.
-	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&](std::shared_ptr<SingleTracker> ptr) {
+	/*std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&](std::shared_ptr<SingleTracker> ptr) {
 		if (ptr.get()->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight()) == FALSE)
 		{
 			int target_id = ptr.get()->getTargetID();
-			manager.deleteTracker(target_id);
-
-			std::cout << "========================== Notice! ==========================" << std::endl;
+			int a = manager.deleteTracker(target_id);
+			std::cout << a << std::endl;
+			std::cout << "========================== HOLA ==========================" << std::endl;
 			std::cout << "Function int TrackingSystem::startTracking" << std::endl;
 			std::cout << "Target ID : " << target_id << " is going out of the frame." << std::endl;
 			std::cout << "Target ID : " << target_id << " is erased!" << std::endl;
 			std::cout << "=============================================================" << std::endl;
+			break;
 		}
-	});
+	});*/
+	std::vector<int> tracker_erase;
+	for(auto && i: manager.getTrackerVec()){
+		if (i->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight()) == FALSE)
+		{
+			int target_id = i.get()->getTargetID();
+			tracker_erase.push_back(target_id);
+		}
+	}
+	
+	for(auto && i : tracker_erase){
+		int a = manager.deleteTracker(i);
+	}
+
 
 	return SUCCESS;
 }

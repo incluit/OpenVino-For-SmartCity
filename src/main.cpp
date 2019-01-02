@@ -725,20 +725,14 @@ int main(int argc, char *argv[]) {
                     tracking_system.initTrackingSystem();
                 }
                 int tracking_success = tracking_system.startTracking(outputFrame);
-                
                 if (tracking_success == FAIL){
                     break;
                 }
-
                 if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
 			        tracking_system.drawTrackingResult(outputFrame);
                 }
-
                 firstFrameWithDetections = false;
 
-                /*for (auto && loc : firstResults) {
-                    cv::rectangle(outputFrame, loc, cv::Scalar(255, 0, 0), 2);
-                }*/
                 // ----------------------------Execution statistics -----------------------------------------------------
                 std::ostringstream out;
 				std::ostringstream out1;
