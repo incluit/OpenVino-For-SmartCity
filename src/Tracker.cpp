@@ -291,38 +291,9 @@ int TrackerManager::deleteTracker(int _target_id)
 	}
 }
 
-
 /* -----------------------------------------------------------------------------------
 
-Function : initTrackingSystem(overloaded)
-
-Insert a SingleTracker object to the manager.tracker_vec
-If you want multi-object tracking, call this function multiple times like
-
-initTrackingSystem(0, rect1, color1);
-initTrackingSystem(1, rect2, color2);
-initTrackingSystem(2, rect3, color3);
-
-Then, the system is ready to tracking three targets.
-
------------------------------------------------------------------------------------ */
-int TrackingSystem::initTrackingSystem(int _target_id, cv::Rect _rect, cv::Scalar _color)
-{
-	if (this->manager.insertTracker(_rect, _color, _target_id) == FAIL)
-	{
-		std::cout << "====================== Error Occured! =======================" << std::endl;
-		std::cout << "Function : int TrackingSystem::initTrackingSystem" << std::endl;
-		std::cout << "Cannot insert new SingleTracker object to the vector" << std::endl;
-		std::cout << "=============================================================" << std::endl;
-		return FAIL;
-	}
-	else
-		return TRUE;
-}
-
-/* -----------------------------------------------------------------------------------
-
-Function : initTrackingSystem(overloaded)
+Function : initTrackingSystem()
 
 Insert multiple SingleTracker objects to the manager.tracker_vec in once.
 If you want multi-object tracking, call this function just for once like
@@ -341,100 +312,24 @@ Then, the system is ready to track multiple targets.
 
 int TrackingSystem::initTrackingSystem()
 {
-	for (int i = 0; i < this->init_target.size(); i++)
-	{
-		int init_result = initTrackingSystem(i, this->init_target[i].first, this->init_target[i].second);
-
-		if (init_result == FAIL)
+	int index = 0;
+	for( auto && i : init_target){
+		if (this->manager.insertTracker(i.first, i.second, index) == FAIL)
+		{
+			std::cout << "====================== Error Occured! =======================" << std::endl;
+			std::cout << "Function : int TrackingSystem::initTrackingSystem" << std::endl;
+			std::cout << "Cannot insert new SingleTracker object to the vector" << std::endl;
+			std::cout << "=============================================================" << std::endl;
 			return FAIL;
+		}
+		index++;
 	}
-
-	return SUCCESS;
-
-}
-
-/* -----------------------------------------------------------------------------------
-
-Function : startTracking(overloaded)
-
-Track just one target.
-If you want to track multiple targets,
-
-startTracking(0, _mat_img)
-startTracking(1, _mat_img)
-startTracking(2, _mat_img)
-...
-
-Target ID should be given by initTrackingSystem function
-
------------------------------------------------------------------------------------ */
-int TrackingSystem::startTracking(int _target_id, cv::Mat& _mat_img)
-{
-	// Check the image is empty
-	if (_mat_img.empty())
-	{
-		std::cout << "======================= Error Occured! ======================" << std::endl;
-		std::cout << "Function : int TrackingSystem::startTracking" << std::endl;
-		std::cout << "Input image is empty" << std::endl;
-		std::cout << "=============================================================" << std::endl;
-		return FAIL;
-	}
-
-	// Check the manager.tracker_vec size to make it sure target exists
-	if (manager.getTrackerVec().size() == 0)
-	{
-		std::cout << "========================= Notice! ===========================" << std::endl;
-		std::cout << "Function int TrackingSystem::startTracking" << std::endl;
-		std::cout << "There is no more target to track" << std::endl;
-		std::cout << "=============================================================" << std::endl;
-		return FAIL;
-	}
-
-	// Find the target from the manager.tracker_vec
-	int result_idx = manager.findTracker(_target_id);
-
-	// If there is no target which has ID : _target_id
-	if (result_idx == FAIL)
-	{
-		std::cout << "======================== Error Occured! =====================" << std::endl;
-		std::cout << "Function : int TrackingSystem::startTracking" << std::endl;
-		std::cout << "Cannot find Target ID : " << _target_id << std::endl;
-		std::cout << "=============================================================" << std::endl;
-
-		return FAIL;
-	}
-
-	// If there is no problem with frame image, set the image as current_frame
-	setCurrentFrame(_mat_img);
-
-	// Convert Mat to dlib::array2d to use start_track function
-	dlib::array2d<unsigned char> dlib_cur_frame = Util::cvtMatToArray2d(this->getCurrentFrame());
-
-	// startSingleTracking. This function must be called for just once when tracking is started for initializing
-	if (!(manager.getTrackerVec()[result_idx].get()->getIsTrackingStarted()))
-		manager.getTrackerVec()[result_idx].get()->startSingleTracking(this->getCurrentFrame());
-
-	// doSingleTracking                 
-	manager.getTrackerVec()[result_idx].get()->doSingleTracking(this->getCurrentFrame());
-
-	// If target is going out of the frame, delete that tracker.
-	if (manager.getTrackerVec()[result_idx].get()->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight()) == FALSE)
-	{
-		manager.deleteTracker(_target_id);
-
-		std::cout << "=========================== CHAU =========================" << std::endl;
-		std::cout << "Function int TrackingSystem::startTracking" << std::endl;
-		std::cout << "Target ID : " << _target_id << " is going out of the frame." << std::endl;
-		std::cout << "Target ID : " << _target_id << " is erased!" << std::endl;
-		std::cout << "=============================================================" << std::endl;
-	}
-
 	return SUCCESS;
 }
 
 /* -----------------------------------------------------------------------------------
 
-Function : startTracking(overloaded)
+Function : startTracking()
 
 Track all targets.
 You don't need to give target id for tracking.
@@ -457,7 +352,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 	dlib::array2d<unsigned char> dlib_cur_frame = Util::cvtMatToArray2d(_mat_img);
 
 	// For all SingleTracker, do SingleTracker::startSingleTracking.
-	// Function startSingleTracking shold be done before doSingleTracking
+	// Function startSingleTracking should be done before doSingleTracking
 	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&](std::shared_ptr<SingleTracker> ptr) {
 		if (!(ptr.get()->getIsTrackingStarted()))
 		{
@@ -533,7 +428,7 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 
 	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&_mat_img](std::shared_ptr<SingleTracker> ptr) {
 		// Draw all rectangles
-		cv::rectangle(_mat_img, ptr.get()->getRect(), ptr.get()->getColor(), 2);
+		cv::rectangle(_mat_img, ptr.get()->getRect(), ptr.get()->getColor(), 1);
 
 		cv::String text(std::string("Target ID : ") + std::to_string(ptr.get()->getTargetID()));
 		cv::Point text_pos = ptr.get()->getRect().tl();
