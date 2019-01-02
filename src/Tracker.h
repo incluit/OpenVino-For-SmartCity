@@ -1,5 +1,4 @@
 #pragma once
-#include "InitRectDrawer.h"
 
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
@@ -11,6 +10,16 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
+
+#define FAIL		-1
+#define SUCCESS		1
+#define FALSE		0
+#define TRUE		1
+
+#define OUT_OF_FRAME	2
+
+#define ENTER	13
+#define ESC		27
 
 /* ==========================================================================
 
@@ -137,7 +146,6 @@ private:
 	cv::Mat			current_frame;	// Current frame
 	std::vector<std::pair<cv::Rect, cv::Scalar>> init_target;
 
-	TargetRectDrawer	drawer;		// TargetRectDrawer
 	TrackerManager		manager;	// TrackerManager
 
 public:

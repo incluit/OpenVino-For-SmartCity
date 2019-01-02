@@ -361,8 +361,8 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 		}
 	});
 
-	vector<std::thread> thread_pool;
-	
+	std::vector<std::thread> thread_pool;
+
 	// Multi thread
 	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&](std::shared_ptr<SingleTracker> ptr) {
 		thread_pool.emplace_back([ptr, &_mat_img]() { 
