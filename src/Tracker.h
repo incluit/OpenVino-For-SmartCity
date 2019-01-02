@@ -21,9 +21,11 @@
 #define ENTER	13
 #define ESC		27
 
+const int LABEL_UNKNOWN = 0;
 const int LABEL_CAR = 1;
 const int LABEL_PERSON = 2;
 
+const cv::Scalar COLOR_UNKNOWN = cv::Scalar(0, 0, 0);
 const cv::Scalar COLOR_CAR = cv::Scalar(0, 255, 0);
 const cv::Scalar COLOR_PERSON = cv::Scalar(255, 255, 0);
 
@@ -46,12 +48,13 @@ private:
 	cv::Point	center;				// Current center point of target
 	bool		is_tracking_started;// Is tracking started or not? (Is initializing done or not?)
 	cv::Scalar	color;				// Box color
+	int			label;				// Label (LABEL_CAR, LABEL_PERSON)
 
 public:
 	dlib::correlation_tracker tracker;  // Correlation tracker
 
 	/* Member Initializer & Constructor*/
-	SingleTracker(int _target_id, cv::Rect _init_rect, cv::Scalar _color)
+	SingleTracker(int _target_id, cv::Rect _init_rect, cv::Scalar _color, int _label)
 		: target_id(_target_id), confidence(0), is_tracking_started(false)
 	{
 		// Exception
@@ -68,6 +71,7 @@ public:
 			this->setRect(_init_rect);
 			this->setCenter(_init_rect);
 			this->setColor(_color);
+			this->setLabel(_label);
 		}
 	}
 
@@ -78,6 +82,7 @@ public:
 	double		getConfidence() { return this->confidence; }
 	bool		getIsTrackingStarted() { return this->is_tracking_started; }
 	cv::Scalar	getColor() { return this->color; }
+	int			getLabel() { return this->label; }
 
 	/* Set Function */
 	void setTargetId(int _target_id) { this->target_id = _target_id; }
@@ -89,6 +94,7 @@ public:
 	void setConfidence(double _confidence) { this->confidence = _confidence; }
 	void setIsTrackingStarted(bool _b) { this->is_tracking_started = _b; }
 	void setColor(cv::Scalar _color) { this->color = _color; }
+	void setLabel(int _label) { this->label = _label; }
 
 	/* Core Function */
 	// Initialize
@@ -122,7 +128,7 @@ public:
 
 	/* Core Function */
 	// Insert new SingleTracker shared pointer into the TrackerManager::tracker_vec
-	int insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id);
+	int insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label);
 	int insertTracker(std::shared_ptr<SingleTracker> new_single_tracker);
 
 	// Find SingleTracker in the TrackerManager::tracker_vec using SingleTracker::target_id

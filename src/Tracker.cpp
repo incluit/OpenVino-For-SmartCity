@@ -171,7 +171,7 @@ If you are about to track new person, need to use this function.
 
 ------------------------------------------------------------------------- */
 
-int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id)
+int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label)
 {
 	// Exceptions
 	if (_init_rect.area() == 0)
@@ -198,7 +198,7 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 	}
 
 	// Create new SingleTracker object and insert it to the vector
-	std::shared_ptr<SingleTracker> new_tracker(new SingleTracker(_target_id, _init_rect, _color));
+	std::shared_ptr<SingleTracker> new_tracker(new SingleTracker(_target_id, _init_rect, _color, _label));
 	this->tracker_vec.push_back(new_tracker);
 
 	return SUCCESS;
@@ -313,16 +313,20 @@ Then, the system is ready to track multiple targets.
 int TrackingSystem::initTrackingSystem()
 {
 	int index = 0;
-	cv::Scalar color;
+	cv::Scalar color = COLOR_UNKNOWN;
+	int label = LABEL_UNKNOWN;
+
 	for( auto && i : init_target){
 		if (i.second == LABEL_CAR) {
 			color = COLOR_CAR;
+			label = LABEL_CAR;
 		}
 		else if (i.second == LABEL_PERSON) {
 			color = COLOR_PERSON;
+			label = LABEL_PERSON;
 		}
 
-		if (this->manager.insertTracker(i.first, color, index) == FAIL)
+		if (this->manager.insertTracker(i.first, color, index, label) == FAIL)
 		{
 			std::cout << "====================== Error Occured! =======================" << std::endl;
 			std::cout << "Function : int TrackingSystem::initTrackingSystem" << std::endl;
@@ -404,7 +408,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 			tracker_erase.push_back(target_id);
 		}
 	}
-	
+
 	for(auto && i : tracker_erase){
 		int a = manager.deleteTracker(i);
 	}
@@ -437,8 +441,20 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&_mat_img](std::shared_ptr<SingleTracker> ptr) {
 		// Draw all rectangles
 		cv::rectangle(_mat_img, ptr.get()->getRect(), ptr.get()->getColor(), 1);
+		std::string str_label;
 
-		cv::String text(std::string("Target ID : ") + std::to_string(ptr.get()->getTargetID()));
+		switch (ptr.get()->getLabel()) {
+		case LABEL_CAR:
+			str_label = "Car";
+			break;
+		case LABEL_PERSON:
+			str_label = "Person";
+			break;
+		default:
+			str_label = "Unknown";
+			break;
+		}
+		cv::String text(std::string("ID: ") + std::to_string(ptr.get()->getTargetID()) + " Class: " + str_label);
 		cv::Point text_pos = ptr.get()->getRect().tl();
 		text_pos.x = text_pos.x - 10;
 		text_pos.y = text_pos.y - 5;
@@ -447,10 +463,10 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 		cv::putText(_mat_img,
 			text,
 			text_pos,
-			cv::FONT_HERSHEY_TRIPLEX,
-			1,
+			cv::FONT_HERSHEY_SIMPLEX,
+			0.5, //Scale
 			ptr.get()->getColor(),
-			2);
+			1); //Width
 	});
 
 	return SUCCESS;
