@@ -1,5 +1,4 @@
 #pragma once
-//#include "FrameReader.h"
 #include "InitRectDrawer.h"
 
 #include <dlib/image_processing.h>
@@ -133,7 +132,6 @@ TrackingSystem is using these classes properly and hadling all expected exceptio
 class TrackingSystem
 {
 private:
-	//std::string		frame_path;		// Path to the frame image
 	int				frame_width;	// Frame image width
 	int				frame_height;	// Frame image height
 	cv::Mat			current_frame;	// Current frame
@@ -141,36 +139,16 @@ private:
 
 	TargetRectDrawer	drawer;		// TargetRectDrawer
 	TrackerManager		manager;	// TrackerManager
-	//FrameReader			reader;		// FrameReader
 
 public:
 	/* Constructor */
-	//TrackingSystem(std::string _frame_path)
 	TrackingSystem(){};
-	
-	TrackingSystem(cv::Mat _frame, std::vector<std::pair<cv::Rect, cv::Scalar>> _rect_vect)
-	{
-		// Set frame path
-		//this->frame_path.assign(_frame_path);
-
-		// Initialize TrackingSystem::reader
-		//this->reader.initFrameReader(_frame_path, "jpg");
-
-		cv::Mat temp_img = _frame;
-		this->setFrameWidth(temp_img.cols);
-		this->setFrameHeight(temp_img.rows);
-
-		//this->init_target = this->drawer.drawInitRect(temp_img);
-		init_target = _rect_vect;
-	};
 
 	/* Get Function */
-	//std::string  getFramePath() { return this->frame_path; }
 	int    getFrameWidth() { return this->frame_width; }
 	int    getFrameHeight() { return this->frame_height; }
 	cv::Mat   getCurrentFrame() { return this->current_frame; }
 	TrackerManager getTrackerManager() { return this->manager; }
-	//FrameReader  getFrameReader() { return this->reader; }
 
 	/* Set Function */
 	//void   setFramePath(std::string _frame_path) { this->frame_path.assign(_frame_path); }
@@ -181,12 +159,10 @@ public:
 
 	/* Core Function */
 	// Initialize TrackingSystem.
-	int initTrackingSystem(int _target_id, cv::Rect _rect, cv::Scalar _color);
 	int initTrackingSystem();
 
 	// Start tracking
 	int startTracking(cv::Mat& _mat_img);
-	int startTracking(int _target_id, cv::Mat& _mat_img);
 
 	// Draw tracking result
 	int drawTrackingResult(cv::Mat& _mat_img);
