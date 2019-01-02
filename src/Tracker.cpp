@@ -313,8 +313,16 @@ Then, the system is ready to track multiple targets.
 int TrackingSystem::initTrackingSystem()
 {
 	int index = 0;
+	cv::Scalar color;
 	for( auto && i : init_target){
-		if (this->manager.insertTracker(i.first, i.second, index) == FAIL)
+		if (i.second == LABEL_CAR) {
+			color = COLOR_CAR;
+		}
+		else if (i.second == LABEL_PERSON) {
+			color = COLOR_PERSON;
+		}
+
+		if (this->manager.insertTracker(i.first, color, index) == FAIL)
 		{
 			std::cout << "====================== Error Occured! =======================" << std::endl;
 			std::cout << "Function : int TrackingSystem::initTrackingSystem" << std::endl;

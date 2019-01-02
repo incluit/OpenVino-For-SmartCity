@@ -465,7 +465,7 @@ int main(int argc, char *argv[]) {
 		double ocv_decode_time_pedestrians = 0;
 		double ocv_render_time = 0;
         cv::Mat* lastOutputFrame;
-        std::vector<std::pair<cv::Rect, cv::Scalar>> firstResults;
+        std::vector<std::pair<cv::Rect, int>> firstResults;
         TrackingSystem tracking_system;
 
         // structure to hold frame and associated data which are passed along
@@ -702,14 +702,14 @@ int main(int argc, char *argv[]) {
                 for (auto && loc : ps1s4i.vehicleLocations) {
                     cv::rectangle(outputFrame, loc, cv::Scalar(0, 255, 0), 1);
                     if (firstFrameWithDetections){
-                        firstResults.push_back(std::make_pair(loc, cv::Scalar(0, 255, 0)));
+                        firstResults.push_back(std::make_pair(loc, LABEL_CAR));
                     }
                 }
                 // draw box around pedestrians
                 for (auto && loc : ps3s4i.pedestriansLocations) {
                     cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 1);
                     if (firstFrameWithDetections){
-                        firstResults.push_back(std::make_pair(loc, cv::Scalar(255, 255, 0)));
+                        firstResults.push_back(std::make_pair(loc, LABEL_PERSON));
                     }
                 }
 

@@ -21,6 +21,12 @@
 #define ENTER	13
 #define ESC		27
 
+const int LABEL_CAR = 1;
+const int LABEL_PERSON = 2;
+
+const cv::Scalar COLOR_CAR = cv::Scalar(0, 255, 0);
+const cv::Scalar COLOR_PERSON = cv::Scalar(255, 255, 0);
+
 /* ==========================================================================
 
 Class : SingleTracker
@@ -144,7 +150,7 @@ private:
 	int				frame_width;	// Frame image width
 	int				frame_height;	// Frame image height
 	cv::Mat			current_frame;	// Current frame
-	std::vector<std::pair<cv::Rect, cv::Scalar>> init_target;
+	std::vector<std::pair<cv::Rect, int>> init_target;
 
 	TrackerManager		manager;	// TrackerManager
 
@@ -163,7 +169,7 @@ public:
 	void   setFrameWidth(int _frame_width) { this->frame_width = _frame_width; }
 	void   setFrameHeight(int _frame_height) { this->frame_height = _frame_height; }
 	void   setCurrentFrame(cv::Mat _current_frame) { this->current_frame = _current_frame; }
-	void   setInitTarget(std::vector<std::pair<cv::Rect, cv::Scalar>> _init_target) { this->init_target = _init_target; }
+	void   setInitTarget(std::vector<std::pair<cv::Rect, int>> _init_target) { this->init_target = _init_target; }
 
 	/* Core Function */
 	// Initialize TrackingSystem.
