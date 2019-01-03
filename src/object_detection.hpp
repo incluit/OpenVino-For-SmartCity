@@ -83,6 +83,8 @@ static const char no_show_processed_video[] = "No show processed video.";
 
 static const char show_interest_areas_selection[] = "Draw interest areas locations.";
 
+static const char do_tracking[] = "Track objects.";
+
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -150,6 +152,7 @@ DEFINE_uint32(n_async, 1, async_depth_message);
 ///
 
 DEFINE_bool(show_selection, false, show_interest_areas_selection);
+DEFINE_bool(tracking, false, do_tracking);
 
 DEFINE_string(m_p, "", pedestrians_model_message);
 DEFINE_uint32(n_p, 1, num_batch_message);
@@ -167,20 +170,21 @@ static void showUsage() {
     std::cout << "    -h                         " << help_message << std::endl;
     std::cout << "    -i \"<path>\"              " << video_message << std::endl;
     std::cout << "    -m \"<path>\"              " << vehicle_detection_model_message<< std::endl;
-    std::cout << "    -m_p \"<path>\"           " << pedestrians_model_message << std::endl;
+    std::cout << "    -m_p \"<path>\"            " << pedestrians_model_message << std::endl;
     std::cout << "      -l \"<absolute_path>\"   " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "      -c \"<absolute_path>\"   " << custom_cldnn_message << std::endl;
     std::cout << "    -d \"<device>\"            " << target_device_message << std::endl;
     std::cout << "    -n \"<num>\"               " << num_batch_message << std::endl;
-    std::cout << "    -d_p \"<device>\"         " << target_device_message_pedestrians << std::endl;
-    std::cout << "    -n_p \"<num>\"            " << num_batch_va_message << std::endl;
+    std::cout << "    -d_p \"<device>\"          " << target_device_message_pedestrians << std::endl;
+    std::cout << "    -n_p \"<num>\"             " << num_batch_va_message << std::endl;
     std::cout << "    -dyn_va                    " << dyn_va_message << std::endl;
     std::cout << "    -n_aysnc \"<num>\"         " << async_depth_message << std::endl;
     std::cout << "    -auto_resize               " << auto_resize_message << std::endl;
     std::cout << "    -no_wait                   " << no_wait_for_keypress_message << std::endl;
     std::cout << "    -no_show                   " << no_show_processed_video << std::endl;
-    std::cout << "    -show_selection         " << show_interest_areas_selection << std::endl;
+    std::cout << "    -show_selection         	 " << show_interest_areas_selection << std::endl;
+    std::cout << "    -tracking         	 " << do_tracking << std::endl;
     std::cout << "    -pc                        " << performance_counter_message << std::endl;
     std::cout << "    -r                         " << raw_output_message << std::endl;
     std::cout << "    -t                         " << thresh_output_message << std::endl;

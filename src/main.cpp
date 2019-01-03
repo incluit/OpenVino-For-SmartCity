@@ -713,23 +713,24 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-                if(firstFrameWithDetections){
-                    tracking_system.setFrameWidth(outputFrame.cols);
-                    tracking_system.setFrameHeight(outputFrame.rows);
-                    tracking_system.setInitTarget(firstResults);
-                    tracking_system.initTrackingSystem();
-                }
-                int tracking_success = tracking_system.startTracking(outputFrame);
-                if (tracking_success == FAIL){
-                    break;
-                }
-                if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
-			        tracking_system.drawTrackingResult(outputFrame);
-			        tracking_system.detectCollisions(outputFrame);
-                }
-                firstFrameWithDetections = false;
-
-                // ----------------------------Execution statistics -----------------------------------------------------
+		if(FLAGS_tracking) {
+			if(firstFrameWithDetections){
+				tracking_system.setFrameWidth(outputFrame.cols);
+				tracking_system.setFrameHeight(outputFrame.rows);
+				tracking_system.setInitTarget(firstResults);
+				tracking_system.initTrackingSystem();
+			}
+			int tracking_success = tracking_system.startTracking(outputFrame);
+			if (tracking_success == FAIL){
+				break;
+			}
+			if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
+				tracking_system.drawTrackingResult(outputFrame);
+				tracking_system.detectCollisions(outputFrame);
+			}
+			firstFrameWithDetections = false;
+		}
+		// ----------------------------Execution statistics -----------------------------------------------------
                 std::ostringstream out;
 				std::ostringstream out1;
 				std::ostringstream out2;
