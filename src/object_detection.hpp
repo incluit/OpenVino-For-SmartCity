@@ -64,6 +64,8 @@ static const char raw_output_message[] = "Optional. Output inference results raw
 /// @brief Message resizable input flag
 static const char input_resizable_message[] = "Optional. Enable resizable input with support of ROI crop and auto resize.";
 
+static const char pedo[] = "Pedo";
+
 
 /// \brief Defines flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -106,6 +108,7 @@ DEFINE_double(iou_t, 0.4, iou_thresh_output_message);
 /// It is an optional parameter
 DEFINE_bool(auto_resize, false, input_resizable_message);
 
+DEFINE_uint32(n_async, 1, pedo);
 
 /**
 * \brief This function shows a help message

@@ -200,6 +200,302 @@ void ParseYOLOV3Output(const CNNLayerPtr &layer, const Blob::Ptr &blob, const un
     }
 }
 
+class BaseDetection {
+  public:
+	ExecutableNetwork net;
+    CNNNetwork net_readed;
+    std::string & commandLineFlag;
+    std::string & deviceName;
+    std::string topoName;
+    int maxBatch;
+    int maxSubmittedRequests;
+    InferenceEngine::InferencePlugin * plugin;
+    int inputRequestIdx;
+    InferRequest::Ptr outputRequest;
+    std::vector<InferRequest::Ptr> requests;
+    std::queue<InferRequest::Ptr> submittedRequests;
+
+    BaseDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch)
+        : commandLineFlag(commandLineFlag), deviceName(deviceName),topoName(topoName), maxBatch(maxBatch), maxSubmittedRequests(FLAGS_n_async),
+		  plugin(nullptr), inputRequestIdx(0), outputRequest(nullptr), requests(FLAGS_n_async) {}
+
+    virtual ~BaseDetection() {}
+
+    ExecutableNetwork* operator ->() {
+        return &net;
+    }
+    virtual InferenceEngine::CNNNetwork read()  = 0;
+
+    virtual void submitRequest() {
+        if (!enabled() || nullptr == requests[inputRequestIdx]) return;
+        requests[inputRequestIdx]->StartAsync();
+        submittedRequests.push(requests[inputRequestIdx]);
+        inputRequestIdx++;
+        if (inputRequestIdx >= maxSubmittedRequests) {
+	       inputRequestIdx = 0;
+        }
+    }
+
+    // call before wait() to check status
+    bool resultIsReady() {
+	   if (submittedRequests.size() < 1) return false;
+	   StatusCode state = submittedRequests.front()->Wait(IInferRequest::WaitMode::STATUS_ONLY);
+	   return (StatusCode::OK == state);
+    }
+
+    virtual void wait() {
+        if (!enabled()) return;
+
+        // get next request to wait on
+        if (nullptr == outputRequest) {
+	        if (submittedRequests.size() < 1) return;
+	        outputRequest = submittedRequests.front();
+	        submittedRequests.pop();
+        }
+
+        outputRequest->Wait(IInferRequest::WaitMode::RESULT_READY);
+    }
+
+    bool requestsInProcess() {
+	    // request is in progress if number of outstanding requests is > 0
+	    return (submittedRequests.size() > 0);
+    }
+
+    bool canSubmitRequest() {
+	    // ready when another request can be submitted
+	    return (submittedRequests.size() < maxSubmittedRequests);
+    }
+
+    mutable bool enablingChecked = false;
+    mutable bool _enabled = false;
+
+    bool enabled() const  {
+        if (!enablingChecked) {
+            _enabled = !commandLineFlag.empty();
+            if (!_enabled) {
+                slog::info << topoName << " DISABLED" << slog::endl;
+            }
+            enablingChecked = true;
+        }
+        return _enabled;
+    }
+    void printPerformanceCounts() {
+        if (!enabled()) {
+            return;
+        }
+        // use last request used
+        int idx = std::max(0, inputRequestIdx-1);
+        slog::info << "Performance counts for " << topoName << slog::endl << slog::endl;
+        ::printPerformanceCounts(requests[idx]->GetPerformanceCounts(), std::cout, false);
+    }
+};
+
+class ObjectDetection : public BaseDetection{
+  public:
+	std::string input_name;
+    std::vector<std::string> output;
+    int maxProposalCount = 0;
+    int objectSize = 0;
+    int enquedFrames = 0;
+    std::vector<std::string> labels;
+
+    std::vector<DetectionObject> detected_results;
+
+    unsigned long resized_im_h = 0;
+    unsigned long resized_im_w = 0;
+        
+    float width = 0;
+    float height = 0;
+    using BaseDetection::operator=;
+
+    struct Result {
+	    int batchIndex;
+        int label;
+        float confidence;
+        cv::Rect location;
+    };
+
+    std::vector<Result> results;
+
+    void submitRequest() override {
+        if (!enquedFrames) return;
+        enquedFrames = 0;
+        BaseDetection::submitRequest();
+    }
+
+    void enqueue(const cv::Mat &frame) {
+        if (!enabled()) return;
+        slog::info << "Enqueue 1" << slog::endl;
+
+        if (enquedFrames >= maxBatch) {
+            slog::warn << "Number of frames more than maximum(" << maxBatch << ") processed by Vehicles detector" << slog::endl;
+            return;
+        }
+        slog::info << "Enqueue 2" << slog::endl;
+
+        if (nullptr == requests[inputRequestIdx]) {
+	        requests[inputRequestIdx] = net.CreateInferRequestPtr();
+        }
+        slog::info << "Enqueue 3" << slog::endl;
+
+        width = frame.cols;
+        height = frame.rows;
+
+		InferenceEngine::Blob::Ptr inputBlob;
+        if (FLAGS_auto_resize) {
+            slog::info << "Enqueue 4.1" << slog::endl;
+            inputBlob = wrapMat2Blob(frame);
+            requests[inputRequestIdx]->SetBlob(input_name, inputBlob);
+        } else {
+            slog::info << "Enqueue 4.2" << slog::endl;
+			inputBlob = requests[inputRequestIdx]->GetBlob(input_name);
+			matU8ToBlob<uint8_t >(frame, inputBlob, enquedFrames);
+	    }
+        enquedFrames++;
+    }
+
+
+    ObjectDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch) : BaseDetection(commandLineFlag, deviceName, topoName, maxBatch) {}
+    InferenceEngine::CNNNetwork read() override {
+        slog::info << "Loading network files" << slog::endl;
+        CNNNetReader netReader;
+        /** Reading network model **/
+        netReader.ReadNetwork(FLAGS_m);
+        /** Setting batch size to 1 **/
+        slog::info << "Batch size is forced to  1." << slog::endl;
+        netReader.getNetwork().setBatchSize(1);
+        /** Extracting the model name and loading its weights **/
+        std::string binFileName = fileNameNoExt(FLAGS_m) + ".bin";
+        netReader.ReadWeights(binFileName);
+        /** Reading labels (if specified) **/
+        std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
+        std::ifstream inputFile(labelFileName);
+        std::copy(std::istream_iterator<std::string>(inputFile),
+                  std::istream_iterator<std::string>(),
+                  std::back_inserter(labels));
+        // -----------------------------------------------------------------------------------------------------
+
+        /** YOLOV3-based network should have one input and three output **/
+        // --------------------------- 3. Configuring input and output -----------------------------------------
+        // --------------------------------- Preparing input blobs ---------------------------------------------
+        slog::info << "Checking that the inputs are as the demo expects" << slog::endl;
+        InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
+        if (inputInfo.size() != 1) {
+            throw std::logic_error("This demo accepts networks that have only one input");
+        }
+        InputInfo::Ptr& input = inputInfo.begin()->second;
+        resized_im_h = input.get()->getDims()[0];
+        resized_im_w = input.get()->getDims()[1];
+        auto inputName = inputInfo.begin()->first;
+        input_name = inputName;
+        input->setPrecision(Precision::U8);
+        if (FLAGS_auto_resize) {
+            input->getPreProcess().setResizeAlgorithm(ResizeAlgorithm::RESIZE_BILINEAR);
+            input->getInputData()->setLayout(Layout::NHWC);
+        } else {
+            input->getInputData()->setLayout(Layout::NCHW);
+        }
+                // --------------------------------- Preparing output blobs -------------------------------------------
+        slog::info << "Checking that the outputs are as the demo expects" << slog::endl;
+        OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
+        /*if (outputInfo.size() != 3) {
+            throw std::logic_error("This demo only accepts networks with three layers");
+        }*/
+        for (auto &a : outputInfo) {
+            a.second->setPrecision(Precision::FP32);
+            a.second->setLayout(Layout::NCHW);
+            output.push_back(a.first);
+        }
+        net_readed = netReader.getNetwork();
+        // -----------------------------------------------------------------------------------------------------
+        return net_readed;
+    }
+
+    void fetchResults(int inputBatchSize) {
+        if (!enabled()) return;
+
+        if (nullptr == outputRequest) {
+	        return;
+        }
+
+        results.clear();
+        detected_results.clear();
+        /*
+        const float *detections = outputRequest->GetBlob(output)->buffer().as<float *>();
+        // pretty much regular SSD post-processing
+		for (int i = 0; i < maxProposalCount; i++) {
+			int proposalOffset = i * objectSize;
+			float image_id = detections[proposalOffset + 0];
+			Result r;
+			r.batchIndex = image_id;
+			r.label = static_cast<int>(detections[proposalOffset + 1]);
+			r.confidence = detections[proposalOffset + 2];
+			if (r.confidence <= FLAGS_t) {
+				continue;
+			}
+			r.location.x = detections[proposalOffset + 3] * width;
+			r.location.y = detections[proposalOffset + 4] * height;
+			r.location.width = detections[proposalOffset + 5] * width - r.location.x;
+			r.location.height = detections[proposalOffset + 6] * height - r.location.y;
+
+			if ((image_id < 0) || (image_id >= inputBatchSize)) {  // indicates end of detections
+				break;
+			}
+			if (FLAGS_r) {
+				std::cout << "[bi=" << r.batchIndex << "][" << i << "," << r.label << "] element, prob = " << r.confidence <<
+						  "    (" << r.location.x << "," << r.location.y << ")-(" << r.location.width << ","
+						  << r.location.height << ")"
+						  << ((r.confidence > FLAGS_t) ? " WILL BE RENDERED!" : "") << std::endl;
+			}
+			results.push_back(r);
+		}
+		// done with request
+		outputRequest = nullptr;*/
+               
+        // ---------------------------Processing output blobs--------------------------------------------------
+        // Processing results of the CURRENT request
+        //unsigned long resized_im_h = inputInfo.begin()->second.get()->getDims()[0];
+        //unsigned long resized_im_w = inputInfo.begin()->second.get()->getDims()[1];
+        std::vector<DetectionObject> objects;
+        // Parsing outputs
+        for (auto && i : output) {
+            CNNLayerPtr layer = net_readed.getLayerByName(i.c_str());
+            Blob::Ptr blob = outputRequest->GetBlob(i);
+            ParseYOLOV3Output(layer, blob, resized_im_h, resized_im_w, height, width, FLAGS_t, objects);
+        }
+        // Filtering overlapping boxes
+        std::sort(objects.begin(), objects.end());
+        for (int i = 0; i < objects.size(); ++i) {
+            if (objects[i].confidence == 0)
+                continue;
+            for (int j = i + 1; j < objects.size(); ++j)
+                if (IntersectionOverUnion(objects[i], objects[j]) >= FLAGS_iou_t)
+                    objects[j].confidence = 0;
+        }
+        for(auto && i : objects){
+            detected_results.push_back(i);
+        }
+        outputRequest = nullptr;
+    }
+};
+
+class Load {
+  public:
+	BaseDetection& detector;
+    explicit Load(BaseDetection& detector) : detector(detector) { }
+
+    void into(InferenceEngine::InferencePlugin & plg, bool enable_dynamic_batch = false) const {
+        if (detector.enabled()) {
+            std::map<std::string, std::string> config;
+            // if specified, enable Dynamic Batching
+            if (enable_dynamic_batch) {
+                config[PluginConfigParams::KEY_DYN_BATCH_ENABLED] = PluginConfigParams::YES;
+            }
+            detector.net = plg.LoadNetwork(detector.read(), config);
+            detector.plugin = &plg;
+        }
+    }
+};
 
 int main(int argc, char *argv[]) {
     try {
@@ -262,64 +558,14 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------- 2. Reading the IR generated by the Model Optimizer (.xml and .bin files) ------------
-        slog::info << "Loading network files" << slog::endl;
-        CNNNetReader netReader;
-        /** Reading network model **/
-        netReader.ReadNetwork(FLAGS_m);
-        /** Setting batch size to 1 **/
-        slog::info << "Batch size is forced to  1." << slog::endl;
-        netReader.getNetwork().setBatchSize(1);
-        /** Extracting the model name and loading its weights **/
-        std::string binFileName = fileNameNoExt(FLAGS_m) + ".bin";
-        netReader.ReadWeights(binFileName);
-        /** Reading labels (if specified) **/
-        std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
-        std::vector<std::string> labels;
-        std::ifstream inputFile(labelFileName);
-        std::copy(std::istream_iterator<std::string>(inputFile),
-                  std::istream_iterator<std::string>(),
-                  std::back_inserter(labels));
-        // -----------------------------------------------------------------------------------------------------
+       // -----------------------------------------------------------------------------------------------------
 
-        /** YOLOV3-based network should have one input and three output **/
-        // --------------------------- 3. Configuring input and output -----------------------------------------
-        // --------------------------------- Preparing input blobs ---------------------------------------------
-        slog::info << "Checking that the inputs are as the demo expects" << slog::endl;
-        InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
-        if (inputInfo.size() != 1) {
-            throw std::logic_error("This demo accepts networks that have only one input");
-        }
-        InputInfo::Ptr& input = inputInfo.begin()->second;
-        auto inputName = inputInfo.begin()->first;
-        input->setPrecision(Precision::U8);
-        if (FLAGS_auto_resize) {
-            input->getPreProcess().setResizeAlgorithm(ResizeAlgorithm::RESIZE_BILINEAR);
-            input->getInputData()->setLayout(Layout::NHWC);
-        } else {
-            input->getInputData()->setLayout(Layout::NCHW);
-        }
-        // --------------------------------- Preparing output blobs -------------------------------------------
-        slog::info << "Checking that the outputs are as the demo expects" << slog::endl;
-        OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
-        /*if (outputInfo.size() != 3) {
-            throw std::logic_error("This demo only accepts networks with three layers");
-        }*/
-        for (auto &output : outputInfo) {
-            output.second->setPrecision(Precision::FP32);
-            output.second->setLayout(Layout::NCHW);
-        }
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 4. Loading model to the plugin ------------------------------------------
-        slog::info << "Loading model to the plugin" << slog::endl;
-        ExecutableNetwork network = plugin.LoadNetwork(netReader.getNetwork(), {});
-
-        // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Creating infer request -----------------------------------------------
-        InferRequest::Ptr async_infer_request_next = network.CreateInferRequestPtr();
-        InferRequest::Ptr async_infer_request_curr = network.CreateInferRequestPtr();
+        /*InferRequest::Ptr async_infer_request_next = network.CreateInferRequestPtr();
+        InferRequest::Ptr async_infer_request_curr = network.CreateInferRequestPtr();*/
+        ObjectDetection od(FLAGS_m, FLAGS_d, "YOLO v3", 1);
+        Load(od).into(plugin, false);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 6. Doing inference ------------------------------------------------------
@@ -346,6 +592,7 @@ int main(int argc, char *argv[]) {
                     throw std::logic_error("Failed to get frame from cv::VideoCapture");
                 }
             }
+            /*
             if (isAsyncMode) {
                 if (isModeChanged) {
                     FrameToBlob(frame, async_infer_request_curr, inputName);
@@ -355,29 +602,40 @@ int main(int argc, char *argv[]) {
                 }
             } else if (!isModeChanged) {
                 FrameToBlob(frame, async_infer_request_curr, inputName);
-            }
+            }*/
             auto t1 = std::chrono::high_resolution_clock::now();
-            ocv_decode_time = std::chrono::duration_cast<ms>(t1 - t0).count();
+            if(od.canSubmitRequest()){
+                slog::info << "CAN SUBMIT REQUEST " << slog::endl;
+                od.enqueue(frame);
+                slog::info << "AFTER ENQUEUE " << slog::endl;
+                ocv_decode_time = std::chrono::duration_cast<ms>(t1 - t0).count();
 
-            t0 = std::chrono::high_resolution_clock::now();
-            // Main sync point:
-            // in the true Async mode, we start the NEXT infer request while waiting for the CURRENT to complete
-            // in the regular mode, we start the CURRENT request and wait for its completion
-            if (isAsyncMode) {
-                if (isModeChanged) {
+                t0 = std::chrono::high_resolution_clock::now();
+                // Main sync point:
+                // in the true Async mode, we start the NEXT infer request while waiting for the CURRENT to complete
+                // in the regular mode, we start the CURRENT request and wait for its completion
+                /*if (isAsyncMode) {
+                    if (isModeChanged) {
+                        async_infer_request_curr->StartAsync();
+                    }
+                    if (!isLastFrame) {
+                        async_infer_request_next->StartAsync();
+                    }
+                } else if (!isModeChanged) {
                     async_infer_request_curr->StartAsync();
-                }
-                if (!isLastFrame) {
-                    async_infer_request_next->StartAsync();
-                }
-            } else if (!isModeChanged) {
-                async_infer_request_curr->StartAsync();
+                }*/
+                od.submitRequest();
             }
+            slog::info << "REQUEST SUBMITED" << slog::endl;
 
-            if (OK == async_infer_request_curr->Wait(IInferRequest::WaitMode::RESULT_READY)) {
+
+            if (od.requestsInProcess()) {
+                slog::info << "Result ready " << slog::endl;
+                od.wait();
+                slog::info << "After wait" << slog::endl;
                 t1 = std::chrono::high_resolution_clock::now();
                 ms detection = std::chrono::duration_cast<ms>(t1 - t0);
-
+                od.fetchResults(1);
                 t0 = std::chrono::high_resolution_clock::now();
                 ms wall = std::chrono::duration_cast<ms>(t0 - wallclock);
                 wallclock = t0;
@@ -400,29 +658,8 @@ int main(int argc, char *argv[]) {
                                 cv::Scalar(255, 0, 0));
                 }
 
-                // ---------------------------Processing output blobs--------------------------------------------------
-                // Processing results of the CURRENT request
-                unsigned long resized_im_h = inputInfo.begin()->second.get()->getDims()[0];
-                unsigned long resized_im_w = inputInfo.begin()->second.get()->getDims()[1];
-                std::vector<DetectionObject> objects;
-                // Parsing outputs
-                for (auto &output : outputInfo) {
-                    auto output_name = output.first;
-                    CNNLayerPtr layer = netReader.getNetwork().getLayerByName(output_name.c_str());
-                    Blob::Ptr blob = async_infer_request_curr->GetBlob(output_name);
-                    ParseYOLOV3Output(layer, blob, resized_im_h, resized_im_w, height, width, FLAGS_t, objects);
-                }
-                // Filtering overlapping boxes
-                std::sort(objects.begin(), objects.end());
-                for (int i = 0; i < objects.size(); ++i) {
-                    if (objects[i].confidence == 0)
-                        continue;
-                    for (int j = i + 1; j < objects.size(); ++j)
-                        if (IntersectionOverUnion(objects[i], objects[j]) >= FLAGS_iou_t)
-                            objects[j].confidence = 0;
-                }
                 // Drawing boxes
-                for (auto &object : objects) {
+                for (auto &object : od.detected_results) {
                     if (object.confidence < FLAGS_t)
                         continue;
                     auto label = object.class_id;
@@ -437,7 +674,7 @@ int main(int argc, char *argv[]) {
                         std::ostringstream conf;
                         conf << ":" << std::fixed << std::setprecision(3) << confidence;
                         cv::putText(frame,
-                                (label < labels.size() ? labels[label] : std::string("label #") + std::to_string(label))
+                                (label < od.labels.size() ? od.labels[label] : std::string("label #") + std::to_string(label))
                                     + conf.str(),
                                     cv::Point2f(object.xmin, object.ymin - 5), cv::FONT_HERSHEY_COMPLEX_SMALL, 1,
                                     cv::Scalar(0, 0, 255));
@@ -463,9 +700,9 @@ int main(int argc, char *argv[]) {
             // in the truly Async mode, we swap the NEXT and CURRENT requests for the next iteration
             frame = next_frame;
             next_frame = cv::Mat();
-            if (isAsyncMode) {
+            /*if (isAsyncMode) {
                 async_infer_request_curr.swap(async_infer_request_next);
-            }
+            }*/
 
             const int key = cv::waitKey(1);
             if (27 == key)  // Esc
@@ -482,7 +719,7 @@ int main(int argc, char *argv[]) {
 
         /** Showing performace results **/
         if (FLAGS_pc) {
-            printPerformanceCounts(*async_infer_request_curr, std::cout);
+            od.printPerformanceCounts();
         }
     }
     catch (const std::exception& error) {
