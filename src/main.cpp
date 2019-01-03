@@ -34,20 +34,12 @@
 #include <queue>
 #include <utility>
 
-#include <inference_engine.hpp>
-
-#include <samples/common.hpp>
-#include <samples/slog.hpp>
-#include <ext_list.hpp>
-
 #include <opencv2/opencv.hpp>
 #include "customflags.hpp"
 #include "drawer.hpp"
 
 #include "Tracker.h"
-#include "base_detection.hpp"
-
-using namespace InferenceEngine;
+#include "object_detection.hpp"
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
@@ -82,163 +74,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 
 // -------------------------Generic routines for detection networks-------------------------------------------------
 
-class ObjectDetection : public BaseDetection{
-  public:
-	std::string input;
-    std::string output;
-    int maxProposalCount = 0;
-    int objectSize = 0;
-    int enquedFrames = 0;
-    float width = 0;
-    float height = 0;
-    using BaseDetection::operator=;
-
-    struct Result {
-	    int batchIndex;
-        int label;
-        float confidence;
-        cv::Rect location;
-    };
-
-    std::vector<Result> results;
-
-    void submitRequest() override {
-        if (!enquedFrames) return;
-        enquedFrames = 0;
-        BaseDetection::submitRequest();
-    }
-
-    void enqueue(const cv::Mat &frame) {
-        if (!enabled()) return;
-
-        if (enquedFrames >= maxBatch) {
-            slog::warn << "Number of frames more than maximum(" << maxBatch << ") processed by Vehicles detector" << slog::endl;
-            return;
-        }
-
-        if (nullptr == requests[inputRequestIdx]) {
-	        requests[inputRequestIdx] = net.CreateInferRequestPtr();
-        }
-
-        width = frame.cols;
-        height = frame.rows;
-
-		InferenceEngine::Blob::Ptr inputBlob;
-        if (FLAGS_auto_resize) {
-            inputBlob = wrapMat2Blob(frame);
-            requests[inputRequestIdx]->SetBlob(input, inputBlob);
-        } else {
-			inputBlob = requests[inputRequestIdx]->GetBlob(input);
-			matU8ToBlob<uint8_t >(frame, inputBlob, enquedFrames);
-	    }
-        enquedFrames++;
-    }
-
-
-    ObjectDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch, int n_async, bool auto_resize, float detection_threshold) 
-            : BaseDetection(commandLineFlag, deviceName, topoName, maxBatch, n_async, auto_resize, detection_threshold) {}
-    InferenceEngine::CNNNetwork read() override {
-        slog::info << "Loading network files for " << topoName << slog::endl;
-        InferenceEngine::CNNNetReader netReader;
-        /** Read network model **/
-        netReader.ReadNetwork(commandLineFlag);
-        netReader.getNetwork().setBatchSize(maxBatch);
-        slog::info << "Batch size is set to " << netReader.getNetwork().getBatchSize() << " for " << topoName << slog::endl;
-
-        /** Extract model name and load it's weights **/
-        std::string binFileName = fileNameNoExt(commandLineFlag) + ".bin";
-        netReader.ReadWeights(binFileName);
-        // -----------------------------------------------------------------------------------------------------
-
-        /** SSD-based network should have one input and one output **/
-        // ---------------------------Check inputs ------------------------------------------------------
-        slog::info << "Checking " << topoName << " inputs" << slog::endl;
-        InferenceEngine::InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
-        if (inputInfo.size() != 1) {
-            std::string msg = topoName + "network should have only one input";
-            throw std::domain_error(msg);
-        }
-        auto& inputInfoFirst = inputInfo.begin()->second;
-        inputInfoFirst->setInputPrecision(Precision::U8);
-
-		if (FLAGS_auto_resize) {
-	        // set resizing algorithm
-	        inputInfoFirst->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-			inputInfoFirst->getInputData()->setLayout(Layout::NHWC);
-		} else {
-			inputInfoFirst->getInputData()->setLayout(Layout::NCHW);
-		}
-
-        // -----------------------------------------------------------------------------------------------------
-
-        // ---------------------------Check outputs ------------------------------------------------------
-        slog::info << "Checking " << topoName << " outputs" << slog::endl;
-        InferenceEngine::OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
-        if (outputInfo.size() != 1) {
-            std::string msg = topoName + "network should have only one output";
-            throw std::domain_error(msg);
-        }
-        auto& _output = outputInfo.begin()->second;
-        const InferenceEngine::SizeVector outputDims = _output->dims;
-        output = outputInfo.begin()->first;
-        maxProposalCount = outputDims[1];
-        objectSize = outputDims[0];
-        if (objectSize != 7) {
-            throw std::domain_error("Output should have 7 as a last dimension");
-        }
-        if (outputDims.size() != 4) {
-            throw std::domain_error("Incorrect output dimensions for SSD");
-        }
-        _output->setPrecision(Precision::FP32);
-        _output->setLayout(Layout::NCHW);
-
-        slog::info << "Loading " << topoName << " model to the "<< deviceName << " plugin" << slog::endl;
-        input = inputInfo.begin()->first;
-        return netReader.getNetwork();
-    }
-
-    void fetchResults(int inputBatchSize) {
-        if (!enabled()) return;
-
-        if (nullptr == outputRequest) {
-	        return;
-        }
-
-        results.clear();
-
-        const float *detections = outputRequest->GetBlob(output)->buffer().as<float *>();
-        // pretty much regular SSD post-processing
-		for (int i = 0; i < maxProposalCount; i++) {
-			int proposalOffset = i * objectSize;
-			float image_id = detections[proposalOffset + 0];
-			Result r;
-			r.batchIndex = image_id;
-			r.label = static_cast<int>(detections[proposalOffset + 1]);
-			r.confidence = detections[proposalOffset + 2];
-			if (r.confidence <= detection_threshold) {
-				continue;
-			}
-			r.location.x = detections[proposalOffset + 3] * width;
-			r.location.y = detections[proposalOffset + 4] * height;
-			r.location.width = detections[proposalOffset + 5] * width - r.location.x;
-			r.location.height = detections[proposalOffset + 6] * height - r.location.y;
-
-			if ((image_id < 0) || (image_id >= inputBatchSize)) {  // indicates end of detections
-				break;
-			}
-			if (FLAGS_r) {
-				std::cout << "[bi=" << r.batchIndex << "][" << i << "," << r.label << "] element, prob = " << r.confidence <<
-						  "    (" << r.location.x << "," << r.location.y << ")-(" << r.location.width << ","
-						  << r.location.height << ")"
-						  << ((r.confidence > FLAGS_t) ? " WILL BE RENDERED!" : "") << std::endl;
-			}
-			results.push_back(r);
-		}
-		// done with request
-		outputRequest = nullptr;
-    }
-};
-
 int main(int argc, char *argv[]) {
     try {
         /** This sample covers 2 certain topologies and cannot be generalized **/
@@ -259,7 +94,7 @@ int main(int argc, char *argv[]) {
         //const size_t height = (size_t) cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 
         // ---------------------Load plugins for inference engine------------------------------------------------
-        std::map<std::string, InferencePlugin> pluginsForDevices;
+        std::map<std::string, InferenceEngine::InferencePlugin> pluginsForDevices;
         std::vector<std::pair<std::string, std::string>> cmdOptions = {
             {FLAGS_d, FLAGS_m}, {FLAGS_d_p, FLAGS_m_p}
         };
@@ -284,23 +119,23 @@ int main(int argc, char *argv[]) {
                 continue;
             }
             slog::info << "Loading plugin " << deviceName << slog::endl;
-            InferencePlugin plugin = PluginDispatcher({"../../../lib/intel64", ""}).getPluginByDevice(deviceName);
+            InferenceEngine::InferencePlugin plugin = InferenceEngine::PluginDispatcher({"../../../lib/intel64", ""}).getPluginByDevice(deviceName);
 
             /** Printing plugin version **/
             printPluginVersion(plugin, std::cout);
 
             /** Load extensions for the CPU plugin **/
             if (deviceName.find("CPU") != std::string::npos) {
-                plugin.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>());
+                plugin.AddExtension(std::make_shared<InferenceEngine::Extensions::Cpu::CpuExtensions>());
 
                 if (!FLAGS_l.empty()) {
                     // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
-                    auto extension_ptr = make_so_pointer<IExtension>(FLAGS_l);
+                    auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
                     plugin.AddExtension(extension_ptr);
                 }
             } else if (!FLAGS_c.empty()) {
                 // Load Extensions for other plugins not CPU
-                plugin.SetConfig({ { PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c } });
+                plugin.SetConfig({ { InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c } });
             }
 
             pluginsForDevices[deviceName] = plugin;
@@ -309,7 +144,7 @@ int main(int argc, char *argv[]) {
         /** Per layer metrics **/
         if (FLAGS_pc) {
             for (auto && plugin : pluginsForDevices) {
-                plugin.second.SetConfig({{PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES}});
+                plugin.second.SetConfig({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}});
             }
         }
 
