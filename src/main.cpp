@@ -41,7 +41,7 @@
 #include <ext_list.hpp>
 
 #include <opencv2/opencv.hpp>
-#include "object_detection.hpp"
+#include "customflags.hpp"
 #include "drawer.hpp"
 
 #include "Tracker.h"
