@@ -45,6 +45,7 @@
 #include "drawer.hpp"
 
 #include "Tracker.h"
+#include "base_detection.hpp"
 
 using namespace InferenceEngine;
 
@@ -80,96 +81,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 }
 
 // -------------------------Generic routines for detection networks-------------------------------------------------
-
-class BaseDetection {
-  public:
-	ExecutableNetwork net;
-
-    std::string & commandLineFlag;
-    std::string & deviceName;
-    std::string topoName;
-    int maxBatch;
-    int maxSubmittedRequests;
-    InferenceEngine::InferencePlugin * plugin;
-    int inputRequestIdx;
-    InferRequest::Ptr outputRequest;
-    std::vector<InferRequest::Ptr> requests;
-    std::queue<InferRequest::Ptr> submittedRequests;
-
-    BaseDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch)
-        : commandLineFlag(commandLineFlag), deviceName(deviceName),topoName(topoName), maxBatch(maxBatch), maxSubmittedRequests(FLAGS_n_async),
-		  plugin(nullptr), inputRequestIdx(0), outputRequest(nullptr), requests(FLAGS_n_async) {}
-
-    virtual ~BaseDetection() {}
-
-    ExecutableNetwork* operator ->() {
-        return &net;
-    }
-    virtual InferenceEngine::CNNNetwork read()  = 0;
-
-    virtual void submitRequest() {
-        if (!enabled() || nullptr == requests[inputRequestIdx]) return;
-        requests[inputRequestIdx]->StartAsync();
-        submittedRequests.push(requests[inputRequestIdx]);
-        inputRequestIdx++;
-        if (inputRequestIdx >= maxSubmittedRequests) {
-	       inputRequestIdx = 0;
-        }
-    }
-
-    // call before wait() to check status
-    bool resultIsReady() {
-	   if (submittedRequests.size() < 1) return false;
-	   StatusCode state = submittedRequests.front()->Wait(IInferRequest::WaitMode::STATUS_ONLY);
-	   return (StatusCode::OK == state);
-    }
-
-    virtual void wait() {
-        if (!enabled()) return;
-
-        // get next request to wait on
-        if (nullptr == outputRequest) {
-	        if (submittedRequests.size() < 1) return;
-	        outputRequest = submittedRequests.front();
-	        submittedRequests.pop();
-        }
-
-        outputRequest->Wait(IInferRequest::WaitMode::RESULT_READY);
-    }
-
-    bool requestsInProcess() {
-	    // request is in progress if number of outstanding requests is > 0
-	    return (submittedRequests.size() > 0);
-    }
-
-    bool canSubmitRequest() {
-	    // ready when another request can be submitted
-	    return (submittedRequests.size() < maxSubmittedRequests);
-    }
-
-    mutable bool enablingChecked = false;
-    mutable bool _enabled = false;
-
-    bool enabled() const  {
-        if (!enablingChecked) {
-            _enabled = !commandLineFlag.empty();
-            if (!_enabled) {
-                slog::info << topoName << " DISABLED" << slog::endl;
-            }
-            enablingChecked = true;
-        }
-        return _enabled;
-    }
-    void printPerformanceCounts() {
-        if (!enabled()) {
-            return;
-        }
-        // use last request used
-        int idx = std::max(0, inputRequestIdx-1);
-        slog::info << "Performance counts for " << topoName << slog::endl << slog::endl;
-        ::printPerformanceCounts(requests[idx]->GetPerformanceCounts(), std::cout, false);
-    }
-};
 
 class ObjectDetection : public BaseDetection{
   public:
@@ -224,7 +135,8 @@ class ObjectDetection : public BaseDetection{
     }
 
 
-    ObjectDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch) : BaseDetection(commandLineFlag, deviceName, topoName, maxBatch) {}
+    ObjectDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch, int n_async, bool auto_resize, float detection_threshold) 
+            : BaseDetection(commandLineFlag, deviceName, topoName, maxBatch, n_async, auto_resize, detection_threshold) {}
     InferenceEngine::CNNNetwork read() override {
         slog::info << "Loading network files for " << topoName << slog::endl;
         InferenceEngine::CNNNetReader netReader;
@@ -303,7 +215,7 @@ class ObjectDetection : public BaseDetection{
 			r.batchIndex = image_id;
 			r.label = static_cast<int>(detections[proposalOffset + 1]);
 			r.confidence = detections[proposalOffset + 2];
-			if (r.confidence <= FLAGS_t) {
+			if (r.confidence <= detection_threshold) {
 				continue;
 			}
 			r.location.x = detections[proposalOffset + 3] * width;
@@ -324,24 +236,6 @@ class ObjectDetection : public BaseDetection{
 		}
 		// done with request
 		outputRequest = nullptr;
-    }
-};
-
-class Load {
-  public:
-	BaseDetection& detector;
-    explicit Load(BaseDetection& detector) : detector(detector) { }
-
-    void into(InferenceEngine::InferencePlugin & plg, bool enable_dynamic_batch = false) const {
-        if (detector.enabled()) {
-            std::map<std::string, std::string> config;
-            // if specified, enable Dynamic Batching
-            if (enable_dynamic_batch) {
-                config[PluginConfigParams::KEY_DYN_BATCH_ENABLED] = PluginConfigParams::YES;
-            }
-            detector.net = plg.LoadNetwork(detector.read(), config);
-            detector.plugin = &plg;
-        }
     }
 };
 
@@ -375,8 +269,8 @@ int main(int argc, char *argv[]) {
                 << (runningAsync ? "asynchronously" : "synchronously")
                 << slog::endl;
 
-        ObjectDetection VehicleDetection(FLAGS_m, FLAGS_d, "Vehicle Detection", FLAGS_n);
-        ObjectDetection PedestriansDetection(FLAGS_m_p, FLAGS_d_p, "Pedestrians Detection", FLAGS_n_p);
+        ObjectDetection VehicleDetection(FLAGS_m, FLAGS_d, "Vehicle Detection", FLAGS_n, FLAGS_n_async, FLAGS_auto_resize, FLAGS_t);
+        ObjectDetection PedestriansDetection(FLAGS_m_p, FLAGS_d_p, "Pedestrians Detection", FLAGS_n_p, FLAGS_n_async, FLAGS_auto_resize, FLAGS_t);
 
         for (auto && option : cmdOptions) {
             auto deviceName = option.first;
