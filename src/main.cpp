@@ -475,7 +475,7 @@ int main(int argc, char *argv[]) {
                 /* *** Pipeline Stage 1: Process Vehicles Inference Results *** */
                 // sync: wait for results if a request was just submitted
                 // async: if results are ready, then fetch and process in next stage of pipeline
-                if ((!runningAsync && GeneralDetection.requestsInProcess())){  // || VehicleDetection.resultIsReady()) {
+                if ((!runningAsync && GeneralDetection.requestsInProcess()) || GeneralDetection.resultIsReady()) {
                     // wait for results, async will be ready
                     // MAKE SLOG std::cout << "STAGE 1.1 - OK"  << std::endl;
 
