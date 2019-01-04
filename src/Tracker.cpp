@@ -66,6 +66,27 @@ public:
 
 /* ---------------------------------------------------------------------------------
 
+Function : calcVel
+
+Calculate velocity as an average of last n_frames frames (dX, dY).
+
+---------------------------------------------------------------------------------*/
+void SingleTracker::calcVel()
+{
+	double delta_x = 0;
+	double delta_y = 0;
+	cv::Point avgvel;
+
+	if (this->c_q.size() == 5) {
+		delta_x = (this->c_q[4].x - this->c_q[0].x)*5;
+		delta_y = (this->c_q[4].y - this->c_q[0].y)*5;
+	}
+	avgvel = ((this->getVel() - this->getCenter()) + cv::Point(std::round(delta_x),std::round(delta_y)))/2;
+	this->setVel(this->getCenter() + avgvel);
+}
+
+/* ---------------------------------------------------------------------------------
+
 Function : startSingleTracking
 
 Initialize dlib::correlation_tracker tracker using dlib::start_track function
@@ -153,8 +174,10 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 
 	// Update variables(center, rect, confidence)
 	this->setCenter(updated_rect);
+	this->saveLastCenter(this->getCenter());
 	this->setRect(updated_rect);
 	this->setConfidence(confidence);
+	this->calcVel();
 
 	return SUCCESS;
 }
@@ -287,7 +310,9 @@ int TrackerManager::deleteTracker(int _target_id)
 		std::cout << "========================== Notice! ==========================" << std::endl;
 		std::cout << "Target ID : " << _target_id << " is going out of the frame." << std::endl;
 		std::cout << "Target ID : " << _target_id << " is erased!" << std::endl;
-		std::cout << "=============================================================" << std::endl;		return SUCCESS;
+		std::cout << "=============================================================" << std::endl;
+
+		return SUCCESS;
 	}
 }
 
@@ -386,20 +411,6 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 		thread_pool[i].join();
 
 	// If target is going out of the frame, delete that tracker.
-	/*std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&](std::shared_ptr<SingleTracker> ptr) {
-		if (ptr.get()->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight()) == FALSE)
-		{
-			int target_id = ptr.get()->getTargetID();
-			int a = manager.deleteTracker(target_id);
-			std::cout << a << std::endl;
-			std::cout << "========================== HOLA ==========================" << std::endl;
-			std::cout << "Function int TrackingSystem::startTracking" << std::endl;
-			std::cout << "Target ID : " << target_id << " is going out of the frame." << std::endl;
-			std::cout << "Target ID : " << target_id << " is erased!" << std::endl;
-			std::cout << "=============================================================" << std::endl;
-			break;
-		}
-	});*/
 	std::vector<int> tracker_erase;
 	for(auto && i: manager.getTrackerVec()){
 		if (i->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight()) == FALSE)
@@ -440,6 +451,8 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&_mat_img](std::shared_ptr<SingleTracker> ptr) {
 		// Draw all rectangles
 		cv::rectangle(_mat_img, ptr.get()->getRect(), ptr.get()->getColor(), 1);
+		// Draw velocities
+		cv::arrowedLine(_mat_img, ptr.get()->getCenter(), ptr.get()->getVel(), ptr.get()->getColor(), 1);
 		std::string str_label;
 
 		switch (ptr.get()->getLabel()) {
@@ -539,8 +552,8 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 	if (manager.getTrackerVec().size() == 0)
 	{
 		std::cout << "======================= Error Occured! ======================" << std::endl;
-		std::cout << "Function : int TrackingSystem::drawTrackingResult" << std::endl;
-		std::cout << "Nothing to draw" << std::endl;
+		std::cout << "Function : int TrackingSystem::detectCollisions" << std::endl;
+		std::cout << "Nothing to detect" << std::endl;
 		std::cout << "=============================================================" << std::endl;
 		return FAIL;
 	}

@@ -10,6 +10,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
+#include <boost/circular_buffer.hpp>
 
 #define FAIL		-1
 #define SUCCESS		1
@@ -18,7 +19,7 @@
 
 #define OUT_OF_FRAME	2
 
-#define ENTER	13
+#define ENTER		13
 #define ESC		27
 
 const int LABEL_UNKNOWN = 0;
@@ -28,6 +29,8 @@ const int LABEL_PERSON = 2;
 const cv::Scalar COLOR_UNKNOWN = cv::Scalar(0, 0, 0);
 const cv::Scalar COLOR_CAR = cv::Scalar(0, 255, 0);
 const cv::Scalar COLOR_PERSON = cv::Scalar(255, 255, 0);
+
+const int n_frames = 5;
 
 /* ==========================================================================
 
@@ -46,16 +49,21 @@ private:
 	double		confidence;			// Confidence of tracker
 	cv::Rect	rect;				// Initial Rectangle for target
 	cv::Point	center;				// Current center point of target
-	bool		is_tracking_started;// Is tracking started or not? (Is initializing done or not?)
+	bool		is_tracking_started;		// Is tracking started or not? (Is initializing done or not?)
 	cv::Scalar	color;				// Box color
-	int			label;				// Label (LABEL_CAR, LABEL_PERSON)
+	int		label;				// Label (LABEL_CAR, LABEL_PERSON)
+	boost::circular_buffer<cv::Point> 	c_q;	// Queue with last n_frames centers
+	cv::Point 	vel;				// Final point of Velocity vector (from center)
+	double		modvel;				// Velocity's modulus
+	double		vel_x;
+	double		vel_y;
 
 public:
 	dlib::correlation_tracker tracker;  // Correlation tracker
 
 	/* Member Initializer & Constructor*/
 	SingleTracker(int _target_id, cv::Rect _init_rect, cv::Scalar _color, int _label)
-		: target_id(_target_id), confidence(0), is_tracking_started(false)
+		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0)
 	{
 		// Exception
 		if (_init_rect.area() == 0)
@@ -70,19 +78,24 @@ public:
 			// Initialize rect and center using _init_rect
 			this->setRect(_init_rect);
 			this->setCenter(_init_rect);
+			this->setVel(this->getCenter());
 			this->setColor(_color);
 			this->setLabel(_label);
 		}
 	}
 
 	/* Get Function */
-	int			getTargetID() { return this->target_id; }
+	int		getTargetID() { return this->target_id; }
 	cv::Rect	getRect() { return this->rect; }
 	cv::Point	getCenter() { return this->center; }
+	cv::Point	getVel() { return this->vel; }
+	double		getVel_X() { return this->vel_x; }
+	double		getVel_Y() { return this->vel_y; }
 	double		getConfidence() { return this->confidence; }
+	double		getModVel() { return this->modvel; }
 	bool		getIsTrackingStarted() { return this->is_tracking_started; }
 	cv::Scalar	getColor() { return this->color; }
-	int			getLabel() { return this->label; }
+	int		getLabel() { return this->label; }
 
 	/* Set Function */
 	void setTargetId(int _target_id) { this->target_id = _target_id; }
@@ -91,10 +104,18 @@ public:
 	void setCenter(cv::Point _center) { this->center = _center; }
 	void setCenter(cv::Rect _rect) { this->center = cv::Point(_rect.x + (_rect.width) / 2, _rect.y + (_rect.height) / 2); }
 	void setCenter(dlib::drectangle _drect) { this->center = cv::Point(_drect.tl_corner().x() + (_drect.width() / 2), _drect.tl_corner().y() + (_drect.height() / 2)); }
+	void setVel(cv::Point _vel) { this->vel = _vel; updateVel_X(); updateVel_Y(); updateModVel(); }
 	void setConfidence(double _confidence) { this->confidence = _confidence; }
 	void setIsTrackingStarted(bool _b) { this->is_tracking_started = _b; }
 	void setColor(cv::Scalar _color) { this->color = _color; }
 	void setLabel(int _label) { this->label = _label; }
+
+	/* Velocity Related */
+	void saveLastCenter(cv::Point _center) { this->c_q.push_back(_center); }
+	void updateVel_X() { this->vel_x = this->getVel().x - this->getCenter().x; }
+	void updateVel_Y() { this->vel_y = this->getVel().y - this->getCenter().y; }
+	void updateModVel() { this->modvel = sqrt(this->vel_x*this->vel_x + this->vel_y*this->vel_y); }
+	void calcVel();
 
 	/* Core Function */
 	// Initialize
