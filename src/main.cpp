@@ -380,15 +380,7 @@ int main(int argc, char *argv[]) {
                             pipeS0toS2Fifo.pop();
                         }
                     }
-                } /*else {
-                    // not running vehicle attributes, just pass along frames
-                    if (!pipeS0toS2Fifo.empty()) {
-                        FramePipelineFifoItem fpfi = pipeS0toS2Fifo.front();
-                        pipeS0toS2Fifo.pop();
-                        fpfi.pedestriansDetectionDone = true;
-                        pipeS2toS3Fifo.push(fpfi);
-                    }
-                }*/
+                }
 
                 /* *** Pipeline Stage 3: Process Vehicle Attribute Inference Results *** */
                 if (PedestriansDetection.enabled()) {
@@ -433,15 +425,7 @@ int main(int argc, char *argv[]) {
                             pipeS3toS4Fifo.push(item);
                         }
                     }
-                }/* else {
-                    // not running pedestrians locations, just pass along frames
-                    if (!pipeS2toS3Fifo.empty()) {
-                        FramePipelineFifoItem fpfi = pipeS2toS3Fifo.front();
-                        pipeS2toS3Fifo.pop();
-                        fpfi.pedestriansDetectionDone = true;
-                        pipeS3toS4Fifo.push(fpfi);
-                    }
-                }*/
+                }
             }
 
             if(yolo_enabled){
@@ -471,7 +455,6 @@ int main(int argc, char *argv[]) {
                         pipeS0ytoS1yFifo.push(ps0i);
                     }
                 }
-
                 /* *** Pipeline Stage 1: Process Vehicles Inference Results *** */
                 // sync: wait for results if a request was just submitted
                 // async: if results are ready, then fetch and process in next stage of pipeline
@@ -568,11 +551,7 @@ int main(int argc, char *argv[]) {
                         }
                     }
                 }
-                    
-
-
                 
-
                 if(FLAGS_tracking) {
                     if(firstFrameWithDetections){
                         tracking_system.setFrameWidth(outputFrame.cols);
