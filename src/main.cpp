@@ -160,7 +160,6 @@ int main(int argc, char *argv[]) {
         for(int fi = 0; fi < maxNumInputFrames; fi++) {
             inputFramePtrs.push(&inputFrames[fi]);
         }
-
 		//-----------------------Define regions of interest-----------------------------------------------------
             RegionsOfInterest scene;
 
@@ -177,6 +176,7 @@ int main(int argc, char *argv[]) {
     		cv::imshow("Result", scene.out);
     		cv::waitKey();
         }
+        
         // ----------------------------Do inference-------------------------------------------------------------
         slog::info << "Start inference " << slog::endl;
         typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
@@ -211,6 +211,7 @@ int main(int argc, char *argv[]) {
         } FramePipelineFifoItem;
         typedef std::queue<FramePipelineFifoItem> FramePipelineFifo;
         // Queues to pass information across pipeline stages
+        FramePipelineFifo pipeS0Fifo;
         FramePipelineFifo pipeS0toS1Fifo;
         FramePipelineFifo pipeS0toS2Fifo;
         FramePipelineFifo pipeS1toS2Fifo;
@@ -224,13 +225,11 @@ int main(int argc, char *argv[]) {
             ms detection_time;
             std::chrono::high_resolution_clock::time_point t0;
 			std::chrono::high_resolution_clock::time_point t1;
-
-            /* *** Pipeline Stage 0: Prepare and Start Inferring a Batch of Frames *** */
-            // if there are more frames to do and a request available, then prepare and start batch
-            if (haveMoreFrames && (inputFramePtrs.size() >= VehicleDetection.maxBatch) && VehicleDetection.canSubmitRequest()) {
-                // prepare a batch of frames
-                // MAKE SLOG std::cout << "STAGE 0.1 - OK"  << std::endl;
-                FramePipelineFifoItem ps0s1i;
+            //------------------------------------------------------------------------------------
+            //------------------- Frame Read Stage -----------------------------------------------
+            //------------------------------------------------------------------------------------
+            if (haveMoreFrames && (inputFramePtrs.size() >= VehicleDetection.maxBatch)) {
+                FramePipelineFifoItem ps0;
                 for(numFrames = 0; numFrames < VehicleDetection.maxBatch; numFrames++) {
                     // read in a frame
 					cv::Mat* curFrame = &scene.orig;
@@ -245,21 +244,32 @@ int main(int argc, char *argv[]) {
 
                     totalFrames++;
 
-                    t0 = std::chrono::high_resolution_clock::now();
-                    VehicleDetection.enqueue(*curFrame);
-                    t1 = std::chrono::high_resolution_clock::now();
-                    ocv_decode_time_vehicle += std::chrono::duration_cast<ms>(t1 - t0).count();
-
-                    // queue frame for next pipeline stage
-                    ps0s1i.batchOfInputFrames.push_back(curFrame);
-
+                    ps0.batchOfInputFrames.push_back(curFrame);
                     if (firstFrame && !FLAGS_no_show) {
                         slog::info << "Press 's' key to save a snapshot, press any other key to stop" << slog::endl;
                     }
 
                     firstFrame = false;
                 }
-
+                
+                pipeS0Fifo.push(ps0);
+            }
+            /* *** Pipeline Stage 0: Prepare and Start Inferring a Batch of Frames *** */
+            // if there are more frames to do and a request available, then prepare and start batch
+            if (!pipeS0Fifo.empty() && VehicleDetection.canSubmitRequest()) {
+                // prepare a batch of frames
+                // MAKE SLOG std::cout << "STAGE 0.1 - OK"  << std::endl;
+                FramePipelineFifoItem ps0i = pipeS0Fifo.front();
+                pipeS0Fifo.pop();
+                
+                for(auto &&  i: ps0i.batchOfInputFrames){
+				    cv::Mat* curFrame = i;
+                    t0 = std::chrono::high_resolution_clock::now();
+                    VehicleDetection.enqueue(*curFrame);
+                    t1 = std::chrono::high_resolution_clock::now();
+                    ocv_decode_time_vehicle += std::chrono::duration_cast<ms>(t1 - t0).count();
+                    // queue frame for next pipeline stage
+                }
                 // ----------------------------Run Vehicle detection inference------------------------------------------
                 // if there are frames to be processed, then submit the request
                 if (numFrames > 0) {
@@ -269,8 +279,8 @@ int main(int argc, char *argv[]) {
                     // start inference
                     VehicleDetection.submitRequest();
                     // queue data for next pipeline stage
-                    pipeS0toS1Fifo.push(ps0s1i);
-                    pipeS0toS2Fifo.push(ps0s1i);
+                    pipeS0toS1Fifo.push(ps0i);
+                    pipeS0toS2Fifo.push(ps0i);
                 }
             }
 
