@@ -40,6 +40,7 @@
 
 #include "Tracker.h"
 #include "object_detection.hpp"
+#include "yolo_detection.hpp"
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
@@ -55,14 +56,15 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::invalid_argument("Parameter -i is not set");
     }
 
-    if (FLAGS_m.empty()) {
-        throw std::invalid_argument("Parameter -m is not set");
+    if (!(FLAGS_m.empty() && FLAGS_m_p.empty() && !FLAGS_m_y.empty()) && !(!FLAGS_m.empty() && !FLAGS_m_p.empty() && FLAGS_m_y.empty())) {
+        throw std::invalid_argument("Check the models combinations.");
     }
 
     if (FLAGS_auto_resize) {
 	    slog::warn << "auto_resize=1, forcing all batch sizes to 1" << slog::endl;
 	    FLAGS_n = 1;
-	    FLAGS_n_va = 1;
+	    FLAGS_n_p = 1;
+	    FLAGS_n_y = 1;
     }
 
     if (FLAGS_n_async < 1) {
@@ -96,7 +98,7 @@ int main(int argc, char *argv[]) {
         // ---------------------Load plugins for inference engine------------------------------------------------
         std::map<std::string, InferenceEngine::InferencePlugin> pluginsForDevices;
         std::vector<std::pair<std::string, std::string>> cmdOptions = {
-            {FLAGS_d, FLAGS_m}, {FLAGS_d_p, FLAGS_m_p}
+            {FLAGS_d, FLAGS_m}, {FLAGS_d_p, FLAGS_m_p}, {FLAGS_d_y, FLAGS_m_y}
         };
 
         const bool runningAsync = (FLAGS_n_async > 1);
@@ -106,6 +108,10 @@ int main(int argc, char *argv[]) {
 
         ObjectDetection VehicleDetection(FLAGS_m, FLAGS_d, "Vehicle Detection", FLAGS_n, FLAGS_n_async, FLAGS_auto_resize, FLAGS_t);
         ObjectDetection PedestriansDetection(FLAGS_m_p, FLAGS_d_p, "Pedestrians Detection", FLAGS_n_p, FLAGS_n_async, FLAGS_auto_resize, FLAGS_t);
+        YoloDetection   GeneralDetection(FLAGS_m_y, FLAGS_d_y, "Yolo Detection", FLAGS_n_y, FLAGS_n_async, FLAGS_auto_resize, FLAGS_t, FLAGS_iou_t);    
+
+        const bool yolo_enabled = GeneralDetection.enabled();
+        const bool vp_enabled = (VehicleDetection.enabled() && PedestriansDetection.enabled());
 
         for (auto && option : cmdOptions) {
             auto deviceName = option.first;
@@ -151,6 +157,8 @@ int main(int argc, char *argv[]) {
         // --------------------Load networks (Generated xml/bin files)-------------------------------------------
         Load(VehicleDetection).into(pluginsForDevices[FLAGS_d], false);
         Load(PedestriansDetection).into(pluginsForDevices[FLAGS_d_p], false);
+        Load(GeneralDetection).into(pluginsForDevices[FLAGS_d_y], false);
+
 
         // read input (video) frames, need to keep multiple frames stored
         //  for batching and for when using asynchronous API.
@@ -203,11 +211,13 @@ int main(int argc, char *argv[]) {
             std::vector<cv::Mat*> batchOfInputFrames;
             bool vehicleDetectionDone;
             bool pedestriansDetectionDone;
+            bool generalDetectionDone;
             cv::Mat* outputFrame;
             std::vector<cv::Rect> vehicleLocations;
             int numVehiclesInferred;
             std::vector<cv::Rect> pedestriansLocations;
             int numPedestriansInferred;
+            std::vector<cv::Rect> generalLocations;
         } FramePipelineFifoItem;
         typedef std::queue<FramePipelineFifoItem> FramePipelineFifo;
         // Queues to pass information across pipeline stages
@@ -218,6 +228,10 @@ int main(int argc, char *argv[]) {
         FramePipelineFifo pipeS2toS3Fifo;
         FramePipelineFifo pipeS3toS4Fifo;
         FramePipelineFifo pipeS1toS4Fifo;
+
+        //Yolo lane FIFOs
+        FramePipelineFifo pipeS0ytoS1yFifo;
+        FramePipelineFifo pipeS1ytoS4Fifo;
 
         wallclockStart = std::chrono::high_resolution_clock::now();
         /** Start inference & calc performance **/
@@ -254,222 +268,329 @@ int main(int argc, char *argv[]) {
                 
                 pipeS0Fifo.push(ps0);
             }
-            /* *** Pipeline Stage 0: Prepare and Start Inferring a Batch of Frames *** */
-            // if there are more frames to do and a request available, then prepare and start batch
-            if (!pipeS0Fifo.empty() && VehicleDetection.canSubmitRequest()) {
-                // prepare a batch of frames
-                // MAKE SLOG std::cout << "STAGE 0.1 - OK"  << std::endl;
-                FramePipelineFifoItem ps0i = pipeS0Fifo.front();
-                pipeS0Fifo.pop();
+
+            if(vp_enabled){
+                /* *** Pipeline Stage 0: Prepare and Start Inferring a Batch of Frames *** */
+                // if there are more frames to do and a request available, then prepare and start batch
                 
-                for(auto &&  i: ps0i.batchOfInputFrames){
-				    cv::Mat* curFrame = i;
-                    t0 = std::chrono::high_resolution_clock::now();
-                    VehicleDetection.enqueue(*curFrame);
-                    t1 = std::chrono::high_resolution_clock::now();
-                    ocv_decode_time_vehicle += std::chrono::duration_cast<ms>(t1 - t0).count();
-                    // queue frame for next pipeline stage
-                }
-                // ----------------------------Run Vehicle detection inference------------------------------------------
-                // if there are frames to be processed, then submit the request
-                if (numFrames > 0) {
-                    numSyncFrames = numFrames;
-                    // start request
-                    t0 = std::chrono::high_resolution_clock::now();
-                    // start inference
-                    VehicleDetection.submitRequest();
-                    // queue data for next pipeline stage
-                    pipeS0toS1Fifo.push(ps0i);
-                    pipeS0toS2Fifo.push(ps0i);
-                }
-            }
-
-            /* *** Pipeline Stage 1: Process Vehicles Inference Results *** */
-            // sync: wait for results if a request was just submitted
-            // async: if results are ready, then fetch and process in next stage of pipeline
-            if ((!runningAsync && VehicleDetection.requestsInProcess()) || VehicleDetection.resultIsReady()) {
-                // wait for results, async will be ready
-                // MAKE SLOG std::cout << "STAGE 1.1 - OK"  << std::endl;
-
-                VehicleDetection.wait();
-                t1 = std::chrono::high_resolution_clock::now();
-                detection_time = std::chrono::duration_cast<ms>(t1 - t0);
-
-                // get associated data from last pipeline stage to use with results
-                FramePipelineFifoItem ps0s1i = pipeS0toS1Fifo.front();
-                pipeS0toS1Fifo.pop();
-                // parse inference results internally (e.g. apply a threshold, etc)
-                VehicleDetection.fetchResults(ps0s1i.batchOfInputFrames.size());
-
-                // prepare a FramePipelineFifoItem for each batched frame to get its detection results
-                std::vector<FramePipelineFifoItem> batchedFifoItems;
-                for (auto && bFrame : ps0s1i.batchOfInputFrames) {
-                    FramePipelineFifoItem fpfi;
-                    fpfi.outputFrame = bFrame;
-                    batchedFifoItems.push_back(fpfi);
-                }
-
-                // store results for next pipeline stage
-                for (auto && result : VehicleDetection.results) {
-                    FramePipelineFifoItem& fpfi = batchedFifoItems[result.batchIndex];
-                    fpfi.vehicleLocations.push_back(result.location);
-                }
-
-                // done with results, clear them
-                VehicleDetection.results.clear();
-
-                // queue up output for next pipeline stage to process
-                for (auto && item : batchedFifoItems) {
-                    item.numVehiclesInferred = 0;
-                    item.vehicleDetectionDone = true;
-                    item.pedestriansDetectionDone = false;
-                    pipeS1toS4Fifo.push(item);
-                }
-            }
-
-            /* *** Pipeline Stage 2: Start Inferring Vehicle Attributes *** */
-            // ----------------------------Process the results down the pipeline---------------------------------
-            if (PedestriansDetection.enabled()) {
-                if (!pipeS0toS2Fifo.empty() && PedestriansDetection.canSubmitRequest()) {
-                    //MAKE SLOG std::cout << "STAGE 2.1 - OK"  << std::endl;
-                    // grab reference to first item in FIFO, but do not pop until done inferring all vehicles in it
-                    FramePipelineFifoItem& ps0s2i = pipeS0toS2Fifo.front();
-                    for(numFrames = 0; numFrames < PedestriansDetection.maxBatch; numFrames++) {
-                        // read in a frame
-                        for (auto && bFrame : ps0s2i.batchOfInputFrames) {
-                            cv::Mat* curFrame = bFrame;
-
-                            t0 = std::chrono::high_resolution_clock::now();
-                            PedestriansDetection.enqueue(*curFrame);
-                            t1 = std::chrono::high_resolution_clock::now();
-                            ocv_decode_time_pedestrians += std::chrono::duration_cast<ms>(t1 - t0).count();
-
-						}
+                if (!pipeS0Fifo.empty() && VehicleDetection.canSubmitRequest()) {
+                    // prepare a batch of frames
+                    // MAKE SLOG std::cout << "STAGE 0.1 - OK"  << std::endl;
+                    FramePipelineFifoItem ps0i = pipeS0Fifo.front();
+                    pipeS0Fifo.pop();
+                    
+                    for(auto &&  i: ps0i.batchOfInputFrames){
+                        cv::Mat* curFrame = i;
+                        t0 = std::chrono::high_resolution_clock::now();
+                        VehicleDetection.enqueue(*curFrame);
+                        t1 = std::chrono::high_resolution_clock::now();
+                        ocv_decode_time_vehicle += std::chrono::duration_cast<ms>(t1 - t0).count();
+                        // queue frame for next pipeline stage
                     }
-
-                    // ----------------------------Run Pedestrians detection inference------------------------------------------
+                    // ----------------------------Run Vehicle detection inference------------------------------------------
                     // if there are frames to be processed, then submit the request
                     if (numFrames > 0) {
-
-
                         numSyncFrames = numFrames;
                         // start request
                         t0 = std::chrono::high_resolution_clock::now();
                         // start inference
-                        PedestriansDetection.submitRequest();
-
+                        VehicleDetection.submitRequest();
                         // queue data for next pipeline stage
-                        pipeS2toS3Fifo.push(ps0s2i);
-                        pipeS0toS2Fifo.pop();
+                        pipeS0toS1Fifo.push(ps0i);
+                        pipeS0toS2Fifo.push(ps0i);
                     }
                 }
-            } else {
-                // not running vehicle attributes, just pass along frames
-                if (!pipeS0toS2Fifo.empty()) {
-                    FramePipelineFifoItem fpfi = pipeS0toS2Fifo.front();
-                    pipeS0toS2Fifo.pop();
-                    fpfi.pedestriansDetectionDone = true;
-                    pipeS2toS3Fifo.push(fpfi);
-                }
-            }
 
-            /* *** Pipeline Stage 3: Process Vehicle Attribute Inference Results *** */
-            if (PedestriansDetection.enabled()) {
-                // MAKE SLOG std::cout << "STAGE 3.1 - OK"  << std::endl;
-                if (!pipeS2toS3Fifo.empty() && ((!runningAsync && PedestriansDetection.requestsInProcess()) || PedestriansDetection.resultIsReady())) {
+                /* *** Pipeline Stage 1: Process Vehicles Inference Results *** */
+                // sync: wait for results if a request was just submitted
+                // async: if results are ready, then fetch and process in next stage of pipeline
+                if ((!runningAsync && VehicleDetection.requestsInProcess()) || VehicleDetection.resultIsReady()) {
                     // wait for results, async will be ready
+                    // MAKE SLOG std::cout << "STAGE 1.1 - OK"  << std::endl;
 
-                    // MAKE SLOG std::cout << "STAGE 3.2 - OK"  << std::endl;
-                    PedestriansDetection.wait();
+                    VehicleDetection.wait();
                     t1 = std::chrono::high_resolution_clock::now();
                     detection_time = std::chrono::duration_cast<ms>(t1 - t0);
 
                     // get associated data from last pipeline stage to use with results
-                    FramePipelineFifoItem ps2s3i = pipeS2toS3Fifo.front();
-                    pipeS2toS3Fifo.pop();
-
+                    FramePipelineFifoItem ps0s1i = pipeS0toS1Fifo.front();
+                    pipeS0toS1Fifo.pop();
                     // parse inference results internally (e.g. apply a threshold, etc)
-                    PedestriansDetection.fetchResults(ps2s3i.batchOfInputFrames.size());
+                    VehicleDetection.fetchResults(ps0s1i.batchOfInputFrames.size());
 
                     // prepare a FramePipelineFifoItem for each batched frame to get its detection results
                     std::vector<FramePipelineFifoItem> batchedFifoItems;
-                    for (auto && bFrame : ps2s3i.batchOfInputFrames) {
+                    for (auto && bFrame : ps0s1i.batchOfInputFrames) {
                         FramePipelineFifoItem fpfi;
                         fpfi.outputFrame = bFrame;
                         batchedFifoItems.push_back(fpfi);
                     }
 
                     // store results for next pipeline stage
-                    for (auto && result : PedestriansDetection.results) {
+                    for (auto && result : VehicleDetection.results) {
                         FramePipelineFifoItem& fpfi = batchedFifoItems[result.batchIndex];
-                        fpfi.pedestriansLocations.push_back(result.location);
+                        fpfi.vehicleLocations.push_back(result.location);
                     }
 
                     // done with results, clear them
-                    PedestriansDetection.results.clear();
+                    VehicleDetection.results.clear();
 
                     // queue up output for next pipeline stage to process
                     for (auto && item : batchedFifoItems) {
-                        item.batchOfInputFrames.clear(); // done with batch storage
-                        item.numPedestriansInferred = 0;
-                        item.pedestriansDetectionDone = true;
-                        pipeS3toS4Fifo.push(item);
+                        item.numVehiclesInferred = 0;
+                        item.vehicleDetectionDone = true;
+                        item.pedestriansDetectionDone = false;
+                        pipeS1toS4Fifo.push(item);
                     }
                 }
-            } else {
-                // not running pedestrians locations, just pass along frames
-                if (!pipeS2toS3Fifo.empty()) {
-                    FramePipelineFifoItem fpfi = pipeS2toS3Fifo.front();
-                    pipeS2toS3Fifo.pop();
-                    fpfi.pedestriansDetectionDone = true;
-                    pipeS3toS4Fifo.push(fpfi);
-                }
+
+                /* *** Pipeline Stage 2: Start Inferring Vehicle Attributes *** */
+                // ----------------------------Process the results down the pipeline---------------------------------
+                if (PedestriansDetection.enabled()) {
+                    if (!pipeS0toS2Fifo.empty() && PedestriansDetection.canSubmitRequest()) {
+                        //MAKE SLOG std::cout << "STAGE 2.1 - OK"  << std::endl;
+                        // grab reference to first item in FIFO, but do not pop until done inferring all vehicles in it
+                        FramePipelineFifoItem& ps0s2i = pipeS0toS2Fifo.front();
+                        for(numFrames = 0; numFrames < PedestriansDetection.maxBatch; numFrames++) {
+                            // read in a frame
+                            for (auto && bFrame : ps0s2i.batchOfInputFrames) {
+                                cv::Mat* curFrame = bFrame;
+
+                                t0 = std::chrono::high_resolution_clock::now();
+                                PedestriansDetection.enqueue(*curFrame);
+                                t1 = std::chrono::high_resolution_clock::now();
+                                ocv_decode_time_pedestrians += std::chrono::duration_cast<ms>(t1 - t0).count();
+
+                            }
+                        }
+
+                        // ----------------------------Run Pedestrians detection inference------------------------------------------
+                        // if there are frames to be processed, then submit the request
+                        if (numFrames > 0) {
+
+
+                            numSyncFrames = numFrames;
+                            // start request
+                            t0 = std::chrono::high_resolution_clock::now();
+                            // start inference
+                            PedestriansDetection.submitRequest();
+
+                            // queue data for next pipeline stage
+                            pipeS2toS3Fifo.push(ps0s2i);
+                            pipeS0toS2Fifo.pop();
+                        }
+                    }
+                } /*else {
+                    // not running vehicle attributes, just pass along frames
+                    if (!pipeS0toS2Fifo.empty()) {
+                        FramePipelineFifoItem fpfi = pipeS0toS2Fifo.front();
+                        pipeS0toS2Fifo.pop();
+                        fpfi.pedestriansDetectionDone = true;
+                        pipeS2toS3Fifo.push(fpfi);
+                    }
+                }*/
+
+                /* *** Pipeline Stage 3: Process Vehicle Attribute Inference Results *** */
+                if (PedestriansDetection.enabled()) {
+                    // MAKE SLOG std::cout << "STAGE 3.1 - OK"  << std::endl;
+                    if (!pipeS2toS3Fifo.empty() && ((!runningAsync && PedestriansDetection.requestsInProcess()) || PedestriansDetection.resultIsReady())) {
+                        // wait for results, async will be ready
+
+                        // MAKE SLOG std::cout << "STAGE 3.2 - OK"  << std::endl;
+                        PedestriansDetection.wait();
+                        t1 = std::chrono::high_resolution_clock::now();
+                        detection_time = std::chrono::duration_cast<ms>(t1 - t0);
+
+                        // get associated data from last pipeline stage to use with results
+                        FramePipelineFifoItem ps2s3i = pipeS2toS3Fifo.front();
+                        pipeS2toS3Fifo.pop();
+
+                        // parse inference results internally (e.g. apply a threshold, etc)
+                        PedestriansDetection.fetchResults(ps2s3i.batchOfInputFrames.size());
+
+                        // prepare a FramePipelineFifoItem for each batched frame to get its detection results
+                        std::vector<FramePipelineFifoItem> batchedFifoItems;
+                        for (auto && bFrame : ps2s3i.batchOfInputFrames) {
+                            FramePipelineFifoItem fpfi;
+                            fpfi.outputFrame = bFrame;
+                            batchedFifoItems.push_back(fpfi);
+                        }
+
+                        // store results for next pipeline stage
+                        for (auto && result : PedestriansDetection.results) {
+                            FramePipelineFifoItem& fpfi = batchedFifoItems[result.batchIndex];
+                            fpfi.pedestriansLocations.push_back(result.location);
+                        }
+
+                        // done with results, clear them
+                        PedestriansDetection.results.clear();
+
+                        // queue up output for next pipeline stage to process
+                        for (auto && item : batchedFifoItems) {
+                            item.batchOfInputFrames.clear(); // done with batch storage
+                            item.numPedestriansInferred = 0;
+                            item.pedestriansDetectionDone = true;
+                            pipeS3toS4Fifo.push(item);
+                        }
+                    }
+                }/* else {
+                    // not running pedestrians locations, just pass along frames
+                    if (!pipeS2toS3Fifo.empty()) {
+                        FramePipelineFifoItem fpfi = pipeS2toS3Fifo.front();
+                        pipeS2toS3Fifo.pop();
+                        fpfi.pedestriansDetectionDone = true;
+                        pipeS3toS4Fifo.push(fpfi);
+                    }
+                }*/
             }
 
+            if(yolo_enabled){
+                if (!pipeS0Fifo.empty() && GeneralDetection.canSubmitRequest()) {
+                    // prepare a batch of frames
+                    // MAKE SLOG std::cout << "STAGE 0.1 - OK"  << std::endl;
+                    FramePipelineFifoItem ps0i = pipeS0Fifo.front();
+                    pipeS0Fifo.pop();
+                    
+                    for(auto &&  i: ps0i.batchOfInputFrames){
+                        cv::Mat* curFrame = i;
+                        t0 = std::chrono::high_resolution_clock::now();
+                        GeneralDetection.enqueue(*curFrame);
+                        t1 = std::chrono::high_resolution_clock::now();
+                        ocv_decode_time_vehicle += std::chrono::duration_cast<ms>(t1 - t0).count();
+                        // queue frame for next pipeline stage
+                    }
+                    // ----------------------------Run Vehicle detection inference------------------------------------------
+                    // if there are frames to be processed, then submit the request
+                    if (numFrames > 0) {
+                        numSyncFrames = numFrames;
+                        // start request
+                        t0 = std::chrono::high_resolution_clock::now();
+                        // start inference
+                        GeneralDetection.submitRequest();
+                        // queue data for next pipeline stage
+                        pipeS0ytoS1yFifo.push(ps0i);
+                    }
+                }
+
+                /* *** Pipeline Stage 1: Process Vehicles Inference Results *** */
+                // sync: wait for results if a request was just submitted
+                // async: if results are ready, then fetch and process in next stage of pipeline
+                if ((!runningAsync && GeneralDetection.requestsInProcess())){  // || VehicleDetection.resultIsReady()) {
+                    // wait for results, async will be ready
+                    // MAKE SLOG std::cout << "STAGE 1.1 - OK"  << std::endl;
+
+                    GeneralDetection.wait();
+                    t1 = std::chrono::high_resolution_clock::now();
+                    detection_time = std::chrono::duration_cast<ms>(t1 - t0);
+
+                    // get associated data from last pipeline stage to use with results
+                    FramePipelineFifoItem ps0s1i = pipeS0ytoS1yFifo.front();
+                    pipeS0ytoS1yFifo.pop();
+                    // parse inference results internally (e.g. apply a threshold, etc)
+                    GeneralDetection.fetchResults(ps0s1i.batchOfInputFrames.size());
+
+                    // prepare a FramePipelineFifoItem for each batched frame to get its detection results
+                    std::vector<FramePipelineFifoItem> batchedFifoItems;
+                    for (auto && bFrame : ps0s1i.batchOfInputFrames) {
+                        FramePipelineFifoItem fpfi;
+                        fpfi.outputFrame = bFrame;
+                        batchedFifoItems.push_back(fpfi);
+                    }
+
+                    // store results for next pipeline stage
+                    for (auto && result : GeneralDetection.results) {
+                        FramePipelineFifoItem& fpfi = batchedFifoItems[result.batchIndex];
+                        fpfi.generalLocations.push_back(result.location);
+                    }
+
+                    // done with results, clear them
+                    GeneralDetection.results.clear();
+
+                    // queue up output for next pipeline stage to process
+                    for (auto && item : batchedFifoItems) {
+                        item.numVehiclesInferred = 0;
+                        item.vehicleDetectionDone = false;
+                        item.pedestriansDetectionDone = false;
+                        item.generalDetectionDone = true;
+                        pipeS1ytoS4Fifo.push(item);
+                    }
+                }
+            }
+            
+
             /* *** Pipeline Stage 4: Render Results *** */
-            if (!pipeS3toS4Fifo.empty() && !pipeS1toS4Fifo.empty()) {
+            if (((!pipeS3toS4Fifo.empty() && !pipeS1toS4Fifo.empty()) &&  vp_enabled) ||  (!pipeS1ytoS4Fifo.empty() && yolo_enabled)) {
                 // MAKE SLOG std::cout << "STAGE 4.1 - OK"  << std::endl;
 
-                FramePipelineFifoItem ps3s4i = pipeS3toS4Fifo.front();
-                pipeS3toS4Fifo.pop();
-                FramePipelineFifoItem ps1s4i = pipeS1toS4Fifo.front();
-                pipeS1toS4Fifo.pop();
+                FramePipelineFifoItem ps3s4i;
+                FramePipelineFifoItem ps1s4i;
+                FramePipelineFifoItem ps1ys4i;
 
-                cv::Mat& outputFrame = *(ps3s4i.outputFrame);
+                cv::Mat outputFrame;
+                cv::Mat* outputFrame2;
 
-                // draw box around vehicles
-                for (auto && loc : ps1s4i.vehicleLocations) {
-                    cv::rectangle(outputFrame, loc, cv::Scalar(0, 255, 0), 1);
-                    if (firstFrameWithDetections){
-                        firstResults.push_back(std::make_pair(loc, LABEL_CAR));
+                if(vp_enabled){
+                    ps3s4i = pipeS3toS4Fifo.front();
+                    pipeS3toS4Fifo.pop();
+                    ps1s4i = pipeS1toS4Fifo.front();
+                    pipeS1toS4Fifo.pop();
+
+                    outputFrame = *(ps3s4i.outputFrame);
+                    outputFrame2 = ps3s4i.outputFrame;
+
+                    // draw box around vehicles
+                    for (auto && loc : ps1s4i.vehicleLocations) {
+                        cv::rectangle(outputFrame, loc, cv::Scalar(0, 255, 0), 1);
+                        if (firstFrameWithDetections){
+                            firstResults.push_back(std::make_pair(loc, LABEL_CAR));
+                        }
+                    }
+                    // draw box around pedestrians
+                    for (auto && loc : ps3s4i.pedestriansLocations) {
+                        cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 1);
+                        if (firstFrameWithDetections){
+                            firstResults.push_back(std::make_pair(loc, LABEL_PERSON));
+                        }
                     }
                 }
-                // draw box around pedestrians
-                for (auto && loc : ps3s4i.pedestriansLocations) {
-                    cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 1);
-                    if (firstFrameWithDetections){
-                        firstResults.push_back(std::make_pair(loc, LABEL_PERSON));
+
+                if(yolo_enabled){
+                    ps1ys4i = pipeS1ytoS4Fifo.front();
+                    pipeS1ytoS4Fifo.pop();
+
+                    outputFrame = *(ps1ys4i.outputFrame);
+                    outputFrame2 = ps1ys4i.outputFrame;
+
+                    for (auto && loc : ps1ys4i.generalLocations) {
+                        cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 1);
+                        if (firstFrameWithDetections){
+                            firstResults.push_back(std::make_pair(loc, LABEL_PERSON));
+                        }
                     }
                 }
+                    
 
-		if(FLAGS_tracking) {
-			if(firstFrameWithDetections){
-				tracking_system.setFrameWidth(outputFrame.cols);
-				tracking_system.setFrameHeight(outputFrame.rows);
-				tracking_system.setInitTarget(firstResults);
-				tracking_system.initTrackingSystem();
-			}
-			int tracking_success = tracking_system.startTracking(outputFrame);
-			if (tracking_success == FAIL){
-				break;
-			}
-			if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
-				tracking_system.drawTrackingResult(outputFrame);
-				tracking_system.detectCollisions(outputFrame);
-			}
-			firstFrameWithDetections = false;
-		}
-		// ----------------------------Execution statistics -----------------------------------------------------
+
+                
+
+                if(FLAGS_tracking) {
+                    if(firstFrameWithDetections){
+                        tracking_system.setFrameWidth(outputFrame.cols);
+                        tracking_system.setFrameHeight(outputFrame.rows);
+                        tracking_system.setInitTarget(firstResults);
+                        tracking_system.initTrackingSystem();
+                    }
+                    int tracking_success = tracking_system.startTracking(outputFrame);
+                    if (tracking_success == FAIL){
+                        break;
+                    }
+                    if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
+                        tracking_system.drawTrackingResult(outputFrame);
+                        tracking_system.detectCollisions(outputFrame);
+                    }
+                    firstFrameWithDetections = false;
+                }
+		        // ----------------------------Execution statistics -----------------------------------------------------
                 std::ostringstream out;
 				std::ostringstream out1;
 				std::ostringstream out2;
@@ -534,12 +655,13 @@ int main(int argc, char *argv[]) {
                 }
 
                 // done with frame buffer, return to queue
-                inputFramePtrs.push(ps3s4i.outputFrame);
+                inputFramePtrs.push(outputFrame2);
             }
 
             // wait until break from key press after all pipeline stages have completed
             done = !haveMoreFrames && pipeS0toS1Fifo.empty() && pipeS1toS2Fifo.empty() && pipeS2toS3Fifo.empty()
-                        && pipeS3toS4Fifo.empty() && pipeS0toS2Fifo.empty();
+                        && pipeS3toS4Fifo.empty() && pipeS0toS2Fifo.empty() && pipeS1toS4Fifo.empty() 
+                        && pipeS0ytoS1yFifo.empty() && pipeS1ytoS4Fifo.empty();
             // end of file we just keep last image/frame displayed to let user check what was shown
             if (done) {
                 // done processing, save time

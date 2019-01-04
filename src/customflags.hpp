@@ -35,9 +35,10 @@ static const char help_message[] = "Print a usage message.";
 static const char video_message[] = "Optional. Path to an video file. Default value is \"cam\" to work with camera.";
 
 /// @brief message for model argument
-static const char vehicle_detection_model_message[] = "Required. Path to the Vehicle/License-Plate Detection model (.xml) file.";
-static const char vehicle_attribs_model_message[] = "Optional. Path to the Vehicle Attributes model (.xml) file.";
+static const char vehicle_detection_model_message[] = "Optional. Path to the Vehicle (.xml) file.";
 static const char pedestrians_model_message[] = "Optional. Path to the Pedestrians detection model (.xml) file.";
+static const char yolo_model_message[] = "Optional. Path to the Yolo detection model (.xml) file.";
+
 /// @brief message for assigning vehicle detection inference to device
 static const char target_device_message[] = "Specify the target device for Vehicle Detection (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
 
@@ -45,8 +46,8 @@ static const char target_device_message[] = "Specify the target device for Vehic
 static const char num_batch_message[] = "Specify number of maximum simultaneously processed frames for Vehicle and Pedestrians Detection ( default is 1).";
 
 /// @brief message for assigning vehicle attributes to device
-static const char target_device_message_vehicle_attribs[] = "Specify the target device for Vehicle Attributes (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
 static const char target_device_message_pedestrians[] = "Specify the target device for Pedestrians (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
+static const char target_device_message_yolo[] = "Specify the target device for YOLO v3 model (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
 
 /// @brief message for number of simultaneously vehicle attributes detections using dynamic batch
 static const char num_batch_va_message[] = "Specify number of maximum simultaneously processed vehicles for Vehicle Attributes Detection ( default is 1).";
@@ -85,6 +86,10 @@ static const char show_interest_areas_selection[] = "Draw interest areas locatio
 
 static const char do_tracking[] = "Track objects.";
 
+static const char run_yolo[] = "Running Yolo v3 as detector.";
+
+static const char intersection_over_union_yolo[] = "Intersection over Yolo ROI threshold";
+
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -96,24 +101,11 @@ DEFINE_string(i, "cam", video_message);
 /// It is a required parameter
 DEFINE_string(m, "", vehicle_detection_model_message);
 
-/// \brief Define parameter for vehicle attributes model file <br>
-/// It is a required parameter
-DEFINE_string(m_va, "", vehicle_attribs_model_message);
-
 /// \brief device the target device for vehicle detection infer on <br>
 DEFINE_string(d, "CPU", target_device_message);
 
 /// \brief batch size for running vehicle detection <br>
 DEFINE_uint32(n, 1, num_batch_message);
-
-/// \brief device the target device for vehicle attributes detection on <br>
-DEFINE_string(d_va, "CPU", target_device_message_vehicle_attribs);
-
-/// \brief batch size for running vehicle attributes detection <br>
-DEFINE_uint32(n_va, 1, num_batch_va_message);
-
-/// \brief Define flag for enabling dynamic batching for vehicle attributes detection <br>
-DEFINE_bool(dyn_va, false, dyn_va_message);
 
 /// \brief Define flag for enabling auto-resize of inputs for all models <br>
 DEFINE_bool(auto_resize, false, auto_resize_message);
@@ -153,10 +145,17 @@ DEFINE_uint32(n_async, 1, async_depth_message);
 
 DEFINE_bool(show_selection, false, show_interest_areas_selection);
 DEFINE_bool(tracking, false, do_tracking);
+DEFINE_bool(yolo, false, run_yolo);
 
 DEFINE_string(m_p, "", pedestrians_model_message);
 DEFINE_uint32(n_p, 1, num_batch_message);
 DEFINE_string(d_p, "CPU", target_device_message_pedestrians);
+
+DEFINE_string(m_y, "", yolo_model_message);
+DEFINE_uint32(n_y, 1, num_batch_message);
+DEFINE_string(d_y, "CPU", target_device_message_yolo);
+
+DEFINE_double(iou_t, 0.4, intersection_over_union_yolo);
 
 
 /**
@@ -171,6 +170,7 @@ static void showUsage() {
     std::cout << "    -i \"<path>\"              " << video_message << std::endl;
     std::cout << "    -m \"<path>\"              " << vehicle_detection_model_message<< std::endl;
     std::cout << "    -m_p \"<path>\"            " << pedestrians_model_message << std::endl;
+    std::cout << "    -m_y \"<path>\"            " << yolo_model_message << std::endl;
     std::cout << "      -l \"<absolute_path>\"   " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "      -c \"<absolute_path>\"   " << custom_cldnn_message << std::endl;
@@ -178,13 +178,17 @@ static void showUsage() {
     std::cout << "    -n \"<num>\"               " << num_batch_message << std::endl;
     std::cout << "    -d_p \"<device>\"          " << target_device_message_pedestrians << std::endl;
     std::cout << "    -n_p \"<num>\"             " << num_batch_va_message << std::endl;
+    std::cout << "    -d_y \"<device>\"          " << target_device_message_yolo << std::endl;
+    std::cout << "    -n_y \"<num>\"             " << num_batch_va_message << std::endl;
     std::cout << "    -dyn_va                    " << dyn_va_message << std::endl;
     std::cout << "    -n_aysnc \"<num>\"         " << async_depth_message << std::endl;
     std::cout << "    -auto_resize               " << auto_resize_message << std::endl;
     std::cout << "    -no_wait                   " << no_wait_for_keypress_message << std::endl;
     std::cout << "    -no_show                   " << no_show_processed_video << std::endl;
     std::cout << "    -show_selection         	 " << show_interest_areas_selection << std::endl;
-    std::cout << "    -tracking         	 " << do_tracking << std::endl;
+    std::cout << "    -tracking         	     " << do_tracking << std::endl;
+    std::cout << "    -yolo         	         " << run_yolo << std::endl;
+    std::cout << "    -iou_t         	         " << intersection_over_union_yolo << std::endl;
     std::cout << "    -pc                        " << performance_counter_message << std::endl;
     std::cout << "    -r                         " << raw_output_message << std::endl;
     std::cout << "    -t                         " << thresh_output_message << std::endl;

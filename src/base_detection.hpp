@@ -1,3 +1,4 @@
+#pragma once
 #include <gflags/gflags.h>
 #include <functional>
 #include <iostream>
