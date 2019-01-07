@@ -77,7 +77,7 @@ void SingleTracker::calcVel()
 	double delta_y = 0;
 	cv::Point avgvel;
 
-	if (this->c_q.size() == 5) {
+	if (this->c_q.size() >= 5) {
 		delta_x = (this->c_q[4].x - this->c_q[0].x)*5;
 		delta_y = (this->c_q[4].y - this->c_q[0].y)*5;
 	}
@@ -453,6 +453,11 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 		cv::rectangle(_mat_img, ptr.get()->getRect(), ptr.get()->getColor(), 1);
 		// Draw velocities
 		cv::arrowedLine(_mat_img, ptr.get()->getCenter(), ptr.get()->getVel(), ptr.get()->getColor(), 1);
+		// Draw trajectories
+		boost::circular_buffer<cv::Point> centers = ptr.get()->getCenters_q();
+		for (int i=0; i<(centers.size()); ++i) {
+			cv::line(_mat_img, centers[i+1], centers[i], ptr.get()->getColor(), 1);
+		}
 		std::string str_label;
 
 		switch (ptr.get()->getLabel()) {

@@ -30,7 +30,7 @@ const cv::Scalar COLOR_UNKNOWN = cv::Scalar(0, 0, 0);
 const cv::Scalar COLOR_CAR = cv::Scalar(0, 255, 0);
 const cv::Scalar COLOR_PERSON = cv::Scalar(255, 255, 0);
 
-const int n_frames = 5;
+const int n_frames = 50;
 
 /* ==========================================================================
 
@@ -96,6 +96,7 @@ public:
 	bool		getIsTrackingStarted() { return this->is_tracking_started; }
 	cv::Scalar	getColor() { return this->color; }
 	int		getLabel() { return this->label; }
+	boost::circular_buffer<cv::Point> getCenters_q() { return this->c_q; }
 
 	/* Set Function */
 	void setTargetId(int _target_id) { this->target_id = _target_id; }
