@@ -69,11 +69,11 @@ class YoloDetection : public BaseDetection{
     
     void submitRequest() override;
 
-    void enqueue(const cv::Mat &frame);
+    void enqueue(const cv::Mat &frame) override;
     
     InferenceEngine::CNNNetwork read() override ;
 
-    void fetchResults(int inputBatchSize);
+    void fetchResults(int inputBatchSize) override;
 
     
 };

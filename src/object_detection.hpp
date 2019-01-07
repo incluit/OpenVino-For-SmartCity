@@ -22,7 +22,7 @@ class ObjectDetection : public BaseDetection{
 
     void submitRequest() override;
 
-    void enqueue(const cv::Mat &frame);
+    void enqueue(const cv::Mat &frame) override;
 
 
     ObjectDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch, int n_async, bool auto_resize, float detection_threshold) 
@@ -30,5 +30,5 @@ class ObjectDetection : public BaseDetection{
     
     InferenceEngine::CNNNetwork read() override;
 
-    void fetchResults(int inputBatchSize);
+    void fetchResults(int inputBatchSize) override;
 };

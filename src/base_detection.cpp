@@ -58,3 +58,9 @@ void BaseDetection::printPerformanceCounts() {
     slog::info << "Performance counts for " << this -> topoName << slog::endl << slog::endl;
     ::printPerformanceCounts(this -> requests[idx]->GetPerformanceCounts(), std::cout, false);
 }
+
+void BaseDetection::enqueue(const cv::Mat &frame){}
+
+void BaseDetection::fetchResults(int inputBatchSize){}
+
+void BaseDetection::run_inferrence(){}

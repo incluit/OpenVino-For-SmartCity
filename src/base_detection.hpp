@@ -56,6 +56,12 @@ class BaseDetection {
 
     virtual void wait();
 
+    virtual void enqueue(const cv::Mat &frame);
+
+    virtual void fetchResults(int inputBatchSize);
+
+    void run_inferrence();
+
     bool requestsInProcess();
 
     bool canSubmitRequest();

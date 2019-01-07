@@ -76,6 +76,20 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 
 // -------------------------Generic routines for detection networks-------------------------------------------------
 
+typedef struct {
+            std::vector<cv::Mat*> batchOfInputFrames;
+            bool vehicleDetectionDone;
+            bool pedestriansDetectionDone;
+            bool generalDetectionDone;
+            cv::Mat* outputFrame;
+            std::vector<cv::Rect> vehicleLocations;
+            int numVehiclesInferred;
+            std::vector<cv::Rect> pedestriansLocations;
+            int numPedestriansInferred;
+            std::vector<cv::Rect> generalLocations;
+        } FramePipelineFifoItem;
+        typedef std::queue<FramePipelineFifoItem> FramePipelineFifo;
+        
 int main(int argc, char *argv[]) {
     try {
         /** This sample covers 2 certain topologies and cannot be generalized **/
@@ -207,19 +221,7 @@ int main(int argc, char *argv[]) {
 
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
-        typedef struct {
-            std::vector<cv::Mat*> batchOfInputFrames;
-            bool vehicleDetectionDone;
-            bool pedestriansDetectionDone;
-            bool generalDetectionDone;
-            cv::Mat* outputFrame;
-            std::vector<cv::Rect> vehicleLocations;
-            int numVehiclesInferred;
-            std::vector<cv::Rect> pedestriansLocations;
-            int numPedestriansInferred;
-            std::vector<cv::Rect> generalLocations;
-        } FramePipelineFifoItem;
-        typedef std::queue<FramePipelineFifoItem> FramePipelineFifo;
+        
         // Queues to pass information across pipeline stages
         FramePipelineFifo pipeS0Fifo;
         FramePipelineFifo pipeS0toS1Fifo;
