@@ -57,6 +57,7 @@ private:
 	double		modvel;				// Velocity's modulus
 	double		vel_x;
 	double		vel_y;
+	bool		update;				// Update from Detection (new rois)
 
 public:
 	dlib::correlation_tracker tracker;  // Correlation tracker
@@ -97,6 +98,7 @@ public:
 	cv::Scalar	getColor() { return this->color; }
 	int		getLabel() { return this->label; }
 	boost::circular_buffer<cv::Point> getCenters_q() { return this->c_q; }
+	bool		getUpdateFromDetection() { return this->update; }
 
 	/* Set Function */
 	void setTargetId(int _target_id) { this->target_id = _target_id; }
@@ -110,6 +112,7 @@ public:
 	void setIsTrackingStarted(bool _b) { this->is_tracking_started = _b; }
 	void setColor(cv::Scalar _color) { this->color = _color; }
 	void setLabel(int _label) { this->label = _label; }
+	void setUpdateFromDetection(bool _update) { this->update = _update; }
 
 	/* Velocity Related */
 	void saveLastCenter(cv::Point _center) { this->c_q.push_back(_center); }
@@ -143,18 +146,22 @@ class TrackerManager
 {
 private:
 	std::vector<std::shared_ptr<SingleTracker>> tracker_vec; // Vector filled with SingleTracker shared pointer. It is the most important container in this program.
+	int id_list = 0; // We keep this to be able to apply new ID to new objects in a simple way.
 
 public:
 	/* Get Function */
 	std::vector<std::shared_ptr<SingleTracker>>& getTrackerVec() { return this->tracker_vec; } // Return reference! not value!
+	int getNextID() { return this->id_list; }
 
 	/* Core Function */
 	// Insert new SingleTracker shared pointer into the TrackerManager::tracker_vec
-	int insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label);
-	int insertTracker(std::shared_ptr<SingleTracker> new_single_tracker);
+	int insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool _update);
+	int insertTracker(std::shared_ptr<SingleTracker> new_single_tracker, bool _update);
 
+	// Find SingleTracker by similarity and return id, return new id if no coincidence
+	int findTracker(cv::Rect rect, int label);
 	// Find SingleTracker in the TrackerManager::tracker_vec using SingleTracker::target_id
-	int findTracker(int _target_id);
+	int findTrackerByID(int _target_id);
 
 	// Deleter SingleTracker which has ID : _target_id from TrackerManager::tracker_vec
 	int deleteTracker(int _target_id);
@@ -179,6 +186,7 @@ private:
 	int				frame_height;	// Frame image height
 	cv::Mat			current_frame;	// Current frame
 	std::vector<std::pair<cv::Rect, int>> init_target;
+	std::vector<std::pair<cv::Rect, int>> updated_target;
 
 	TrackerManager		manager;	// TrackerManager
 
@@ -200,8 +208,11 @@ public:
 	void   setInitTarget(std::vector<std::pair<cv::Rect, int>> _init_target) { this->init_target = _init_target; }
 
 	/* Core Function */
-	// Initialize TrackingSystem.
+	// Initialize TrackingSystem
 	int initTrackingSystem();
+
+	// Update TrackingSystem
+	int updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> new_target);
 
 	// Start tracking
 	int startTracking(cv::Mat& _mat_img);

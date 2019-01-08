@@ -167,23 +167,26 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 	dlib::array2d<unsigned char> dlib_img = Util::cvtMatToArray2d(_mat_img);
 
 	// Track using dlib::update function
-	double confidence = this->tracker.update(dlib_img);
+	if (this->getUpdateFromDetection()) {
+		dlib::drectangle dlib_rect = Util::cvtRectToDrect(this->getRect());
+		this->tracker.start_track(dlib_img, dlib_rect);
+		this->setUpdateFromDetection(false);
+	} else {
+		double confidence = this->tracker.update_noscale(dlib_img);
+	}
 
 	// New position of the target
 	dlib::drectangle updated_rect = this->tracker.get_position();
 
 	// Update variables(center, rect, confidence)
 	this->setCenter(updated_rect);
-	this->saveLastCenter(this->getCenter());
 	this->setRect(updated_rect);
 	this->setConfidence(confidence);
+	this->saveLastCenter(this->getCenter());
 	this->calcVel();
 
 	return SUCCESS;
 }
-
-
-
 
 /* -------------------------------------------------------------------------
 
@@ -194,7 +197,7 @@ If you are about to track new person, need to use this function.
 
 ------------------------------------------------------------------------- */
 
-int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label)
+int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool update)
 {
 	// Exceptions
 	if (_init_rect.area() == 0)
@@ -207,28 +210,34 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 		return FAIL;
 	}
 
-	// if _target_id is already exists
-	int result_idx = findTracker(_target_id);
-
-	if (result_idx != FAIL)
-	{
-		std::cout << "======================= Error Occured! ======================" << std::endl;
-		std::cout << "Function : int SingleTracker::initTracker" << std::endl;
-		std::cout << "_target_id already exists!" << std::endl;
-		std::cout << "=============================================================" << std::endl;
-
-		return FAIL;
-	}
-
+	// if _target_id already exists
+	int result_idx = findTrackerByID(_target_id);
 	// Create new SingleTracker object and insert it to the vector
 	std::shared_ptr<SingleTracker> new_tracker(new SingleTracker(_target_id, _init_rect, _color, _label));
-	this->tracker_vec.push_back(new_tracker);
+
+	if (result_idx != FAIL)	{
+		if (!update) {
+			std::cout << "======================= Error Occured! ======================" << std::endl;
+			std::cout << "Function : int SingleTracker::initTracker" << std::endl;
+			std::cout << "_target_id already exists!" << std::endl;
+			std::cout << "=============================================================" << std::endl;
+
+			return FAIL;
+		} else {
+			this->tracker_vec[result_idx]->setCenter(new_tracker->getCenter());
+			this->tracker_vec[result_idx]->setRect(_init_rect);
+			this->tracker_vec[result_idx]->setUpdateFromDetection(update);
+		}
+	} else {
+		this->tracker_vec.push_back(new_tracker);
+		this->id_list = _target_id + 1;
+	}
 
 	return SUCCESS;
 }
 
 // Overload of insertTracker
-int TrackerManager::insertTracker(std::shared_ptr<SingleTracker> new_single_tracker)
+int TrackerManager::insertTracker(std::shared_ptr<SingleTracker> new_single_tracker, bool update)
 {
 	//Exception
 	if (new_single_tracker == nullptr)
@@ -241,33 +250,39 @@ int TrackerManager::insertTracker(std::shared_ptr<SingleTracker> new_single_trac
 		return FAIL;
 	}
 
-	// if _target_id is already exists
-	int result_idx = findTracker(new_single_tracker.get()->getTargetID());
-	if (result_idx != FAIL)
-	{
-		std::cout << "====================== Error Occured! =======================" << std::endl;
-		std::cout << "Function : int SingleTracker::insertTracker" << std::endl;
-		std::cout << "_target_id already exists!" << std::endl;
-		std::cout << "=============================================================" << std::endl;
+	// if _target_id already exists
+	int result_idx = findTrackerByID(new_single_tracker.get()->getTargetID());
+	if (result_idx != FAIL) {
+		if (!update) {
+			std::cout << "====================== Error Occured! =======================" << std::endl;
+			std::cout << "Function : int SingleTracker::insertTracker" << std::endl;
+			std::cout << "_target_id already exists!" << std::endl;
+			std::cout << "=============================================================" << std::endl;
 
-		return FAIL;
+			return FAIL;
+		} else {
+			this->tracker_vec[result_idx]->setCenter(new_single_tracker->getCenter());
+			this->tracker_vec[result_idx]->setRect(new_single_tracker->getRect());
+			this->tracker_vec[result_idx]->setUpdateFromDetection(update);
+		}
+	} else {
+		// Insert new SingleTracker object into the vector
+		this->tracker_vec.push_back(new_single_tracker);
+		this->id_list = new_single_tracker.get()->getTargetID() + 1; //Next ID
 	}
-
-	// Insert new SingleTracker object into the vector
-	this->tracker_vec.push_back(new_single_tracker);
 
 	return SUCCESS;
 }
 
 /* -----------------------------------------------------------------------------------
 
-Function : findTracker
+Function : findTrackerByID
 
 Find SingleTracker object which has ID : _target_id in the TrackerManager::tracker_vec
 If success to find return that iterator, or return TrackerManager::tracker_vec.end()
 
 ----------------------------------------------------------------------------------- */
-int TrackerManager::findTracker(int _target_id)
+int TrackerManager::findTrackerByID(int _target_id)
 {
 	auto target = find_if(tracker_vec.begin(), tracker_vec.end(), [&, _target_id](std::shared_ptr<SingleTracker> ptr) -> bool {
 		return (ptr.get() -> getTargetID() == _target_id);
@@ -281,6 +296,65 @@ int TrackerManager::findTracker(int _target_id)
 
 /* -----------------------------------------------------------------------------------
 
+Function : findTracker
+
+Find SingleTracker object in the TrackerManager::tracker_vec
+If success to find return that index, or return new index if no coincidence
+
+----------------------------------------------------------------------------------- */
+int TrackerManager::findTracker(cv::Rect rect, int label)
+{
+	double max_overlap_thresh = 0.9;
+	double dist_thresh = rect.height*rect.width>>1; // Pixels^2 -> adjust properly (maybe a proportion of the img size?)
+	std::vector<std::shared_ptr<SingleTracker>> selection;
+	std::shared_ptr<SingleTracker> best = NULL;
+	double min_distance = (rect.height*rect.width)+10; // Init bigger than threshold
+	int index;
+	bool new_object = true;
+	std::vector<double> areas;
+
+	for(auto && s_tracker: this->getTrackerVec()) {
+		double in_area = (s_tracker.get()->getRect() & rect).area();
+		double max_per_area = std::max(in_area / s_tracker.get()->getRect().area(), in_area/rect.area());
+		areas.push_back(max_per_area);
+		if ( max_per_area > max_overlap_thresh && s_tracker->getLabel() == label ) {
+			selection.push_back(s_tracker);
+		}
+	}
+
+	for (auto && s_tracker: selection) {
+		cv::Point n_center = cv::Point(rect.x + (rect.width) / 2, rect.y + (rect.height) / 2);
+		cv::Point diff = s_tracker.get()->getCenter() - n_center;
+		double distance = diff.x*diff.x + diff.y*diff.y;
+		if (best == NULL && distance < dist_thresh) {
+			min_distance = distance;
+			best = s_tracker;
+		} else if ( best != NULL && distance < min_distance ) {
+			min_distance = distance;
+			best = s_tracker;
+		}
+	}
+
+	for (auto && area: areas) {
+		if (area != 0.0) {
+			new_object = false;
+			break;
+		}
+	}
+
+	if ( best == NULL && new_object ) {
+		index = this->getNextID();
+	} else if ( best != NULL ) {
+		index = best.get()->getTargetID();
+	} else if (!new_object) {
+		index = -1;
+	}
+
+	return index;
+}
+
+/* -----------------------------------------------------------------------------------
+
 Function : deleteTracker
 
 Delete SingleTracker object which has ID : _target_id in the TrackerManager::tracker_vec
@@ -288,7 +362,7 @@ Delete SingleTracker object which has ID : _target_id in the TrackerManager::tra
 ----------------------------------------------------------------------------------- */
 int TrackerManager::deleteTracker(int _target_id)
 {
-	int result_idx = this->findTracker(_target_id);
+	int result_idx = this->findTrackerByID(_target_id);
 
 	if (result_idx == FAIL)
 	{
@@ -351,7 +425,7 @@ int TrackingSystem::initTrackingSystem()
 			label = LABEL_PERSON;
 		}
 
-		if (this->manager.insertTracker(i.first, color, index, label) == FAIL)
+		if (this->manager.insertTracker(i.first, color, index, label, false) == FAIL)
 		{
 			std::cout << "====================== Error Occured! =======================" << std::endl;
 			std::cout << "Function : int TrackingSystem::initTrackingSystem" << std::endl;
@@ -360,6 +434,58 @@ int TrackingSystem::initTrackingSystem()
 			return FAIL;
 		}
 		index++;
+	}
+	return SUCCESS;
+}
+
+/* -----------------------------------------------------------------------------------
+
+Function : updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> rois)
+
+Insert new multiple SingleTracker objects to the manager.tracker_vec.
+If you want multi-object tracking, call this function just for once like
+
+vector<cv::Rect> rects;
+// Insert all rects into the vector
+
+vector<int> ids;
+// Insert all target_ids into the vector
+
+initTrackingSystem(ids, rects)
+
+Then, the system is ready to track new targets.
+
+----------------------------------------------------------------------------------- */
+
+int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> updated_results)
+{
+	cv::Scalar color = COLOR_UNKNOWN;
+	int label = LABEL_UNKNOWN;
+
+	//Update init_target to detect new objects
+	//this->updated_target = updated_results;
+
+	for( auto && i : updated_results){
+		int index;
+		if (i.second == LABEL_CAR) {
+			color = COLOR_CAR;
+			label = LABEL_CAR;
+		}
+		else if (i.second == LABEL_PERSON) {
+			color = COLOR_PERSON;
+			label = LABEL_PERSON;
+		}
+		index = this->manager.findTracker(i.first, label);
+		if ( index != -1) {
+		if (this->manager.insertTracker(i.first, color, index, label, true) == FAIL)
+		{
+			std::cout << "====================== Error Occured! =======================" << std::endl;
+			std::cout << "Function : int TrackingSystem::updateTrackingSystem" << std::endl;
+			std::cout << "Sth went wrong" << std::endl;
+			std::cout << "=============================================================" << std::endl;
+			return FAIL;
+		}
+		}
 	}
 	return SUCCESS;
 }
@@ -455,8 +581,8 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 		cv::arrowedLine(_mat_img, ptr.get()->getCenter(), ptr.get()->getVel(), ptr.get()->getColor(), 1);
 		// Draw trajectories
 		boost::circular_buffer<cv::Point> centers = ptr.get()->getCenters_q();
-		for (int i=0; i<(centers.size()); ++i) {
-			cv::line(_mat_img, centers[i+1], centers[i], ptr.get()->getColor(), 1);
+		for (int i=0; i<(centers.size()-1); ++i) {
+			cv::line(_mat_img, centers.at(i+1), centers.at(i), ptr.get()->getColor(), 1);
 		}
 		std::string str_label;
 

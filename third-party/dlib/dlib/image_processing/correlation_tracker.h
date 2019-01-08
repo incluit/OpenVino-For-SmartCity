@@ -115,6 +115,11 @@ namespace dlib
             return position;
         }
 
+	void set_position (drectangle rect) 
+        { 
+            position = rect;
+        }
+
         double get_scale_pyramid_alpha (
         ) const { return scale_pyramid_alpha; }
 
