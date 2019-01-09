@@ -38,6 +38,7 @@ static const char video_message[] = "Optional. Path to an video file. Default va
 static const char vehicle_detection_model_message[] = "Optional. Path to the Vehicle (.xml) file.";
 static const char pedestrians_model_message[] = "Optional. Path to the Pedestrians detection model (.xml) file.";
 static const char yolo_model_message[] = "Optional. Path to the Yolo detection model (.xml) file.";
+static const char vp_model_message[] = "Optional. Path to the Vehicle and Pedestrian detection model (.xml) file.";
 
 /// @brief message for assigning vehicle detection inference to device
 static const char target_device_message[] = "Specify the target device for Vehicle Detection (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
@@ -48,6 +49,7 @@ static const char num_batch_message[] = "Specify number of maximum simultaneousl
 /// @brief message for assigning vehicle attributes to device
 static const char target_device_message_pedestrians[] = "Specify the target device for Pedestrians (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
 static const char target_device_message_yolo[] = "Specify the target device for YOLO v3 model (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
+static const char target_device_message_vp[] = "Specify the target device for Vehicle and Pedestrian model (CPU, GPU, FPGA, MYRIAD, or HETERO). ";
 
 /// @brief message for number of simultaneously vehicle attributes detections using dynamic batch
 static const char num_batch_va_message[] = "Specify number of maximum simultaneously processed vehicles for Vehicle Attributes Detection ( default is 1).";
@@ -154,9 +156,11 @@ DEFINE_string(d_p, "CPU", target_device_message_pedestrians);
 DEFINE_string(m_y, "", yolo_model_message);
 DEFINE_uint32(n_y, 1, num_batch_message);
 DEFINE_string(d_y, "CPU", target_device_message_yolo);
-
 DEFINE_double(iou_t, 0.4, intersection_over_union_yolo);
 
+DEFINE_string(m_vp, "", vp_model_message);
+DEFINE_uint32(n_vp, 1, num_batch_message);
+DEFINE_string(d_vp, "CPU", target_device_message_vp);
 
 /**
 * \brief This function show a help message
@@ -171,6 +175,7 @@ static void showUsage() {
     std::cout << "    -m \"<path>\"              " << vehicle_detection_model_message<< std::endl;
     std::cout << "    -m_p \"<path>\"            " << pedestrians_model_message << std::endl;
     std::cout << "    -m_y \"<path>\"            " << yolo_model_message << std::endl;
+    std::cout << "    -m_vp \"<path>\"           " << vp_model_message << std::endl;
     std::cout << "      -l \"<absolute_path>\"   " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "      -c \"<absolute_path>\"   " << custom_cldnn_message << std::endl;
@@ -180,6 +185,8 @@ static void showUsage() {
     std::cout << "    -n_p \"<num>\"             " << num_batch_va_message << std::endl;
     std::cout << "    -d_y \"<device>\"          " << target_device_message_yolo << std::endl;
     std::cout << "    -n_y \"<num>\"             " << num_batch_va_message << std::endl;
+    std::cout << "    -d_vp \"<device>\"         " << target_device_message_vp << std::endl;
+    std::cout << "    -n_vp \"<num>\"            " << num_batch_va_message << std::endl;
     std::cout << "    -dyn_va                    " << dyn_va_message << std::endl;
     std::cout << "    -n_aysnc \"<num>\"         " << async_depth_message << std::endl;
     std::cout << "    -auto_resize               " << auto_resize_message << std::endl;

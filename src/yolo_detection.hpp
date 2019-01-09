@@ -51,18 +51,9 @@ class YoloDetection : public BaseDetection{
     float height = 0;
     using BaseDetection::operator=;
 
-    struct Result {
-	    int batchIndex;
-        int label;
-        float confidence;
-        cv::Rect location;
-    };
-
-    std::vector<Result> results;
-
     // detection_threshold = FLAGS_t; olb_threshold = FLAGS_iou_t
     YoloDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, 
-                int n_async, int maxBatch, bool auto_resize, float detection_threshold, 
+                int maxBatch, int n_async, bool auto_resize, float detection_threshold, 
                 float olb_threshold) 
                 : BaseDetection(commandLineFlag, deviceName, topoName, maxBatch, n_async, 
                     auto_resize , detection_threshold), olb_threshold(olb_threshold) {}

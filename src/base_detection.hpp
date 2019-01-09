@@ -20,6 +20,21 @@
 #include <samples/slog.hpp>
 #include <ext_list.hpp>
 
+typedef struct {
+            std::vector<cv::Mat*> batchOfInputFrames;
+            bool vehicleDetectionDone;
+            bool pedestriansDetectionDone;
+            bool generalDetectionDone;
+            cv::Mat* outputFrame;
+            std::vector<cv::Rect> vehicleLocations;
+            int numVehiclesInferred;
+            std::vector<cv::Rect> pedestriansLocations;
+            int numPedestriansInferred;
+            std::vector<cv::Rect> resultsLocations;
+} FramePipelineFifoItem;
+typedef std::queue<FramePipelineFifoItem> FramePipelineFifo;
+
+
 class BaseDetection {
   public:
 	InferenceEngine::ExecutableNetwork net;
@@ -35,12 +50,27 @@ class BaseDetection {
     std::vector<InferenceEngine::InferRequest::Ptr> requests;
     std::queue<InferenceEngine::InferRequest::Ptr> submittedRequests;
     bool auto_resize;
+    bool next_pipe;
     float detection_threshold;
     mutable bool enablingChecked = false;
     mutable bool _enabled = false;
+    FramePipelineFifo S1toS2;
 
-    BaseDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch, int FLAGS_n_async, bool auto_resize, float detection_threshold)
-        : commandLineFlag(commandLineFlag), deviceName(deviceName),topoName(topoName), maxBatch(maxBatch), maxSubmittedRequests(FLAGS_n_async), plugin(nullptr), inputRequestIdx(0), outputRequest(nullptr), requests(FLAGS_n_async), auto_resize(auto_resize), detection_threshold(detection_threshold) {}
+    struct Result {
+	    int batchIndex;
+        int label;
+        float confidence;
+        cv::Rect location;
+    };
+
+    std::vector<Result> results;
+
+    BaseDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, 
+                    int maxBatch, int FLAGS_n_async, bool auto_resize, float detection_threshold)
+        : commandLineFlag(commandLineFlag), deviceName(deviceName),topoName(topoName), 
+            maxBatch(maxBatch), maxSubmittedRequests(FLAGS_n_async), plugin(nullptr), 
+            inputRequestIdx(0), outputRequest(nullptr), requests(FLAGS_n_async), 
+            auto_resize(auto_resize), detection_threshold(detection_threshold) {}
 
     virtual ~BaseDetection() {}
 
@@ -60,7 +90,10 @@ class BaseDetection {
 
     virtual void fetchResults(int inputBatchSize);
 
-    void run_inferrence();
+    void run_inferrence(FramePipelineFifo *i);
+    void run_inferrence(FramePipelineFifo *i, FramePipelineFifo *o2);
+
+    void wait_results(FramePipelineFifo *o);
 
     bool requestsInProcess();
 

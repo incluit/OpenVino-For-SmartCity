@@ -2,10 +2,10 @@
 
 void BaseDetection::submitRequest() 
 {
-    if (! this -> enabled() || nullptr == this -> requests[inputRequestIdx]) return;
+    if (! this -> enabled() || nullptr == this -> requests[this -> inputRequestIdx]) return;
     this -> requests[this -> inputRequestIdx]->StartAsync();
     this -> submittedRequests.push(this -> requests[this -> inputRequestIdx]);
-    this -> inputRequestIdx++;
+    (this -> inputRequestIdx)++;
     if (this-> inputRequestIdx >= this -> maxSubmittedRequests) {
 	   this -> inputRequestIdx = 0;
     }
@@ -54,7 +54,7 @@ void BaseDetection::printPerformanceCounts() {
         return;
     }
     // use last request used
-    int idx = std::max(0, this -> inputRequestIdx-1);
+    int idx = std::max(0, (this -> inputRequestIdx)-1);
     slog::info << "Performance counts for " << this -> topoName << slog::endl << slog::endl;
     ::printPerformanceCounts(this -> requests[idx]->GetPerformanceCounts(), std::cout, false);
 }
@@ -63,4 +63,68 @@ void BaseDetection::enqueue(const cv::Mat &frame){}
 
 void BaseDetection::fetchResults(int inputBatchSize){}
 
-void BaseDetection::run_inferrence(){}
+void BaseDetection::run_inferrence(FramePipelineFifo *in_fifo){
+    FramePipelineFifo& in = *in_fifo; 
+    if (!in.empty() && (this ->canSubmitRequest())) {
+        FramePipelineFifoItem ps0i = in.front();
+        in.pop();
+        for(auto &&  i: ps0i.batchOfInputFrames){
+            cv::Mat* curFrame = i;
+            //t0 = std::chrono::high_resolution_clock::now();
+            this -> enqueue(*curFrame);
+            //t1 = std::chrono::high_resolution_clock::now();
+            //ocv_decode_time_vehicle += std::chrono::duration_cast<ms>(t1 - t0).count();
+        }
+        //t0 = std::chrono::high_resolution_clock::now();
+        this -> submitRequest();
+        this -> S1toS2.push(ps0i);
+        this -> next_pipe = true;
+    }
+}
+
+void BaseDetection::run_inferrence(FramePipelineFifo *i, FramePipelineFifo *o2){
+    this -> run_inferrence(i);
+    if(this -> next_pipe == true ){
+        this -> next_pipe = false;
+        FramePipelineFifo& in = this -> S1toS2; 
+        FramePipelineFifo& out2 = *o2;
+        FramePipelineFifoItem i2 = in.back();
+        out2.push(i2);
+    }
+}
+
+
+void BaseDetection::wait_results(FramePipelineFifo *o){
+    FramePipelineFifo& in = this -> S1toS2; 
+    FramePipelineFifo& out = *o; 
+    
+    if (((this -> maxSubmittedRequests == 1) && this -> requestsInProcess()) || this -> resultIsReady()) {
+        this -> wait();
+        //t1 = std::chrono::high_resolution_clock::now();
+        //detection_time = std::chrono::duration_cast<ms>(t1 - t0);
+        FramePipelineFifoItem ps0s1i = in.front();
+        in.pop();
+        this -> fetchResults(ps0s1i.batchOfInputFrames.size());
+        // prepare a FramePipelineFifoItem for each batched frame to get its detection results
+        std::vector<FramePipelineFifoItem> batchedFifoItems;
+        for (auto && bFrame : ps0s1i.batchOfInputFrames) {
+            FramePipelineFifoItem fpfi;
+            fpfi.outputFrame = bFrame;
+            batchedFifoItems.push_back(fpfi);
+        }
+        // store results for next pipeline stage
+        for (auto && result : this -> results) {
+            FramePipelineFifoItem& fpfi = batchedFifoItems[result.batchIndex];
+            fpfi.resultsLocations.push_back(result.location);
+        }
+        // done with results, clear them
+        this -> results.clear();
+        // queue up output for next pipeline stage to process
+        for (auto && item : batchedFifoItems) {
+            item.numVehiclesInferred = 0;
+            item.vehicleDetectionDone = true;
+            item.pedestriansDetectionDone = false;
+            out.push(item);
+        }
+    }
+}

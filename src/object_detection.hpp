@@ -11,22 +11,15 @@ class ObjectDetection : public BaseDetection{
     float height = 0;
     using BaseDetection::operator=;
 
-    struct Result {
-	    int batchIndex;
-        int label;
-        float confidence;
-        cv::Rect location;
-    };
-
-    std::vector<Result> results;
-
     void submitRequest() override;
 
     void enqueue(const cv::Mat &frame) override;
 
 
-    ObjectDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, int maxBatch, int n_async, bool auto_resize, float detection_threshold) 
-            : BaseDetection(commandLineFlag, deviceName, topoName, maxBatch, n_async, auto_resize, detection_threshold) {}
+    ObjectDetection(std::string &commandLineFlag, std::string &deviceName, std::string topoName, 
+                    int maxBatch, int n_async, bool auto_resize, float detection_threshold) 
+            : BaseDetection(commandLineFlag, deviceName, topoName, maxBatch, n_async, auto_resize, 
+                    detection_threshold) {}
     
     InferenceEngine::CNNNetwork read() override;
 
