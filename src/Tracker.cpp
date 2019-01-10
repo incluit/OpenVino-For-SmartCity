@@ -415,7 +415,7 @@ int TrackingSystem::initTrackingSystem()
 	cv::Scalar color = COLOR_UNKNOWN;
 	int label = LABEL_UNKNOWN;
 
-	for( auto && i : init_target){
+	for( auto && i : this->init_target){
 		if (i.second == LABEL_CAR) {
 			color = COLOR_CAR;
 			label = LABEL_CAR;

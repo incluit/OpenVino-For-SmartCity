@@ -223,11 +223,13 @@ int main(int argc, char *argv[]) {
         std::vector<std::pair<cv::Rect, int>> firstResults;
         TrackingSystem tracking_system;
 
+	const int update_frame = 5;
+	int update_counter = 0;
+
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
         
         // Queues to pass information across pipeline stages
-        
 
         wallclockStart = std::chrono::high_resolution_clock::now();
         /** Start inference & calc performance **/
@@ -306,14 +308,14 @@ int main(int argc, char *argv[]) {
                     // draw box around vehicles
                     for (auto && loc : ps1s4i.resultsLocations) {
                         cv::rectangle(outputFrame, loc.first, cv::Scalar(0, 255, 0), 1);
-                        if (firstFrameWithDetections){
+                        if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(std::make_pair(loc.first, LABEL_CAR));
                         }
                     }
                     // draw box around pedestrians
                     for (auto && loc : ps3s4i.resultsLocations) {
                         cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
-                        if (firstFrameWithDetections){
+                        if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(std::make_pair(loc.first, LABEL_PERSON));
                         }
                     }
@@ -328,7 +330,7 @@ int main(int argc, char *argv[]) {
 
                     for (auto && loc : ps1ys4i.resultsLocations) {
                         cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
-                        if (firstFrameWithDetections){
+                        if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(loc);
                         }
                     }
@@ -343,18 +345,21 @@ int main(int argc, char *argv[]) {
 
                     for (auto && loc : ps1ys4i.resultsLocations) {
                         cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
-                        if (firstFrameWithDetections){
+                        if (firstFrameWithDetections || update_counter == update_frame ){
                             firstResults.push_back(loc);
                         }
                     }
                 }
-                
+
                 if(FLAGS_tracking) {
                     if(firstFrameWithDetections){
-                        tracking_system.setFrameWidth(outputFrame.cols);
-                        tracking_system.setFrameHeight(outputFrame.rows);
-                        tracking_system.setInitTarget(firstResults);
-                        tracking_system.initTrackingSystem();
+			tracking_system.setFrameWidth(outputFrame.cols);
+			tracking_system.setFrameHeight(outputFrame.rows);
+			tracking_system.setInitTarget(firstResults);
+			tracking_system.initTrackingSystem();
+                    }
+                    if( update_counter == update_frame ){
+                        tracking_system.updateTrackingSystem(firstResults);
                     }
                     int tracking_success = tracking_system.startTracking(outputFrame);
                     if (tracking_success == FAIL){
@@ -365,8 +370,13 @@ int main(int argc, char *argv[]) {
                         tracking_system.detectCollisions(outputFrame);
                     }
                 }
-                firstFrameWithDetections = false;
 
+		firstFrameWithDetections = false;
+		firstResults.clear();
+		update_counter++;
+		if (update_counter > update_frame) {
+			update_counter = 0;
+		}
 		        // ----------------------------Execution statistics -----------------------------------------------------
                 std::ostringstream out;
 				std::ostringstream out1;
