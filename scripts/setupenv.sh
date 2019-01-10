@@ -37,4 +37,6 @@ modName=pedestrian-detection-adas-0002
 export person216=$modelDir/$modName/FP16/$modName.xml
 export person232=$modelDir/$modName/FP32/$modName.xml
 
+modName=frozen_yolo_v3
+export yolo16=../data/$modName.xml
 
