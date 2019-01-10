@@ -305,16 +305,16 @@ int main(int argc, char *argv[]) {
 
                     // draw box around vehicles
                     for (auto && loc : ps1s4i.resultsLocations) {
-                        cv::rectangle(outputFrame, loc, cv::Scalar(0, 255, 0), 1);
+                        cv::rectangle(outputFrame, loc.first, cv::Scalar(0, 255, 0), 1);
                         if (firstFrameWithDetections){
-                            firstResults.push_back(std::make_pair(loc, LABEL_CAR));
+                            firstResults.push_back(std::make_pair(loc.first, LABEL_CAR));
                         }
                     }
                     // draw box around pedestrians
                     for (auto && loc : ps3s4i.resultsLocations) {
-                        cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 1);
+                        cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
                         if (firstFrameWithDetections){
-                            firstResults.push_back(std::make_pair(loc, LABEL_PERSON));
+                            firstResults.push_back(std::make_pair(loc.first, LABEL_PERSON));
                         }
                     }
                 }
@@ -327,9 +327,9 @@ int main(int argc, char *argv[]) {
                     outputFrame2 = ps1ys4i.outputFrame;
 
                     for (auto && loc : ps1ys4i.resultsLocations) {
-                        cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 1);
+                        cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
                         if (firstFrameWithDetections){
-                            firstResults.push_back(std::make_pair(loc, LABEL_PERSON));
+                            firstResults.push_back(loc);
                         }
                     }
                 }
@@ -342,9 +342,9 @@ int main(int argc, char *argv[]) {
                     outputFrame2 = ps1ys4i.outputFrame;
 
                     for (auto && loc : ps1ys4i.resultsLocations) {
-                        cv::rectangle(outputFrame, loc, cv::Scalar(255, 255, 255), 1);
+                        cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
                         if (firstFrameWithDetections){
-                            firstResults.push_back(std::make_pair(loc, LABEL_PERSON));
+                            firstResults.push_back(loc);
                         }
                     }
                 }
