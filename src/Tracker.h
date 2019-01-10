@@ -12,6 +12,8 @@
 #include <opencv2/core.hpp>
 #include <boost/circular_buffer.hpp>
 
+#include "yolo_labels.hpp"
+
 #define FAIL		-1
 #define SUCCESS		1
 #define FALSE		0
@@ -21,10 +23,6 @@
 
 #define ENTER		13
 #define ESC		27
-
-const int LABEL_UNKNOWN = 0;
-const int LABEL_CAR = 1;
-const int LABEL_PERSON = 2;
 
 const cv::Scalar COLOR_UNKNOWN = cv::Scalar(0, 0, 0);
 const cv::Scalar COLOR_CAR = cv::Scalar(0, 255, 0);
@@ -45,13 +43,13 @@ then need to have 'Three' SingleTracker object.
 class SingleTracker
 {
 private:
-	int		target_id;			// Unique Number for target
+	int			target_id;			// Unique Number for target
 	double		confidence;			// Confidence of tracker
 	cv::Rect	rect;				// Initial Rectangle for target
 	cv::Point	center;				// Current center point of target
 	bool		is_tracking_started;		// Is tracking started or not? (Is initializing done or not?)
 	cv::Scalar	color;				// Box color
-	int		label;				// Label (LABEL_CAR, LABEL_PERSON)
+	int			label;				// Label (LABEL_CAR, LABEL_PERSON)
 	boost::circular_buffer<cv::Point> 	c_q;	// Queue with last n_frames centers
 	cv::Point 	vel;				// Final point of Velocity vector (from center)
 	double		modvel;				// Velocity's modulus
