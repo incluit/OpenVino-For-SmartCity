@@ -33,6 +33,7 @@
 #include <vector>
 #include <queue>
 #include <utility>
+#include <stdlib.h> 
 
 #include <opencv2/opencv.hpp>
 #include "customflags.hpp"
@@ -41,6 +42,7 @@
 #include "Tracker.h"
 #include "object_detection.hpp"
 #include "yolo_detection.hpp"
+#include "yolo_labels.hpp"
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
@@ -222,6 +224,7 @@ int main(int argc, char *argv[]) {
         cv::Mat* lastOutputFrame;
         std::vector<std::pair<cv::Rect, int>> firstResults;
         TrackingSystem tracking_system;
+        int detected_objects = 0;
 
 	const int update_frame = 5;
 	int update_counter = 0;
@@ -256,6 +259,7 @@ int main(int argc, char *argv[]) {
                     if (!haveMoreFrames) {
                         break;
                     }
+                    std::cout << "Frame n°:[" << totalFrames << "]" << std::endl;
                     totalFrames++;
                     ps0.batchOfInputFrames.push_back(curFrame);
                     if (firstFrame && !FLAGS_no_show) {
@@ -304,7 +308,8 @@ int main(int argc, char *argv[]) {
 
                     outputFrame = *(ps3s4i.outputFrame);
                     outputFrame2 = ps3s4i.outputFrame;
-
+                    
+                    detected_objects = ps1s4i.resultsLocations.size() + ps3s4i.resultsLocations.size();
                     // draw box around vehicles
                     for (auto && loc : ps1s4i.resultsLocations) {
                         cv::rectangle(outputFrame, loc.first, cv::Scalar(0, 255, 0), 1);
@@ -328,6 +333,8 @@ int main(int argc, char *argv[]) {
                     outputFrame = *(ps1ys4i.outputFrame);
                     outputFrame2 = ps1ys4i.outputFrame;
 
+                    detected_objects = ps1ys4i.resultsLocations.size();
+
                     for (auto && loc : ps1ys4i.resultsLocations) {
                         cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
                         if (firstFrameWithDetections || update_counter == update_frame){
@@ -343,14 +350,23 @@ int main(int argc, char *argv[]) {
                     outputFrame = *(ps1ys4i.outputFrame);
                     outputFrame2 = ps1ys4i.outputFrame;
 
+                    detected_objects = ps1ys4i.resultsLocations.size();
+
                     for (auto && loc : ps1ys4i.resultsLocations) {
                         cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
-                        if (firstFrameWithDetections || update_counter == update_frame ){
+                        if(loc.second == 1){
+                            loc.second = LABEL_PERSON;
+                        }else if(loc.second == 0){
+                            loc.second = LABEL_BICYCLE;
+                        }
+                         if (firstFrameWithDetections || update_counter == update_frame ){
                             firstResults.push_back(loc);
                         }
                     }
                 }
 
+                std::cout << "Amount of infered objects: " << detected_objects << std::endl; 
+            
                 if(FLAGS_tracking) {
                     if(firstFrameWithDetections){
 			tracking_system.setFrameWidth(outputFrame.cols);
@@ -465,6 +481,7 @@ int main(int argc, char *argv[]) {
                     break;
                 }
             }
+            int clear = std::system("clear");
         } while(!done);
 
         // calculate total run time

@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 #include <string>
 
@@ -81,6 +82,8 @@ const int LABEL_SCISSORS        = 76;
 const int LABEL_TEDDY_BEAR      = 77;
 const int LABEL_HAIR_DRIER      = 78;
 const int LABEL_TOOTHBRUSH      = 79;
+const int LABEL_UNKNOWN         = 99;
+
 const std::vector<std::string> YOLO_LABELS = {
 "person"
 ,"bicycle"
