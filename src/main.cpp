@@ -224,10 +224,9 @@ int main(int argc, char *argv[]) {
         cv::Mat* lastOutputFrame;
         std::vector<std::pair<cv::Rect, int>> firstResults;
         TrackingSystem tracking_system;
-        int detected_objects = 0;
 
-	const int update_frame = 5;
-	int update_counter = 0;
+        const int update_frame = 5;
+        int update_counter = 0;
 
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
@@ -259,7 +258,6 @@ int main(int argc, char *argv[]) {
                     if (!haveMoreFrames) {
                         break;
                     }
-                    std::cout << "Frame n°:[" << totalFrames << "]" << std::endl;
                     totalFrames++;
                     ps0.batchOfInputFrames.push_back(curFrame);
                     if (firstFrame && !FLAGS_no_show) {
@@ -309,17 +307,16 @@ int main(int argc, char *argv[]) {
                     outputFrame = *(ps3s4i.outputFrame);
                     outputFrame2 = ps3s4i.outputFrame;
                     
-                    detected_objects = ps1s4i.resultsLocations.size() + ps3s4i.resultsLocations.size();
                     // draw box around vehicles
                     for (auto && loc : ps1s4i.resultsLocations) {
-                        cv::rectangle(outputFrame, loc.first, cv::Scalar(0, 255, 0), 1);
+                        //cv::rectangle(outputFrame, loc.first, cv::Scalar(0, 255, 0), 1);
                         if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(std::make_pair(loc.first, LABEL_CAR));
                         }
                     }
                     // draw box around pedestrians
                     for (auto && loc : ps3s4i.resultsLocations) {
-                        cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
+                        //cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
                         if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(std::make_pair(loc.first, LABEL_PERSON));
                         }
@@ -333,10 +330,8 @@ int main(int argc, char *argv[]) {
                     outputFrame = *(ps1ys4i.outputFrame);
                     outputFrame2 = ps1ys4i.outputFrame;
 
-                    detected_objects = ps1ys4i.resultsLocations.size();
-
                     for (auto && loc : ps1ys4i.resultsLocations) {
-                        cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
+                        //cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
                         if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(loc);
                         }
@@ -350,10 +345,8 @@ int main(int argc, char *argv[]) {
                     outputFrame = *(ps1ys4i.outputFrame);
                     outputFrame2 = ps1ys4i.outputFrame;
 
-                    detected_objects = ps1ys4i.resultsLocations.size();
-
                     for (auto && loc : ps1ys4i.resultsLocations) {
-                        cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
+                        //cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
                         if(loc.second == 1){
                             loc.second = LABEL_PERSON;
                         }else if(loc.second == 0){
@@ -365,14 +358,58 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-                std::cout << "Amount of infered objects: " << detected_objects << std::endl; 
-            
+                if(update_counter == update_frame){
+                    int n_person = 0;
+                    int n_car = 0;
+                    int n_bus = 0;
+                    int n_truck = 0;
+                    int n_bike = 0;
+                    int n_motorbike = 0;
+                    int n_ukn = 0;
+                    for(auto && i : firstResults){
+                        switch (i.second)
+                        {
+                            case LABEL_PERSON:
+                                n_person++;
+                                break;
+                            case LABEL_CAR:
+                                n_car++;
+                                break;
+                            case LABEL_BUS:
+                                n_bus++;
+                                break;
+                            case LABEL_TRUCK:
+                                n_truck++;
+                                break;
+                            case LABEL_BICYCLE:
+                                n_bike++;
+                                break;
+                            case LABEL_MOTORBIKE:
+                                n_motorbike++;
+                                break;
+                            default:
+                                n_ukn++;
+                                break;
+                        }
+                    }
+                    int clear = std::system("clear");
+                    std::cout << "Frame n°:[" << totalFrames << "]" << std::endl;
+                    std::cout << "Amount of infered objects: " << firstResults.size() << std::endl; 
+                    std::cout << "Person:       " << n_person << std::endl; 
+                    std::cout << "Cars:         " << n_car << std::endl; 
+                    std::cout << "Bus:          " << n_bus << std::endl; 
+                    std::cout << "Truck:        " << n_truck << std::endl; 
+                    std::cout << "Bicycle:      " << n_bike << std::endl; 
+                    std::cout << "Motorbike:    " << n_motorbike << std::endl; 
+                    std::cout << "Unknown:      " << n_ukn << std::endl; 
+                }
+
                 if(FLAGS_tracking) {
                     if(firstFrameWithDetections){
-			tracking_system.setFrameWidth(outputFrame.cols);
-			tracking_system.setFrameHeight(outputFrame.rows);
-			tracking_system.setInitTarget(firstResults);
-			tracking_system.initTrackingSystem();
+                    tracking_system.setFrameWidth(outputFrame.cols);
+                    tracking_system.setFrameHeight(outputFrame.rows);
+                    tracking_system.setInitTarget(firstResults);
+                    tracking_system.initTrackingSystem();
                     }
                     if( update_counter == update_frame ){
                         tracking_system.updateTrackingSystem(firstResults);
@@ -387,11 +424,11 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-		firstFrameWithDetections = false;
-		firstResults.clear();
-		update_counter++;
-		if (update_counter > update_frame) {
-			update_counter = 0;
+                firstFrameWithDetections = false;
+                firstResults.clear();
+                update_counter++;
+                if (update_counter > update_frame) {
+                    update_counter = 0;
 		}
 		        // ----------------------------Execution statistics -----------------------------------------------------
                 std::ostringstream out;
@@ -481,7 +518,6 @@ int main(int argc, char *argv[]) {
                     break;
                 }
             }
-            int clear = std::system("clear");
         } while(!done);
 
         // calculate total run time
