@@ -66,6 +66,13 @@ A summary of what is needed:
 
 * Git(git) for downloading from the GitHub repository.
 
+* BOOST library. To install on Ubuntu, run:
+
+[source,bash]
+----
+apt-get install libboost-dev
+----
+
 === Checks
 
 By now you should have completed the Linux installation guide for the OpenVINO™ toolkit, however before continuing, please ensure:
@@ -173,11 +180,37 @@ synchronous mode.
 ./intel64/Release/smart_city_tutorial -m $mVDR16 -d GPU -m_p $person232 -d_p GPU -i ../data/video1_640x320.mp4 -n_async 16
 ----
 
-**2.** Asynchronous mode should be faster by some amount for "-n_async 2" then a little more for “-n_async 4” and “-n_async 8”, then not as noticeable for “-n_async 16”. The improvements come from the CPU running in parallel more and more with the GPU. The absence of improvement shows when the CPU is doing less in parallel and is waiting on the other devices. This is referred to as “diminishing returns” and will vary across devices and inference models.
+image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/detection.gif[detection]
+
+**2.** Asynchronous mode should be faster by some amount for `-n_async 2` then a little more for `-n_async 4` and `-n_async 8`, then not as noticeable for `-n_async 16`. The improvements come from the CPU running in parallel more and more with the GPU. The absence of improvement shows when the CPU is doing less in parallel and is waiting on the other devices. This is referred to as “diminishing returns” and will vary across devices and inference models.
 
 **3.** We run a performance analysis by running each 9 combinations of model/device/precision. The following graph shows the results:
 
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Vehicle%20and%20Pedestrian%20detection%20performance.png[performance]
+
+=== Other models
+
+You can also experiment by using different detection models, being the ones available up to now:
+
+. vehicle-detection-adas-0002 together with person-detection-retail-0013 or pedestrian-detection-adas-0002:
+** `-m $mVDR{16,32}` `-m_p $person{1,2}{16,32}`
+. person-vehicle-bike-detection-crossroad-0078
+** `-m_vp $vehicle2{16,32}`
+. frozen_yolo_v3
+** `-m_y $yolo16`
+
+The first 2 are included with the OpenVINO toolkit, while the last one is the compiled version of the public [https://github.com/pjreddie/darknet](yolo) general detection model. You can do this yourself by following this [https://software.intel.com/en-us/articles/OpenVINO-Using-TensorFlow](guide).
+
+=== Tracking
+
+To enable tracking you should run the command with the `-tracking` argument:
+
+[source,bash]
+----
+./intel64/Release/smart_city_tutorial -m $mVDR32 -d CPU -m_p $person232 -d_p GPU -i ../data/video1_640x320.mp4 -n_async 16
+----
+
+image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/tracking.gif[detection]
 
 == To Do
 
@@ -193,7 +226,8 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Vehi
 * [x] Try with different models
 * [x] Detect vehicles and pedestrians
 * [x] Draw Areas of Interest
-* [ ] Object Tracking
-* [ ] Object Trajectories
+* [x] Object Tracking
+* [x] Object Trajectories
+* [ ] Fix labels for the other models
 * [ ] Elaborate on dangerous situations to be detected
 * [ ] Detect these situations
