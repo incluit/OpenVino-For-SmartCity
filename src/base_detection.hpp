@@ -26,11 +26,9 @@ typedef struct {
             bool pedestriansDetectionDone;
             bool generalDetectionDone;
             cv::Mat* outputFrame;
-            std::vector<cv::Rect> vehicleLocations;
             int numVehiclesInferred;
-            std::vector<cv::Rect> pedestriansLocations;
             int numPedestriansInferred;
-            std::vector<cv::Rect> resultsLocations;
+            std::vector<std::pair<cv::Rect, int>> resultsLocations;
 } FramePipelineFifoItem;
 typedef std::queue<FramePipelineFifoItem> FramePipelineFifo;
 

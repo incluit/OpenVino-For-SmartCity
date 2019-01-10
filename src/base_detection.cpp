@@ -115,7 +115,7 @@ void BaseDetection::wait_results(FramePipelineFifo *o){
         // store results for next pipeline stage
         for (auto && result : this -> results) {
             FramePipelineFifoItem& fpfi = batchedFifoItems[result.batchIndex];
-            fpfi.resultsLocations.push_back(result.location);
+            fpfi.resultsLocations.push_back(std::make_pair(result.location, result.label));
         }
         // done with results, clear them
         this -> results.clear();
