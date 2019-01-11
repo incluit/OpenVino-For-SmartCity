@@ -223,10 +223,10 @@ int main(int argc, char *argv[]) {
 		double ocv_render_time = 0;
         cv::Mat* lastOutputFrame;
         std::vector<std::pair<cv::Rect, int>> firstResults;
-        TrackingSystem tracking_system;
-
         const int update_frame = 5;
         int update_counter = 0;
+        std::string last_event;
+        TrackingSystem tracking_system(&last_event);
 
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
@@ -358,7 +358,26 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-                if(update_counter == update_frame){
+                if(FLAGS_tracking) {
+                    if(firstFrameWithDetections){
+                    tracking_system.setFrameWidth(outputFrame.cols);
+                    tracking_system.setFrameHeight(outputFrame.rows);
+                    tracking_system.setInitTarget(firstResults);
+                    tracking_system.initTrackingSystem();
+                    }
+                    if( update_counter == update_frame ){
+                        tracking_system.updateTrackingSystem(firstResults);
+                    }
+                    int tracking_success = tracking_system.startTracking(outputFrame);
+                    if (tracking_success == FAIL){
+                        break;
+                    }
+                    if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
+                        tracking_system.drawTrackingResult(outputFrame);
+                        tracking_system.detectCollisions(outputFrame);
+                    }
+                }
+ if(update_counter == update_frame){
                     int n_person = 0;
                     int n_car = 0;
                     int n_bus = 0;
@@ -402,26 +421,7 @@ int main(int argc, char *argv[]) {
                     std::cout << "Bicycle:      " << n_bike << std::endl; 
                     std::cout << "Motorbike:    " << n_motorbike << std::endl; 
                     std::cout << "Unknown:      " << n_ukn << std::endl; 
-                }
-
-                if(FLAGS_tracking) {
-                    if(firstFrameWithDetections){
-                    tracking_system.setFrameWidth(outputFrame.cols);
-                    tracking_system.setFrameHeight(outputFrame.rows);
-                    tracking_system.setInitTarget(firstResults);
-                    tracking_system.initTrackingSystem();
-                    }
-                    if( update_counter == update_frame ){
-                        tracking_system.updateTrackingSystem(firstResults);
-                    }
-                    int tracking_success = tracking_system.startTracking(outputFrame);
-                    if (tracking_success == FAIL){
-                        break;
-                    }
-                    if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
-                        tracking_system.drawTrackingResult(outputFrame);
-                        tracking_system.detectCollisions(outputFrame);
-                    }
+                    std::cout << last_event << std::endl;
                 }
 
                 firstFrameWithDetections = false;

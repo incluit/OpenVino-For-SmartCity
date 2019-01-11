@@ -197,7 +197,7 @@ If you are about to track new person, need to use this function.
 
 ------------------------------------------------------------------------- */
 
-int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool update)
+int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool update, std::string *last_event)
 {
 	// Exceptions
 	if (_init_rect.area() == 0)
@@ -231,6 +231,14 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 	} else {
 		this->tracker_vec.push_back(new_tracker);
 		this->id_list = _target_id + 1;
+
+		std::stringstream aux_str;
+
+		aux_str << "========================== Notice! ==========================" << std::endl;
+		aux_str << "Target ID : " << this->id_list-1 << " is now been tracked" << std::endl;
+		aux_str << "=============================================================" << std::endl;
+
+		*last_event = aux_str.str();
 	}
 
 	return SUCCESS;
@@ -269,6 +277,7 @@ int TrackerManager::insertTracker(std::shared_ptr<SingleTracker> new_single_trac
 		// Insert new SingleTracker object into the vector
 		this->tracker_vec.push_back(new_single_tracker);
 		this->id_list = new_single_tracker.get()->getTargetID() + 1; //Next ID
+
 	}
 
 	return SUCCESS;
@@ -360,7 +369,7 @@ Function : deleteTracker
 Delete SingleTracker object which has ID : _target_id in the TrackerManager::tracker_vec
 
 ----------------------------------------------------------------------------------- */
-int TrackerManager::deleteTracker(int _target_id)
+int TrackerManager::deleteTracker(int _target_id, std::string *last_event)
 {
 	int result_idx = this->findTrackerByID(_target_id);
 
@@ -381,11 +390,14 @@ int TrackerManager::deleteTracker(int _target_id)
 		// Remove SingleTracker object from the vector
 		this->tracker_vec.erase(tracker_vec.begin() + result_idx);
 
-		std::cout << "========================== Notice! ==========================" << std::endl;
-		std::cout << "Target ID : " << _target_id << " is going out of the frame." << std::endl;
-		std::cout << "Target ID : " << _target_id << " is erased!" << std::endl;
-		std::cout << "=============================================================" << std::endl;
+		std::stringstream aux_str;
 
+		aux_str << "========================== Notice! ==========================" << std::endl;
+		aux_str << "Target ID : " << _target_id << " is going out of the frame." << std::endl;
+		aux_str << "Target ID : " << _target_id << " is erased!" << std::endl;
+		aux_str << "=============================================================" << std::endl;
+
+		*last_event = aux_str.str();
 		return SUCCESS;
 	}
 }
@@ -425,7 +437,7 @@ int TrackingSystem::initTrackingSystem()
 			label = LABEL_PERSON;
 		}
 
-		if (this->manager.insertTracker(i.first, color, index, label, false) == FAIL)
+		if (this->manager.insertTracker(i.first, color, index, label, false, this->last_event) == FAIL)
 		{
 			std::cout << "====================== Error Occured! =======================" << std::endl;
 			std::cout << "Function : int TrackingSystem::initTrackingSystem" << std::endl;
@@ -477,7 +489,7 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 		}
 		index = this->manager.findTracker(i.first, label);
 		if ( index != -1) {
-		if (this->manager.insertTracker(i.first, color, index, label, true) == FAIL)
+		if (this->manager.insertTracker(i.first, color, index, label, true,this->last_event) == FAIL)
 		{
 			std::cout << "====================== Error Occured! =======================" << std::endl;
 			std::cout << "Function : int TrackingSystem::updateTrackingSystem" << std::endl;
@@ -547,7 +559,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 	}
 
 	for(auto && i : tracker_erase){
-		int a = manager.deleteTracker(i);
+		int a = manager.deleteTracker(i,this->last_event);
 	}
 
 	return SUCCESS;

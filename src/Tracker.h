@@ -153,7 +153,7 @@ public:
 
 	/* Core Function */
 	// Insert new SingleTracker shared pointer into the TrackerManager::tracker_vec
-	int insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool _update);
+	int insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool _update, std::string *last_event);
 	int insertTracker(std::shared_ptr<SingleTracker> new_single_tracker, bool _update);
 
 	// Find SingleTracker by similarity and return id, return new id if no coincidence
@@ -162,7 +162,7 @@ public:
 	int findTrackerByID(int _target_id);
 
 	// Deleter SingleTracker which has ID : _target_id from TrackerManager::tracker_vec
-	int deleteTracker(int _target_id);
+	int deleteTracker(int _target_id, std::string *last_event);
 };
 
 /* ===================================================================================================
@@ -185,18 +185,19 @@ private:
 	cv::Mat			current_frame;	// Current frame
 	std::vector<std::pair<cv::Rect, int>> init_target;
 	std::vector<std::pair<cv::Rect, int>> updated_target;
-
+	std::string 	*last_event;
 	TrackerManager		manager;	// TrackerManager
 
 public:
 	/* Constructor */
-	TrackingSystem(){};
+	TrackingSystem(std::string *last_event):last_event(last_event){};
 
 	/* Get Function */
 	int    getFrameWidth() { return this->frame_width; }
 	int    getFrameHeight() { return this->frame_height; }
 	cv::Mat   getCurrentFrame() { return this->current_frame; }
 	TrackerManager getTrackerManager() { return this->manager; }
+
 
 	/* Set Function */
 	//void   setFramePath(std::string _frame_path) { this->frame_path.assign(_frame_path); }
