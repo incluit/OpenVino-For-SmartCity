@@ -151,7 +151,7 @@ Mark trackers to delete.
 int SingleTracker::markForDeletion()
 {
 	const int frames = 12; // Arbitrary numbers, adjust if needed
-	const int min_vel = 30;
+	const double min_vel = 0.01*this->rect.area();
 
 	if (this->no_update_counter >= frames && this->modvel < min_vel)
 		this->to_delete = true;
