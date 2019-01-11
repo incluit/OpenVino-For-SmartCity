@@ -56,13 +56,15 @@ private:
 	double		vel_x;
 	double		vel_y;
 	bool		update;				// Update from Detection (new rois)
+	bool		to_delete;			// Mark for deletion
+	int		no_update_counter;		// Counter if object doesn't get updated
 
 public:
 	dlib::correlation_tracker tracker;  // Correlation tracker
 
 	/* Member Initializer & Constructor*/
 	SingleTracker(int _target_id, cv::Rect _init_rect, cv::Scalar _color, int _label)
-		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0)
+		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0)
 	{
 		// Exception
 		if (_init_rect.area() == 0)
@@ -97,6 +99,8 @@ public:
 	int		getLabel() { return this->label; }
 	boost::circular_buffer<cv::Point> getCenters_q() { return this->c_q; }
 	bool		getUpdateFromDetection() { return this->update; }
+	bool		getDelete() { return this->to_delete; }
+	int		getNoUpdateCounter() { return this->no_update_counter; }
 
 	/* Set Function */
 	void setTargetId(int _target_id) { this->target_id = _target_id; }
@@ -111,6 +115,7 @@ public:
 	void setColor(cv::Scalar _color) { this->color = _color; }
 	void setLabel(int _label) { this->label = _label; }
 	void setUpdateFromDetection(bool _update) { this->update = _update; }
+	void setNoUpdateCounter(int _counter) { this->no_update_counter = _counter; }
 
 	/* Velocity Related */
 	void saveLastCenter(cv::Point _center) { this->c_q.push_back(_center); }
@@ -128,6 +133,9 @@ public:
 
 	// Check the target is inside of the frame
 	int isTargetInsideFrame(int _frame_width, int _frame_height);
+
+	// Check if tracker needs to be deleted
+	int markForDeletion();
 };
 
 /* ==========================================================================

@@ -140,6 +140,25 @@ int SingleTracker::isTargetInsideFrame(int _frame_width, int _frame_height)
 		return FALSE;
 }
 
+/* -----------------------------------------------------------------------------------
+
+Function : markForDeletion(std::vector<std::pair<cv::Rect, int>> rois)
+
+Mark trackers to delete.
+
+----------------------------------------------------------------------------------- */
+
+int SingleTracker::markForDeletion()
+{
+	const int frames = 12; // Arbitrary numbers, adjust if needed
+	const int min_vel = 30;
+
+	if (this->no_update_counter >= frames && this->modvel < min_vel)
+		this->to_delete = true;
+
+	return SUCCESS;
+}
+
 /* ---------------------------------------------------------------------------------
 
 Function : doSingleTracking
@@ -184,7 +203,8 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 	this->setConfidence(confidence);
 	this->saveLastCenter(this->getCenter());
 	this->calcVel();
-
+	this->no_update_counter++;
+	this->markForDeletion();
 	return SUCCESS;
 }
 
@@ -227,11 +247,13 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 			this->tracker_vec[result_idx]->setCenter(new_tracker->getCenter());
 			this->tracker_vec[result_idx]->setRect(_init_rect);
 			this->tracker_vec[result_idx]->setUpdateFromDetection(update);
+			this->tracker_vec[result_idx]->setNoUpdateCounter(0);
+			this->tracker_vec[result_idx]->setLabel(_label);
+			this->tracker_vec[result_idx]->setColor(_color);
 		}
 	} else {
 		this->tracker_vec.push_back(new_tracker);
-		this->id_list = _target_id + 1;
-
+		this->id_list = _target_id + 1; // Next ID
 		std::stringstream aux_str;
 
 		aux_str << "========================== Notice! ==========================" << std::endl;
@@ -272,6 +294,7 @@ int TrackerManager::insertTracker(std::shared_ptr<SingleTracker> new_single_trac
 			this->tracker_vec[result_idx]->setCenter(new_single_tracker->getCenter());
 			this->tracker_vec[result_idx]->setRect(new_single_tracker->getRect());
 			this->tracker_vec[result_idx]->setUpdateFromDetection(update);
+			this->tracker_vec[result_idx]->setNoUpdateCounter(0);
 		}
 	} else {
 		// Insert new SingleTracker object into the vector
@@ -326,7 +349,7 @@ int TrackerManager::findTracker(cv::Rect rect, int label)
 		double in_area = (s_tracker.get()->getRect() & rect).area();
 		double max_per_area = std::max(in_area / s_tracker.get()->getRect().area(), in_area/rect.area());
 		areas.push_back(max_per_area);
-		if ( max_per_area > max_overlap_thresh && s_tracker->getLabel() == label ) {
+		if ( max_per_area > max_overlap_thresh && (s_tracker->getLabel() == label || s_tracker->getLabel() == LABEL_UNKNOWN) ) {
 			selection.push_back(s_tracker);
 		}
 	}
@@ -489,14 +512,14 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 		}
 		index = this->manager.findTracker(i.first, label);
 		if ( index != -1) {
-		if (this->manager.insertTracker(i.first, color, index, label, true,this->last_event) == FAIL)
-		{
-			std::cout << "====================== Error Occured! =======================" << std::endl;
-			std::cout << "Function : int TrackingSystem::updateTrackingSystem" << std::endl;
-			std::cout << "Sth went wrong" << std::endl;
-			std::cout << "=============================================================" << std::endl;
-			return FAIL;
-		}
+			if (this->manager.insertTracker(i.first, color, index, label, true,this->last_event) == FAIL)
+			{
+				std::cout << "====================== Error Occured! =======================" << std::endl;
+				std::cout << "Function : int TrackingSystem::updateTrackingSystem" << std::endl;
+				std::cout << "Sth went wrong" << std::endl;
+				std::cout << "=============================================================" << std::endl;
+				return FAIL;
+			}
 		}
 	}
 	return SUCCESS;
@@ -551,7 +574,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 	// If target is going out of the frame, delete that tracker.
 	std::vector<int> tracker_erase;
 	for(auto && i: manager.getTrackerVec()){
-		if (i->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight()) == FALSE)
+		if (i->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight()) == FALSE || i->getDelete())
 		{
 			int target_id = i.get()->getTargetID();
 			tracker_erase.push_back(target_id);
