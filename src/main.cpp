@@ -309,14 +309,18 @@ int main(int argc, char *argv[]) {
                     
                     // draw box around vehicles
                     for (auto && loc : ps1s4i.resultsLocations) {
-                        //cv::rectangle(outputFrame, loc.first, cv::Scalar(0, 255, 0), 1);
+			if(!FLAGS_tracking) {
+			    cv::rectangle(outputFrame, loc.first, COLOR_CAR, 1);
+			}
                         if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(std::make_pair(loc.first, LABEL_CAR));
                         }
                     }
                     // draw box around pedestrians
                     for (auto && loc : ps3s4i.resultsLocations) {
-                        //cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
+                        if(!FLAGS_tracking) {
+			    cv::rectangle(outputFrame, loc.first, COLOR_PERSON, 1);
+			}
                         if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(std::make_pair(loc.first, LABEL_PERSON));
                         }
@@ -331,7 +335,21 @@ int main(int argc, char *argv[]) {
                     outputFrame2 = ps1ys4i.outputFrame;
 
                     for (auto && loc : ps1ys4i.resultsLocations) {
-                        //cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
+                        if(!FLAGS_tracking) {
+				cv::Scalar color_obj;
+				switch (loc.second) {
+				case LABEL_PERSON:
+					color_obj = COLOR_PERSON;
+					break;
+				case LABEL_CAR:
+					color_obj = COLOR_CAR;
+					break;
+				default:
+					color_obj = COLOR_UNKNOWN;
+					break;
+				}
+				cv::rectangle(outputFrame, loc.first, color_obj, 1);
+			}
                         if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(loc);
                         }
@@ -346,13 +364,31 @@ int main(int argc, char *argv[]) {
                     outputFrame2 = ps1ys4i.outputFrame;
 
                     for (auto && loc : ps1ys4i.resultsLocations) {
-                        //cv::rectangle(outputFrame, loc.first, cv::Scalar(255, 255, 255), 1);
+
                         if(loc.second == 1){
                             loc.second = LABEL_PERSON;
                         }else if(loc.second == 0){
                             loc.second = LABEL_BICYCLE;
                         }
-                         if (firstFrameWithDetections || update_counter == update_frame ){
+			if(!FLAGS_tracking) {
+				cv::Scalar color_obj;
+                                switch (loc.second) {
+                                case LABEL_PERSON:
+                                        color_obj = COLOR_PERSON;
+                                        break;
+				case LABEL_BICYCLE:
+					color_obj = COLOR_PERSON;
+					break;
+                                case LABEL_CAR:
+                                        color_obj = COLOR_CAR;
+                                        break;
+                                default:
+                                        color_obj = COLOR_UNKNOWN;
+                                        break;
+                                }
+				cv::rectangle(outputFrame, loc.first, color_obj, 1);
+			}
+                        if (firstFrameWithDetections || update_counter == update_frame ){
                             firstResults.push_back(loc);
                         }
                     }
