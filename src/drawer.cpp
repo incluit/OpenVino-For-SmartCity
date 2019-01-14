@@ -89,11 +89,13 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
             line(sceneRef.out,sceneRef.vertices[sceneRef.vertices.size()-1],sceneRef.vertices[0],cv::Scalar(0,0,255),2);
 
             // Mask is black with white where our ROI is
-		    cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
-	        std::vector< std::vector< cv::Point > > pts{sceneRef.vertices};
-            fillPoly(roi, pts, cv::Scalar(0,0,125));
-		    sceneRef.vertices.clear();
-			sceneRef.streets.push_back(std::make_pair(roi, key));
+		   cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
+	      cv::Mat roi2 = roi.clone();  
+         std::vector< std::vector< cv::Point > > pts{sceneRef.vertices};
+         fillPoly(roi, pts, cv::Scalar(0,0,125));
+         fillPoly(roi2, pts, cv::Scalar(255,255,255));
+		   sceneRef.vertices.clear();
+			sceneRef.streets.push_back(std::make_pair(roi2, key));
 			can_finish = true;
 		 }
 		 break;

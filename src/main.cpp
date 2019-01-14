@@ -184,17 +184,24 @@ int main(int argc, char *argv[]) {
         //  for batching and for when using asynchronous API.
         const int maxNumInputFrames = FLAGS_n_async * VehicleDetection.maxBatch + 1;  // +1 to avoid overwrite
         cv::Mat* inputFrames = new cv::Mat[maxNumInputFrames];
-        std::queue<cv::Mat*> inputFramePtrs;
+        cv::Mat* inputFrames2 = new cv::Mat[maxNumInputFrames];
+
+        std::queue<cv::Mat*> inputFramePtrs, inputFramePtrs_clean;
         for(int fi = 0; fi < maxNumInputFrames; fi++) {
             inputFramePtrs.push(&inputFrames[fi]);
+            inputFramePtrs_clean.push(&inputFrames2[fi]);
         }
+        std::cout << inputFramePtrs.size() << " | " << inputFramePtrs_clean.size() << std::endl;
 		//-----------------------Define regions of interest-----------------------------------------------------
-            RegionsOfInterest scene;
+        RegionsOfInterest scene;
 
-    		cap.read(scene.orig);
-    		// Do deep copy to preserve original frame
-    		scene.out = scene.orig.clone();
-            // Add check
+    	cap.read(scene.orig);
+    	// Do deep copy to preserve original frame
+    	scene.out = scene.orig.clone();
+        cv::Mat aux_mask;
+        cv::Mat first_frame_masked = scene.orig.clone();
+
+        // Add check
         if (FLAGS_show_selection){
             cv::namedWindow("ImageDisplay",1);
             cv::setMouseCallback("ImageDisplay", CallBackFunc, &scene);
@@ -203,7 +210,10 @@ int main(int argc, char *argv[]) {
     		cv::namedWindow("Result",1);
     		cv::imshow("Result", scene.out);
     		cv::waitKey();
+            aux_mask = scene.streets[0].first;
+            cv::bitwise_and(scene.orig,aux_mask,first_frame_masked);
         }
+
         
         // ----------------------------Do inference-------------------------------------------------------------
         slog::info << "Start inference " << slog::endl;
@@ -228,6 +238,7 @@ int main(int argc, char *argv[]) {
         std::string last_event;
         TrackingSystem tracking_system(&last_event);
 
+
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
         
@@ -249,17 +260,31 @@ int main(int argc, char *argv[]) {
                 FramePipelineFifoItem ps0;
                 for(numFrames = 0; numFrames < VehicleDetection.maxBatch; numFrames++) {
                     // read in a frame
-					cv::Mat* curFrame = &scene.orig;
+		            cv::Mat* curFrame = &scene.orig;
+                    cv::Mat* curFrame_clean;
+
                     if (totalFrames > 0) {
-					   curFrame = inputFramePtrs.front();
-					   inputFramePtrs.pop();
-                       haveMoreFrames = cap.read(*curFrame);
-					}
+                        curFrame = inputFramePtrs.front();
+				        curFrame_clean = inputFramePtrs_clean.front();
+				        inputFramePtrs.pop();
+                        inputFramePtrs_clean.pop();
+                        if(FLAGS_show_selection){
+                            haveMoreFrames = cap.read(*curFrame_clean);
+                            cv::bitwise_and(*curFrame_clean,aux_mask,*curFrame);
+                        }else{
+                            haveMoreFrames = cap.read(*curFrame);
+                            curFrame_clean = curFrame;
+                        }
+					}else{
+                        curFrame = &first_frame_masked;
+                        curFrame_clean = &scene.orig;
+                    }
                     if (!haveMoreFrames) {
                         break;
                     }
                     totalFrames++;
                     ps0.batchOfInputFrames.push_back(curFrame);
+                    ps0.batchOfInputFrames_clean.push_back(curFrame_clean);
                     if (firstFrame && !FLAGS_no_show) {
                         slog::info << "Press 's' key to save a snapshot, press any other key to stop" << slog::endl;
                     }
@@ -297,6 +322,8 @@ int main(int argc, char *argv[]) {
 
                 cv::Mat outputFrame;
                 cv::Mat* outputFrame2;
+                cv::Mat outputFrame_clean;
+                cv::Mat* outputFrame2_clean;
 
                 if(vp_enabled){
                     ps3s4i = pipeS3toS4Fifo.front();
@@ -306,12 +333,15 @@ int main(int argc, char *argv[]) {
 
                     outputFrame = *(ps3s4i.outputFrame);
                     outputFrame2 = ps3s4i.outputFrame;
+                    outputFrame_clean = *(ps3s4i.outputFrame_clean);
+                    outputFrame2_clean = ps3s4i.outputFrame_clean;
+                    
                     
                     // draw box around vehicles
                     for (auto && loc : ps1s4i.resultsLocations) {
-			if(!FLAGS_tracking) {
-			    cv::rectangle(outputFrame, loc.first, COLOR_CAR, 1);
-			}
+                        if(!FLAGS_tracking) {
+                            cv::rectangle(outputFrame_clean, loc.first, COLOR_CAR, 1);
+                        }
                         if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(std::make_pair(loc.first, LABEL_CAR));
                         }
@@ -319,8 +349,8 @@ int main(int argc, char *argv[]) {
                     // draw box around pedestrians
                     for (auto && loc : ps3s4i.resultsLocations) {
                         if(!FLAGS_tracking) {
-			    cv::rectangle(outputFrame, loc.first, COLOR_PERSON, 1);
-			}
+                            cv::rectangle(outputFrame_clean, loc.first, COLOR_PERSON, 1);
+                        }
                         if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(std::make_pair(loc.first, LABEL_PERSON));
                         }
@@ -333,23 +363,25 @@ int main(int argc, char *argv[]) {
 
                     outputFrame = *(ps1ys4i.outputFrame);
                     outputFrame2 = ps1ys4i.outputFrame;
+                    outputFrame_clean = *(ps1ys4i.outputFrame_clean);
+                    outputFrame2_clean = ps1ys4i.outputFrame_clean;
 
                     for (auto && loc : ps1ys4i.resultsLocations) {
                         if(!FLAGS_tracking) {
-				cv::Scalar color_obj;
-				switch (loc.second) {
-				case LABEL_PERSON:
-					color_obj = COLOR_PERSON;
-					break;
-				case LABEL_CAR:
-					color_obj = COLOR_CAR;
-					break;
-				default:
-					color_obj = COLOR_UNKNOWN;
-					break;
-				}
-				cv::rectangle(outputFrame, loc.first, color_obj, 1);
-			}
+                            cv::Scalar color_obj;
+                            switch (loc.second) {
+                            case LABEL_PERSON:
+                                color_obj = COLOR_PERSON;
+                                break;
+                            case LABEL_CAR:
+                                color_obj = COLOR_CAR;
+                                break;
+                            default:
+                                color_obj = COLOR_UNKNOWN;
+                                break;
+                            }
+                            cv::rectangle(outputFrame_clean, loc.first, color_obj, 1);
+                        }
                         if (firstFrameWithDetections || update_counter == update_frame){
                             firstResults.push_back(loc);
                         }
@@ -362,6 +394,8 @@ int main(int argc, char *argv[]) {
 
                     outputFrame = *(ps1ys4i.outputFrame);
                     outputFrame2 = ps1ys4i.outputFrame;
+                    outputFrame_clean = *(ps1ys4i.outputFrame_clean);
+                    outputFrame2_clean = ps1ys4i.outputFrame_clean;
 
                     for (auto && loc : ps1ys4i.resultsLocations) {
 
@@ -370,24 +404,24 @@ int main(int argc, char *argv[]) {
                         }else if(loc.second == 0){
                             loc.second = LABEL_BICYCLE;
                         }
-			if(!FLAGS_tracking) {
-				cv::Scalar color_obj;
-                                switch (loc.second) {
-                                case LABEL_PERSON:
-                                        color_obj = COLOR_PERSON;
-                                        break;
-				case LABEL_BICYCLE:
-					color_obj = COLOR_PERSON;
-					break;
-                                case LABEL_CAR:
-                                        color_obj = COLOR_CAR;
-                                        break;
-                                default:
-                                        color_obj = COLOR_UNKNOWN;
-                                        break;
-                                }
-				cv::rectangle(outputFrame, loc.first, color_obj, 1);
-			}
+                        if(!FLAGS_tracking) {
+                            cv::Scalar color_obj;
+                                            switch (loc.second) {
+                                                case LABEL_PERSON:
+                                                    color_obj = COLOR_PERSON;
+                                                    break;
+                                                case LABEL_BICYCLE:
+                                                color_obj = COLOR_PERSON;
+                                                break;
+                                                case LABEL_CAR:
+                                                        color_obj = COLOR_CAR;
+                                                        break;
+                                                default:
+                                                        color_obj = COLOR_UNKNOWN;
+                                                        break;
+                                                }
+                            cv::rectangle(outputFrame, loc.first, color_obj, 1);
+                        }
                         if (firstFrameWithDetections || update_counter == update_frame ){
                             firstResults.push_back(loc);
                         }
@@ -409,11 +443,11 @@ int main(int argc, char *argv[]) {
                         break;
                     }
                     if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
-                        tracking_system.drawTrackingResult(outputFrame);
-                        tracking_system.detectCollisions(outputFrame);
+                        tracking_system.drawTrackingResult(outputFrame_clean);
+                        tracking_system.detectCollisions(outputFrame_clean);
                     }
                 }
- if(update_counter == update_frame){
+                if(update_counter == update_frame){
                     int n_person = 0;
                     int n_car = 0;
                     int n_bus = 0;
@@ -465,7 +499,7 @@ int main(int argc, char *argv[]) {
                 update_counter++;
                 if (update_counter > update_frame) {
                     update_counter = 0;
-		}
+		        }
 		        // ----------------------------Execution statistics -----------------------------------------------------
                 std::ostringstream out;
 				std::ostringstream out1;
@@ -490,8 +524,8 @@ int main(int argc, char *argv[]) {
                 ocv_decode_time_pedestrians = 0;
                 ocv_decode_time_vehicle = 0;
 
-                cv::putText(outputFrame, out1.str(), cv::Point2f(0, 25), cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 0, 0));
-                cv::putText(outputFrame, out2.str(), cv::Point2f(0, 50), cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 255, 0));
+                cv::putText(outputFrame_clean, out1.str(), cv::Point2f(0, 25), cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 0, 0));
+                cv::putText(outputFrame_clean, out2.str(), cv::Point2f(0, 50), cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 255, 0));
 
                 // When running asynchronously, timing metrics are not accurate so do not display them
                 if (!runningAsync) {
@@ -503,7 +537,7 @@ int main(int argc, char *argv[]) {
                     out << ": " << std::fixed << std::setprecision(2) << detection_time.count()
                         << " ms ("
                         << 1000.F * numSyncFrames / detection_time.count() << " fps)";
-                    cv::putText(outputFrame, out.str(), cv::Point2f(0, 75), cv::FONT_HERSHEY_TRIPLEX, 0.5,
+                    cv::putText(outputFrame_clean, out.str(), cv::Point2f(0, 75), cv::FONT_HERSHEY_TRIPLEX, 0.5,
                                 cv::Scalar(255, 0, 0));
 
                 }
@@ -511,8 +545,8 @@ int main(int argc, char *argv[]) {
                 // -----------------------Display Results ---------------------------------------------
                 t0 = std::chrono::high_resolution_clock::now();
                 if (!FLAGS_no_show) {
-                    cv::imshow("Detection results", outputFrame);
-                    lastOutputFrame = &outputFrame;
+                    cv::imshow("Detection results", outputFrame_clean);
+                    lastOutputFrame = &outputFrame_clean;
                 }
                 t1 = std::chrono::high_resolution_clock::now();
                 ocv_render_time += std::chrono::duration_cast<ms>(t1 - t0).count();
@@ -531,7 +565,10 @@ int main(int argc, char *argv[]) {
                 }
 
                 // done with frame buffer, return to queue
+                
                 inputFramePtrs.push(outputFrame2);
+                inputFramePtrs_clean.push(outputFrame2_clean);
+
             }
 
             // wait until break from key press after all pipeline stages have completed

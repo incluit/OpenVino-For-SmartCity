@@ -22,10 +22,13 @@
 
 typedef struct {
             std::vector<cv::Mat*> batchOfInputFrames;
+            std::vector<cv::Mat*> batchOfInputFrames_clean;
+
             bool vehicleDetectionDone;
             bool pedestriansDetectionDone;
             bool generalDetectionDone;
             cv::Mat* outputFrame;
+            cv::Mat* outputFrame_clean;
             int numVehiclesInferred;
             int numPedestriansInferred;
             std::vector<std::pair<cv::Rect, int>> resultsLocations;

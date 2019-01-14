@@ -502,13 +502,35 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 
 	for( auto && i : updated_results){
 		int index;
-		if (i.second == LABEL_CAR) {
-			color = COLOR_CAR;
-			label = LABEL_CAR;
-		}
-		else if (i.second == LABEL_PERSON) {
-			color = COLOR_PERSON;
-			label = LABEL_PERSON;
+		
+		switch (i.second)
+		{
+			case LABEL_CAR:
+				color = COLOR_CAR;
+				label = LABEL_CAR;
+				break;
+			case LABEL_PERSON:
+				color = COLOR_PERSON;
+				label = LABEL_PERSON;
+				break;	
+			case LABEL_BUS:
+				color = COLOR_BUS;
+				label = LABEL_BUS;
+                break;
+            case LABEL_TRUCK:
+				color = COLOR_TRUCK;
+				label = LABEL_TRUCK;
+                break;
+            case LABEL_BICYCLE:
+				color = COLOR_BIKE;
+				label = LABEL_BICYCLE;
+                break;
+            case LABEL_MOTORBIKE:
+				color = COLOR_MOTORBIKE;
+				label = LABEL_MOTORBIKE;
+                break;	
+			default:
+				break;
 		}
 		index = this->manager.findTracker(i.first, label);
 		if ( index != -1) {

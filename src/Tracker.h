@@ -24,11 +24,7 @@
 #define ENTER		13
 #define ESC		27
 
-const cv::Scalar COLOR_UNKNOWN = cv::Scalar(0, 0, 0);
-const cv::Scalar COLOR_CAR = cv::Scalar(0, 255, 0);
-const cv::Scalar COLOR_PERSON = cv::Scalar(255, 255, 0);
-
-const int n_frames = 50; // Number of positions to save in the circular buffer
+const int n_frames = 50;
 
 /* ==========================================================================
 
@@ -43,13 +39,13 @@ then need to have 'Three' SingleTracker object.
 class SingleTracker
 {
 private:
-	int		target_id;			// Unique Number for target
+	int			target_id;			// Unique Number for target
 	double		confidence;			// Confidence of tracker
 	cv::Rect	rect;				// Initial Rectangle for target
 	cv::Point	center;				// Current center point of target
 	bool		is_tracking_started;		// Is tracking started or not? (Is initializing done or not?)
 	cv::Scalar	color;				// Box color
-	int		label;				// Label (LABEL_CAR, LABEL_PERSON)
+	int			label;				// Label (LABEL_CAR, LABEL_PERSON)
 	boost::circular_buffer<cv::Point> 	c_q;	// Queue with last n_frames centers
 	cv::Point 	vel;				// Final point of Velocity vector (from center)
 	double		modvel;				// Velocity's modulus
@@ -57,7 +53,7 @@ private:
 	double		vel_y;
 	bool		update;				// Update from Detection (new rois)
 	bool		to_delete;			// Mark for deletion
-	int		no_update_counter;		// Counter if object doesn't get updated
+	int			no_update_counter;		// Counter if object doesn't get updated
 
 public:
 	dlib::correlation_tracker tracker;  // Correlation tracker

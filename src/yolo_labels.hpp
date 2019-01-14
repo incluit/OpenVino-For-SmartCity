@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <opencv2/opencv.hpp>
+
 
 const int LABEL_PERSON          = 0;
 const int LABEL_BICYCLE         = 1;
@@ -166,3 +168,11 @@ const std::vector<std::string> YOLO_LABELS = {
 ,"hair drier"
 ,"toothbrush"
 };
+
+const cv::Scalar COLOR_TRUCK = cv::Scalar(0, 0, 0);
+const cv::Scalar COLOR_BUS = cv::Scalar(255, 0, 0);
+const cv::Scalar COLOR_BIKE = cv::Scalar(0, 255, 0);
+const cv::Scalar COLOR_MOTORBIKE = cv::Scalar(0, 0, 255);
+const cv::Scalar COLOR_UNKNOWN = cv::Scalar(0, 0, 0);
+const cv::Scalar COLOR_CAR = cv::Scalar(0, 255, 255);
+const cv::Scalar COLOR_PERSON = cv::Scalar(255, 255, 0);

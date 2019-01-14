@@ -107,9 +107,16 @@ void BaseDetection::wait_results(FramePipelineFifo *o){
         this -> fetchResults(ps0s1i.batchOfInputFrames.size());
         // prepare a FramePipelineFifoItem for each batched frame to get its detection results
         std::vector<FramePipelineFifoItem> batchedFifoItems;
-        for (auto && bFrame : ps0s1i.batchOfInputFrames) {
+        /*for (auto && bFrame : ps0s1i.batchOfInputFrames_clean) {
             FramePipelineFifoItem fpfi;
             fpfi.outputFrame = bFrame;
+            batchedFifoItems.push_back(fpfi);
+        }*/
+
+        for(int i = 0; i < ps0s1i.batchOfInputFrames.size(); i++){
+            FramePipelineFifoItem fpfi;
+            fpfi.outputFrame = ps0s1i.batchOfInputFrames[i];
+            fpfi.outputFrame_clean = ps0s1i.batchOfInputFrames_clean[i];
             batchedFifoItems.push_back(fpfi);
         }
         // store results for next pipeline stage
