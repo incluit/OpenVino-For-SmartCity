@@ -46,7 +46,7 @@ A summary of what is needed:
 
 === Hardware
 
-* Target and development platforms meeting the requirements described in the "System Requirements" section of the OpenVINO™ toolkit documentation which may be found at: [https://software.intel.com/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
+* Target and development platforms meeting the requirements described in the "System Requirements" section of the OpenVINO™ toolkit documentation which may be found at: https://software.intel.com/openvino-toolkit[https://software.intel.com/en-us/openvino-toolkit]
 
 **Note**: While writing this tutorial, an Intel® i7-8550U with Intel® HD graphics 520 GPU was used as both the development and target platform.
 
@@ -199,7 +199,7 @@ You can also experiment by using different detection models, being the ones avai
 . frozen_yolo_v3
 ** `-m_y $yolo16`
 
-The first 2 are included with the OpenVINO toolkit, while the last one is the compiled version of the public [https://github.com/pjreddie/darknet](yolo) general detection model. You can do this yourself by following this [https://software.intel.com/en-us/articles/OpenVINO-Using-TensorFlow](guide).
+The first 2 are included with the OpenVINO toolkit, while the last one is the compiled version of the public https://github.com/pjreddie/darknet[yolo] general detection model. You can do this yourself by following this https://software.intel.com/en-us/articles/OpenVINO-Using-TensorFlow[Intel's guide].
 
 === Tracking
 
