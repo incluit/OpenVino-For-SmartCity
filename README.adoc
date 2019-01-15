@@ -189,8 +189,11 @@ You can also experiment by using different detection models, being the ones avai
 ** `-m_y $yolo16`
 
 By default they will be loaded into the CPU, so remember to pass the corresponding argument:
+
 * `-d_vp {CPU,GPU,MYRIAD}`
+
 * `-d {CPU,GPU,MYRIAD}` and `-d_p {CPU,GPU,MYRIAD}`
+
 * `-d_y {CPU,GPU,MYRIAD}`
 
 The first 2 are included with the OpenVINO toolkit, while the last one is the compiled version of the public https://github.com/pjreddie/darknet[yolo] general detection model. You can do this yourself by following this https://software.intel.com/en-us/articles/OpenVINO-Using-TensorFlow[Intel's guide] or download our compiled http://bit.ly/2QN2TT7[binary] and http://bit.ly/2sw4Idn[xml]. You will need to move these files to the `data` directory inside your OpenVino-For-SmartCity path.
