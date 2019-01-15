@@ -26,7 +26,7 @@ specifically for near misses detection.
 
 == Introduction
 
-This project consists on showcasing the advantages of the Intel's OpenVINO toolkit. We will develop a __Near Misses__ case scenario, where we will detect vehicles and pedestrian and estimate a metric of a crossroad's dangerousness. For that, we will use the OpenVINO toolkit and OpenCV, all written in `{cpp}`.
+This project consists on showcasing the advantages of the Intel's OpenVINO toolkit. We will develop a __Near Misses__ case scenario, where we will detect vehicles and pedestrians and estimate a metric of a crossroad's dangerousness. For that, we will use the OpenVINO toolkit and OpenCV, all written in `{cpp}`.
 
 As mentioned previously, we will take the https://github.com/intel-iot-devkit/inference-tutorials-generic/tree/openvino_toolkit_r4_0/car_detection_tutorial/step_4[step 4] as a starting point, as it provides us with the options to run and stack different models synchronously or asynchronously. Once the proper models for vehicle and pedestrian detection are defined, we proceed to develop a feature to let the user define the different areas of interest (in this case, sidewalks and streets) that will help in identifying dangerous situations later on. Then, we will work on object tracking to recognize the same object across successive frames, giving us the ability to estimate trajectories, speeds and positions of the objects. Finally, we will have to define what are considered __dangerous situations__ and check that the system detects them correctly.
 
@@ -140,9 +140,7 @@ instead of long names to the models:
 source ../scripts/setupenv.sh 
 ----
 
-=== CPU
-
-**1.** First, let us see how it works on a single image file using default
+**2.** First, let us see how it works on a single image file using default
 synchronous mode.
 
 [source,bash]
@@ -150,24 +148,24 @@ synchronous mode.
 ./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -i ../data/car_1.bmp
 ----
 
-**2.** For video files:
+**3.** For video files:
 
 [source,bash]
 ----
-./intel64/Release/smart_city_tutorial -m $mVDR32 -m_p $person232 -i ../data/video1_640x320.mp4
+./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -i ../data/video1_640x320.mp4
 ----
 
-**3.** You can also run the command in asynchronous mode using the option
+**4.** You can also run the command in asynchronous mode using the option
 "-n_async 2":
 
 [source,bash]
 ----
-./intel64/Release/smart_city_tutorial -m $mVDR32 -m_p $person232 -i ../data/video1_640x320.mp4 -n_async 2
+./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -i ../data/video1_640x320.mp4 -n_async 2
 ----
 
-**4.** You can also load the models into the GPU or MYRIAD:
+**5.** You can also load the models into the **GPU** or **MYRIAD**:
 
-**Note**: In order to run this section, the GPU and/or MYRIAD are required to be present and correctly configured.
+**Note**: In order to run this section, the **GPU** and/or **MYRIAD** are required to be present and correctly configured.
 
 [source,bash]
 ----
@@ -191,11 +189,11 @@ You can also experiment by using different detection models, being the ones avai
 ** `-m_y $yolo16`
 
 By default they will be loaded into the CPU, so remember to pass the corresponding argument:
-** `-d_vp {CPU,GPU,MYRIAD}`
-** `-d {CPU,GPU,MYRIAD}` and `-d_p {CPU,GPU,MYRIAD}`
-** `-d_y {CPU,GPU,MYRIAD}`
+* `-d_vp {CPU,GPU,MYRIAD}`
+* `-d {CPU,GPU,MYRIAD}` and `-d_p {CPU,GPU,MYRIAD}`
+* `-d_y {CPU,GPU,MYRIAD}`
 
-The first 2 are included with the OpenVINO toolkit, while the last one is the compiled version of the public https://github.com/pjreddie/darknet[yolo] general detection model. You can do this yourself by following this https://software.intel.com/en-us/articles/OpenVINO-Using-TensorFlow[Intel's guide] or download our compiled http://bit.ly/2QN2TT7[binary] and http://bit.ly/2sw4Idn[xml]. You will need to move these files to the **data** directory inside your OpenVino-For-SmartCity path.
+The first 2 are included with the OpenVINO toolkit, while the last one is the compiled version of the public https://github.com/pjreddie/darknet[yolo] general detection model. You can do this yourself by following this https://software.intel.com/en-us/articles/OpenVINO-Using-TensorFlow[Intel's guide] or download our compiled http://bit.ly/2QN2TT7[binary] and http://bit.ly/2sw4Idn[xml]. You will need to move these files to the `data` directory inside your OpenVino-For-SmartCity path.
 
 === Tracking
 
@@ -229,13 +227,13 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/dete
 
 **2.** Asynchronous mode should be faster by some amount for `-n_async 2` then a little more for `-n_async 4` and `-n_async 8`, then not as noticeable for `-n_async 16`. The improvements come from the CPU running in parallel more and more with the GPU. The absence of improvement shows when the CPU is doing less in parallel and is waiting on the other devices. This is referred to as “diminishing returns” and will vary across devices and inference models.
 
-**3.** We run a performance analysis by running each 9 combinations of model/device/precision. The following graph shows the results:
+**3.** We run a performance analysis by running each 9 combinations of model/device/precision with `-n_async 16`. The following graph shows the results:
 
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Vehicle%20and%20Pedestrian%20detection%20performance.png[performance]
 
 === Observations on Models and Performance
 
-While the 2 light combined models work way faster than the heavy single ones, they're restricted in terms of perspective, making them unavailable for most use cases where the camera is not positioned in a way that they can detect properly. That is why we recommend using any of the other 2 for further implementations and analysis.
+While the 2 light combined models work way faster than the heavy single ones, they're restricted in terms of perspective, making them unavailable for most use cases where the camera is not positioned in a way that they can detect properly. That is why we recommend using any of the other 2 for further implementations and analyses.
 
 == To Do
 
@@ -253,6 +251,6 @@ While the 2 light combined models work way faster than the heavy single ones, th
 * [x] Draw Areas of Interest
 * [x] Object Tracking
 * [x] Object Trajectories
-* [ ] Fix labels for the other models
+* [x] Fix labels for the other models
 * [ ] Elaborate on dangerous situations to be detected
 * [ ] Detect these situations
