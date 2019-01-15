@@ -54,6 +54,7 @@ private:
 	bool		update;				// Update from Detection (new rois)
 	bool		to_delete;			// Mark for deletion
 	int			no_update_counter;		// Counter if object doesn't get updated
+	
 
 public:
 	dlib::correlation_tracker tracker;  // Correlation tracker
@@ -128,7 +129,7 @@ public:
 	int doSingleTracking(cv::Mat _mat_img);
 
 	// Check the target is inside of the frame
-	int isTargetInsideFrame(int _frame_width, int _frame_height);
+	int isTargetInsideFrame(int _frame_width, int _frame_height, cv::Mat 	*mask);
 
 	// Check if tracker needs to be deleted
 	int markForDeletion();
@@ -191,6 +192,7 @@ private:
 	std::vector<std::pair<cv::Rect, int>> updated_target;
 	std::string 	*last_event;
 	TrackerManager		manager;	// TrackerManager
+	cv::Mat*		mask;
 
 public:
 	/* Constructor */
@@ -205,11 +207,11 @@ public:
 
 	/* Set Function */
 	//void   setFramePath(std::string _frame_path) { this->frame_path.assign(_frame_path); }
-	void   setFrameWidth(int _frame_width) { this->frame_width = _frame_width; }
-	void   setFrameHeight(int _frame_height) { this->frame_height = _frame_height; }
-	void   setCurrentFrame(cv::Mat _current_frame) { this->current_frame = _current_frame; }
-	void   setInitTarget(std::vector<std::pair<cv::Rect, int>> _init_target) { this->init_target = _init_target; }
-
+	void   	setFrameWidth(int _frame_width) { this->frame_width = _frame_width; }
+	void   	setFrameHeight(int _frame_height) { this->frame_height = _frame_height; }
+	void   	setCurrentFrame(cv::Mat _current_frame) { this->current_frame = _current_frame; }
+	void   	setInitTarget(std::vector<std::pair<cv::Rect, int>> _init_target) { this->init_target = _init_target; }
+	void   	setMask(cv::Mat* _mask){ this->mask = _mask;}
 	/* Core Function */
 	// Initialize TrackingSystem
 	int initTrackingSystem();

@@ -126,10 +126,28 @@ Check the target is inside the frame
 If the target is going out of the frame, need to SingleTracker stop that target.
 
 ---------------------------------------------------------------------------------*/
-int SingleTracker::isTargetInsideFrame(int _frame_width, int _frame_height)
+int SingleTracker::isTargetInsideFrame(int _frame_width, int _frame_height, cv::Mat *mask)
 {
 	int cur_x = this->getCenter().x;
 	int cur_y = this->getCenter().y;
+
+	if( mask != nullptr ){
+		cv::Mat gray;
+    	cv::cvtColor(*mask, gray, cv::COLOR_BGR2GRAY);
+    	cv::Canny(gray, gray, 100, 200, 3);
+		std::vector<std::vector<cv::Point>> contours;
+    	findContours( gray, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+		for(auto && i : contours){
+			double aux;
+			aux = cv::pointPolygonTest(i,cv::Point2f(cur_x,cur_y),false);
+			if (aux == 1){
+			 	return TRUE;
+			} else {
+				return FALSE;
+			}
+		}
+
+	}
 
 	bool is_x_inside = ((0 <= cur_x) && (cur_x < _frame_width));
 	bool is_y_inside = ((0 <= cur_y) && (cur_y < _frame_height));
@@ -596,7 +614,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 	// If target is going out of the frame, delete that tracker.
 	std::vector<int> tracker_erase;
 	for(auto && i: manager.getTrackerVec()){
-		if (i->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight()) == FALSE || i->getDelete())
+		if (i->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight(), this->mask) == FALSE || i->getDelete())
 		{
 			int target_id = i.get()->getTargetID();
 			tracker_erase.push_back(target_id);

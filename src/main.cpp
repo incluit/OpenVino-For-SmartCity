@@ -237,6 +237,7 @@ int main(int argc, char *argv[]) {
         int update_counter = 0;
         std::string last_event;
         TrackingSystem tracking_system(&last_event);
+        tracking_system.setMask(&aux_mask);
 
 
         // structure to hold frame and associated data which are passed along
