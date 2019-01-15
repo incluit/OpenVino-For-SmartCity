@@ -73,42 +73,42 @@ void DrawAreasOfInterest(RegionsOfInterest *scn)
    while(!finished){
 	  cv::imshow("ImageDisplay", sceneRef.out);
       switch (cv::waitKey(1)) {
-	  case 'c':
-         if(sceneRef.vertices.size()<2){
-		    std::cout << "You need a minimum of three points!" << std::endl;
-			can_finish = false;
-         }
-		 else {
-	        std::cout<<"Define orientation (n, s, e, w)" << std::endl;
-            int key = 'x';
-		    while (key != 'n' && key != 's' && key != 'e' && key !='w') {
-			   key = cv::waitKey();
-			}
+	      case 'c':
+            if(sceneRef.vertices.size()<2){
+		         std::cout << "You need a minimum of three points!" << std::endl;
+			      can_finish = false;
+            }
+		      else {
+	            std::cout<<"Define orientation (n, s, e, w)" << std::endl;
+               int key = 'x';
+		         while (key != 'n' && key != 's' && key != 'e' && key !='w') {
+			         key = cv::waitKey();
+			         }
 
-		    // Close polygon
-            line(sceneRef.out,sceneRef.vertices[sceneRef.vertices.size()-1],sceneRef.vertices[0],cv::Scalar(0,0,255),2);
+		         // Close polygon
+               line(sceneRef.out,sceneRef.vertices[sceneRef.vertices.size()-1],sceneRef.vertices[0],cv::Scalar(0,0,255),2);
 
-            // Mask is black with white where our ROI is
-		   cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
-	      cv::Mat roi2 = roi.clone();  
-         std::vector< std::vector< cv::Point > > pts{sceneRef.vertices};
-         fillPoly(roi, pts, cv::Scalar(0,0,125));
-         fillPoly(roi2, pts, cv::Scalar(255,255,255));
-		   sceneRef.vertices.clear();
-			sceneRef.streets.push_back(std::make_pair(roi2, key));
-			can_finish = true;
-		 }
-		 break;
-	  case 'f':
-		 if (can_finish) {
-		     finished=true;
-		 }
-		 break;
-	  default:
-		 break;
-	  }
+               // Mask is black with white where our ROI is
+		         cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
+	            cv::Mat roi2 = roi.clone();  
+               std::vector< std::vector< cv::Point > > pts{sceneRef.vertices};
+               fillPoly(roi, pts, cv::Scalar(0,0,125));
+               fillPoly(roi2, pts, cv::Scalar(255,255,255));
+               sceneRef.street_vertices = sceneRef.vertices;
+		         sceneRef.vertices.clear();
+			      sceneRef.streets.push_back(std::make_pair(roi2, key));
+			      can_finish = true;
+		      }
+		      break;
+	      case 'f':
+		      if (can_finish) {
+		         finished=true;
+		      }
+		      break;
+	      default:
+		      break;
+	   }
    }
-
    double alpha = 0.3;
    for (int i=0; i<sceneRef.sidewalks.size(); i++)
 	   cv::addWeighted(sceneRef.sidewalks[i], alpha, sceneRef.out, 1.0, 0.0, sceneRef.out);

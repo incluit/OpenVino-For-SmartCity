@@ -500,6 +500,10 @@ int main(int argc, char *argv[]) {
                 if (update_counter > update_frame) {
                     update_counter = 0;
 		        }
+                if(FLAGS_show_selection){
+                    cv::addWeighted(aux_mask, 0.05, outputFrame_clean, 1.0, 0.0, outputFrame_clean);
+                    cv::polylines(outputFrame_clean,scene.street_vertices,true, cv::Scalar(255,0,0),1);
+                }
 		        // ----------------------------Execution statistics -----------------------------------------------------
                 std::ostringstream out;
 				std::ostringstream out1;
