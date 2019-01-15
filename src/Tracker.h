@@ -196,7 +196,7 @@ private:
 
 public:
 	/* Constructor */
-	TrackingSystem(std::string *last_event):last_event(last_event){};
+	TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr){};
 
 	/* Get Function */
 	int    getFrameWidth() { return this->frame_width; }

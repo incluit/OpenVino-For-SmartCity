@@ -137,16 +137,21 @@ int SingleTracker::isTargetInsideFrame(int _frame_width, int _frame_height, cv::
     	cv::Canny(gray, gray, 100, 200, 3);
 		std::vector<std::vector<cv::Point>> contours;
     	findContours( gray, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+		std::vector<double> r_values;
 		for(auto && i : contours){
 			double aux;
 			aux = cv::pointPolygonTest(i,cv::Point2f(cur_x,cur_y),false);
-			if (aux == 1){
-			 	return TRUE;
+			r_values.push_back(aux);
+		}
+		bool band = FALSE;
+		for(auto && i :r_values){
+			if (i == 1){
+				band = TRUE;
 			} else {
-				return FALSE;
+				band = FALSE;
 			}
 		}
-
+		return band;
 	}
 
 	bool is_x_inside = ((0 <= cur_x) && (cur_x < _frame_width));
@@ -711,9 +716,9 @@ bool isValidCollision(std::pair<double, int> area1, std::pair<double, int> area2
 	double a2 = area2.first;
 	int label2 = area2.second;
 
-	if (label1 == LABEL_UNKNOWN || label2 == LABEL_UNKNOWN) {
+	/*if (label1 == LABEL_UNKNOWN || label2 == LABEL_UNKNOWN) {
 		return FALSE;
-	}
+	}*/
 
 	if (label1 != label2) {
 		if (label1 == LABEL_CAR) {

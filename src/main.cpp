@@ -191,7 +191,6 @@ int main(int argc, char *argv[]) {
             inputFramePtrs.push(&inputFrames[fi]);
             inputFramePtrs_clean.push(&inputFrames2[fi]);
         }
-        std::cout << inputFramePtrs.size() << " | " << inputFramePtrs_clean.size() << std::endl;
 		//-----------------------Define regions of interest-----------------------------------------------------
         RegionsOfInterest scene;
 
@@ -237,7 +236,10 @@ int main(int argc, char *argv[]) {
         int update_counter = 0;
         std::string last_event;
         TrackingSystem tracking_system(&last_event);
-        tracking_system.setMask(&aux_mask);
+        if(FLAGS_show_selection){
+            tracking_system.setMask(&aux_mask);
+        }
+        
 
 
         // structure to hold frame and associated data which are passed along
