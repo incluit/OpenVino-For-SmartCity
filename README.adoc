@@ -204,7 +204,7 @@ To enable tracking you should run the command with the `-tracking` argument:
 
 [source,bash]
 ----
-./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -d_vp GPU -i ../data/video1_640x320.mp4 -n_async 16
+./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -d_vp GPU -i ../data/video1_640x320.mp4 -n_async 16 -tracking
 ----
 
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/tracking.gif[detection]
@@ -215,7 +215,7 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/trac
 
 While **person-vehicle-bike-detection-crossroad-0078** and **frozen_yolo_v3** detect better in most cases, they have the disadvantage of being too slow for processing, achieving 20 fps and 8 fps respectively. On the other hand, if we can use 2 lighter models to detect different objects, we can parallelize the processing in different devices and take advantage of the asynchronous mode, as follows:
 
-**1.** First we run in synchronous mode then asynchronous with increasing -n_async values using the commands:
+**1.** First we run in synchronous mode and then asynchronously with increasing -n_async values using the commands:
 
 [source,bash]
 ----
