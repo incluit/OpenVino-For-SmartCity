@@ -98,16 +98,45 @@ void SingleTracker::calcVel()
 {
 	double delta_x = 0;
 	double delta_y = 0;
-	cv::Point avgvel;
+	cv::Point2f avgvel;
 
-	if (this->avg_pos.size() >= 2) {
-		delta_x = (this->avg_pos[0].x - this->avg_pos[1].x);
-		delta_y = (this->avg_pos[0].y - this->avg_pos[1].y);
+	if (this->avg_pos.size() > 5) {
+	for (int i = 0; i < 5; i++) {
+		delta_x = delta_x + (this->avg_pos[i].x - this->avg_pos[i+1].x);
+		delta_y = delta_y + (this->avg_pos[i].y - this->avg_pos[i+1].y);
 	}
-	avgvel = cv::Point(std::round(delta_x),std::round(delta_y));
-	this->setVel(this->getCenter() + avgvel);
+	delta_x = delta_x / 5;
+	delta_y = delta_y / 5;
+	}
+	avgvel = cv::Point2f(delta_x,delta_y);
+	this->setVel((cv::Point2f)this->getCenter() + avgvel);
 }
 
+/* ---------------------------------------------------------------------------------
+
+Function : calcVel
+
+Calculate velocity as an average of last n_frames frames (dX, dY).
+
+---------------------------------------------------------------------------------*/
+void SingleTracker::calcAcc()
+{
+	double delta_x = 0;
+	double delta_y = 0;
+	cv::Point2f acc;
+
+	if (this->v_q.size() > 5) {
+	for (int i = 0; i < 5; i++) {
+		delta_x = delta_x + (this->v_x_q[i] - this->v_x_q[i+1]);
+		delta_y = delta_y + (this->v_y_q[i] - this->v_y_q[i+1]);
+	}
+	delta_x = delta_x / 5;
+	delta_y = delta_y / 5;
+	}
+
+	acc = cv::Point2f(delta_x,delta_y);
+	this->setAcc((cv::Point2f)this->getCenter() + acc);
+}
 /* ---------------------------------------------------------------------------------
 
 Function : startSingleTracking
@@ -115,6 +144,7 @@ Function : startSingleTracking
 Initialize dlib::correlation_tracker tracker using dlib::start_track function
 
 ---------------------------------------------------------------------------------*/
+
 int SingleTracker::startSingleTracking(cv::Mat _mat_img)
 {
 	// Exception
@@ -255,6 +285,8 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 	this->calcAvgPos();
 	this->calcVel();
 	this->saveLastVel(this->getVel_X(), this->getVel_Y(), this->getModVel());
+	this->calcAcc();
+	this->saveLastAcc(this->getAcc_X(), this->getAcc_Y(), this->getModAcc());
 	this->no_update_counter++;
 	this->markForDeletion();
 	return SUCCESS;
@@ -388,7 +420,7 @@ If success to find return that index, or return new index if no coincidence
 ----------------------------------------------------------------------------------- */
 int TrackerManager::findTracker(cv::Rect rect, int label)
 {
-	double max_overlap_thresh = 0.9;
+	double max_overlap_thresh = 0.75;
 	double dist_thresh = rect.height*rect.width>>1; // Pixels^2 -> adjust properly (maybe a proportion of the img size?)
 	std::vector<std::shared_ptr<SingleTracker>> selection;
 	std::shared_ptr<SingleTracker> best = NULL;
@@ -688,14 +720,15 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 		cv::rectangle(_mat_img, ptr.get()->getRect(), ptr.get()->getColor(), 1);
 		if (ptr.get()->getCenters_q().size() == 5) {
 			// Draw velocities
-			cv::Point vel_draw = (ptr.get()->getVel() - ptr.get()->getCenter())*10;
-			cv::arrowedLine(_mat_img, ptr.get()->getCenter(), ptr.get()->getCenter()+vel_draw, cv::Scalar(0,0,255), 1);
+			cv::Point2f vel_draw = (ptr.get()->getVel() - ptr.get()->getCenter())*20;
+			cv::arrowedLine(_mat_img, ptr.get()->getCenter(), (cv::Point2f)ptr.get()->getCenter()+vel_draw, cv::Scalar(0,0,255), 1);
+			if (ptr.get()->getAcc_q().size() > 1) {
+				cv::Point2f acc_draw = (ptr.get()->getAcc() - ptr.get()->getCenter())*50;
+				cv::arrowedLine(_mat_img, ptr.get()->getCenter(), (cv::Point2f)ptr.get()->getCenter()+acc_draw, cv::Scalar(255,0,0), 1);
+			}
 			// Draw trajectories
 			boost::circular_buffer<cv::Point> positions = ptr.get()->getAvgPos();
-			std::cout<<positions.size()-1<<std::endl;
 			for (int i=1; i < (positions.size()); i++) {
-				std::cout<<positions.size()<<std::endl;
-				std::cout<<i<<std::endl;
 				cv::line(_mat_img, positions.at(i), positions.at(i-1), ptr.get()->getColor(), 1);
 			}
 		}

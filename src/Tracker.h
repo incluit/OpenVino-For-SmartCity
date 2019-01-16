@@ -50,13 +50,20 @@ private:
 	int		label;				// Label (LABEL_CAR, LABEL_PERSON)
 	boost::circular_buffer<cv::Point> 	c_q;	// Queue with last n_frames centers
 	boost::circular_buffer<cv::Point> 	avg_pos;// Queue with last n_frames centers
-	cv::Point 	vel;				// Final point of Velocity vector (from center)
+	cv::Point2f 	vel;				// Final point of Velocity vector (from center)
 	double		modvel;				// Velocity's modulus
 	double		vel_x;
 	double		vel_y;
+	cv::Point2f 	acc;				// Final point of Acceleration vector (from center)
+	double		modacc;				// Velocity's modulus
+	double		acc_x;
+	double		acc_y;
 	boost::circular_buffer<double> 	v_q;		// Queue with last n_frames velocities' modulus
 	boost::circular_buffer<double> 	v_x_q;		// Queue with last n_frames velocities' modulus
 	boost::circular_buffer<double> 	v_y_q;		// Queue with last n_frames velocities' modulus
+	boost::circular_buffer<double> 	a_q;		// Queue with last n_frames velocities' modulus
+	boost::circular_buffer<double> 	a_x_q;		// Queue with last n_frames velocities' modulus
+	boost::circular_buffer<double> 	a_y_q;		// Queue with last n_frames velocities' modulus
 	bool		update;				// Update from Detection (new rois)
 	bool		to_delete;			// Mark for deletion
 	int		no_update_counter;		// Counter if object doesn't get updated
@@ -67,7 +74,7 @@ public:
 
 	/* Member Initializer & Constructor*/
 	SingleTracker(int _target_id, cv::Rect _init_rect, cv::Scalar _color, int _label)
-		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0), v_x_q(boost::circular_buffer<double>(n_frames_vel)), v_y_q(boost::circular_buffer<double>(n_frames_vel)), v_q(boost::circular_buffer<double>(n_frames_vel)), avg_pos(boost::circular_buffer<cv::Point>(n_frames_pos))
+		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0), v_x_q(boost::circular_buffer<double>(n_frames_vel)), v_y_q(boost::circular_buffer<double>(n_frames_vel)), v_q(boost::circular_buffer<double>(n_frames_vel)), avg_pos(boost::circular_buffer<cv::Point>(n_frames_pos)), a_q(boost::circular_buffer<double>(n_frames_vel)), a_x_q(boost::circular_buffer<double>(n_frames_vel)), a_y_q(boost::circular_buffer<double>(n_frames_vel))
 	{
 		// Exception
 		if (_init_rect.area() == 0)
@@ -95,8 +102,12 @@ public:
 	cv::Point	getVel() { return this->vel; }
 	double		getVel_X() { return this->vel_x; }
 	double		getVel_Y() { return this->vel_y; }
+	cv::Point	getAcc() { return this->acc; }
+	double		getAcc_X() { return this->acc_x; }
+	double		getAcc_Y() { return this->acc_y; }
 	double		getConfidence() { return this->confidence; }
 	double		getModVel() { return this->modvel; }
+	double		getModAcc() { return this->modacc; }
 	bool		getIsTrackingStarted() { return this->is_tracking_started; }
 	cv::Scalar	getColor() { return this->color; }
 	int		getLabel() { return this->label; }
@@ -105,6 +116,9 @@ public:
 	boost::circular_buffer<double> getVel_q() { return this->v_q; }
 	boost::circular_buffer<double> getVelX_q() { return this->v_x_q; }
 	boost::circular_buffer<double> getVelY_q() { return this->v_y_q; }
+	boost::circular_buffer<double> getAcc_q() { return this->a_q; }
+	boost::circular_buffer<double> getAccX_q() { return this->a_x_q; }
+	boost::circular_buffer<double> getAccY_q() { return this->a_y_q; }
 	bool		getUpdateFromDetection() { return this->update; }
 	bool		getDelete() { return this->to_delete; }
 	int		getNoUpdateCounter() { return this->no_update_counter; }
@@ -117,6 +131,7 @@ public:
 	void setCenter(cv::Rect _rect) { this->center = cv::Point(_rect.x + (_rect.width) / 2, _rect.y + (_rect.height) / 2); }
 	void setCenter(dlib::drectangle _drect) { this->center = cv::Point(_drect.tl_corner().x() + (_drect.width() / 2), _drect.tl_corner().y() + (_drect.height() / 2)); }
 	void setVel(cv::Point _vel) { this->vel = _vel; updateVel_X(); updateVel_Y(); updateModVel(); }
+	void setAcc(cv::Point _acc) { this->acc = _acc; updateAcc_X(); updateAcc_Y(); updateModAcc(); }
 	void setConfidence(double _confidence) { this->confidence = _confidence; }
 	void setIsTrackingStarted(bool _b) { this->is_tracking_started = _b; }
 	void setColor(cv::Scalar _color) { this->color = _color; }
@@ -129,10 +144,15 @@ public:
 	void saveAvgPos(cv::Point _avg) { this->avg_pos.push_front(_avg); }
 	void updateVel_X() { this->vel_x = this->getVel().x - this->getCenter().x; }
 	void updateVel_Y() { this->vel_y = this->getVel().y - this->getCenter().y; }
+	void updateAcc_X() { this->acc_x = this->getAcc().x - this->getCenter().x; }
+	void updateAcc_Y() { this->acc_y = this->getAcc().y - this->getCenter().y; }
 	void saveLastVel(double _vel_x, double _vel_y, double _vel) { this->v_x_q.push_front(_vel_x); this->v_y_q.push_front(_vel_y); this->v_q.push_front(_vel); }
+	void saveLastAcc(double _acc_x, double _acc_y, double _acc) { this->a_x_q.push_front(_acc_x); this->a_y_q.push_front(_acc_y); this->a_q.push_front(_acc); }
 	void updateModVel() { this->modvel = sqrt(this->vel_x*this->vel_x + this->vel_y*this->vel_y); }
+	void updateModAcc() { this->modacc = sqrt(this->acc_x*this->acc_x + this->acc_y*this->acc_y); }
 	void calcVel();
 	void calcAvgPos();
+	void calcAcc();
 
 	/* Core Function */
 	// Initialize

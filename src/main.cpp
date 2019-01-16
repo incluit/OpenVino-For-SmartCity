@@ -232,7 +232,7 @@ int main(int argc, char *argv[]) {
 		double ocv_render_time = 0;
         cv::Mat* lastOutputFrame;
         std::vector<std::pair<cv::Rect, int>> firstResults;
-        const int update_frame = 5;
+        const int update_frame = 0;
         int update_counter = 0;
         std::string last_event;
         TrackingSystem tracking_system(&last_event);
