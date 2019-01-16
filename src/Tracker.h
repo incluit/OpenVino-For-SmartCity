@@ -24,7 +24,9 @@
 #define ENTER		13
 #define ESC		27
 
-const int n_frames = 50;
+const int n_frames = 5; // Number of positions to save in the circular buffer
+const int n_frames_pos = 50; // Number of positions to save in the circular buffer
+const int n_frames_vel = 50; // Number of positions to save in the circular buffer
 
 /* ==========================================================================
 
@@ -39,21 +41,25 @@ then need to have 'Three' SingleTracker object.
 class SingleTracker
 {
 private:
-	int			target_id;			// Unique Number for target
+	int		target_id;			// Unique Number for target
 	double		confidence;			// Confidence of tracker
 	cv::Rect	rect;				// Initial Rectangle for target
 	cv::Point	center;				// Current center point of target
 	bool		is_tracking_started;		// Is tracking started or not? (Is initializing done or not?)
 	cv::Scalar	color;				// Box color
-	int			label;				// Label (LABEL_CAR, LABEL_PERSON)
+	int		label;				// Label (LABEL_CAR, LABEL_PERSON)
 	boost::circular_buffer<cv::Point> 	c_q;	// Queue with last n_frames centers
+	boost::circular_buffer<cv::Point> 	avg_pos;// Queue with last n_frames centers
 	cv::Point 	vel;				// Final point of Velocity vector (from center)
 	double		modvel;				// Velocity's modulus
 	double		vel_x;
 	double		vel_y;
+	boost::circular_buffer<double> 	v_q;		// Queue with last n_frames velocities' modulus
+	boost::circular_buffer<double> 	v_x_q;		// Queue with last n_frames velocities' modulus
+	boost::circular_buffer<double> 	v_y_q;		// Queue with last n_frames velocities' modulus
 	bool		update;				// Update from Detection (new rois)
 	bool		to_delete;			// Mark for deletion
-	int			no_update_counter;		// Counter if object doesn't get updated
+	int		no_update_counter;		// Counter if object doesn't get updated
 	
 
 public:
@@ -61,7 +67,7 @@ public:
 
 	/* Member Initializer & Constructor*/
 	SingleTracker(int _target_id, cv::Rect _init_rect, cv::Scalar _color, int _label)
-		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0)
+		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0), v_x_q(boost::circular_buffer<double>(n_frames_vel)), v_y_q(boost::circular_buffer<double>(n_frames_vel)), v_q(boost::circular_buffer<double>(n_frames_vel)), avg_pos(boost::circular_buffer<cv::Point>(n_frames_pos))
 	{
 		// Exception
 		if (_init_rect.area() == 0)
@@ -95,6 +101,10 @@ public:
 	cv::Scalar	getColor() { return this->color; }
 	int		getLabel() { return this->label; }
 	boost::circular_buffer<cv::Point> getCenters_q() { return this->c_q; }
+	boost::circular_buffer<cv::Point> getAvgPos() { return this->avg_pos; }
+	boost::circular_buffer<double> getVel_q() { return this->v_q; }
+	boost::circular_buffer<double> getVelX_q() { return this->v_x_q; }
+	boost::circular_buffer<double> getVelY_q() { return this->v_y_q; }
 	bool		getUpdateFromDetection() { return this->update; }
 	bool		getDelete() { return this->to_delete; }
 	int		getNoUpdateCounter() { return this->no_update_counter; }
@@ -115,11 +125,14 @@ public:
 	void setNoUpdateCounter(int _counter) { this->no_update_counter = _counter; }
 
 	/* Velocity Related */
-	void saveLastCenter(cv::Point _center) { this->c_q.push_back(_center); }
+	void saveLastCenter(cv::Point _center) { this->c_q.push_front(_center); }
+	void saveAvgPos(cv::Point _avg) { this->avg_pos.push_front(_avg); }
 	void updateVel_X() { this->vel_x = this->getVel().x - this->getCenter().x; }
 	void updateVel_Y() { this->vel_y = this->getVel().y - this->getCenter().y; }
+	void saveLastVel(double _vel_x, double _vel_y, double _vel) { this->v_x_q.push_front(_vel_x); this->v_y_q.push_front(_vel_y); this->v_q.push_front(_vel); }
 	void updateModVel() { this->modvel = sqrt(this->vel_x*this->vel_x + this->vel_y*this->vel_y); }
 	void calcVel();
+	void calcAvgPos();
 
 	/* Core Function */
 	// Initialize

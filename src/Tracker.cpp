@@ -66,6 +66,29 @@ public:
 
 /* ---------------------------------------------------------------------------------
 
+Function : calcAvgPos
+
+Calculate positions as an average of last n_frames positions. This reduces noise
+from detection stage.
+
+---------------------------------------------------------------------------------*/
+void SingleTracker::calcAvgPos()
+{
+	double delta_x = 0;
+	double delta_y = 0;
+	cv::Point avg = cv::Point(0,0);
+
+	if (this->c_q.size() == 5) {
+		for (int i = 0; i<5; i++) {
+		avg = avg + this->c_q[i];
+		}
+		avg = avg / 5;
+		this->saveAvgPos(avg);
+	}
+}
+
+/* ---------------------------------------------------------------------------------
+
 Function : calcVel
 
 Calculate velocity as an average of last n_frames frames (dX, dY).
@@ -77,11 +100,11 @@ void SingleTracker::calcVel()
 	double delta_y = 0;
 	cv::Point avgvel;
 
-	if (this->c_q.size() >= 5) {
-		delta_x = (this->c_q[4].x - this->c_q[0].x)*5;
-		delta_y = (this->c_q[4].y - this->c_q[0].y)*5;
+	if (this->avg_pos.size() >= 2) {
+		delta_x = (this->avg_pos[0].x - this->avg_pos[1].x);
+		delta_y = (this->avg_pos[0].y - this->avg_pos[1].y);
 	}
-	avgvel = ((this->getVel() - this->getCenter()) + cv::Point(std::round(delta_x),std::round(delta_y)))/2;
+	avgvel = cv::Point(std::round(delta_x),std::round(delta_y));
 	this->setVel(this->getCenter() + avgvel);
 }
 
@@ -225,7 +248,9 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 	this->setRect(updated_rect);
 	this->setConfidence(confidence);
 	this->saveLastCenter(this->getCenter());
+	this->calcAvgPos();
 	this->calcVel();
+	this->saveLastVel(this->getVel_X(), this->getVel_Y(), this->getModVel());
 	this->no_update_counter++;
 	this->markForDeletion();
 	return SUCCESS;
@@ -391,7 +416,7 @@ int TrackerManager::findTracker(cv::Rect rect, int label)
 	}
 
 	for (auto && area: areas) {
-		if (area != 0.0) {
+		if (area > 0.2) {
 			new_object = false;
 			break;
 		}
@@ -657,12 +682,18 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&_mat_img](std::shared_ptr<SingleTracker> ptr) {
 		// Draw all rectangles
 		cv::rectangle(_mat_img, ptr.get()->getRect(), ptr.get()->getColor(), 1);
-		// Draw velocities
-		cv::arrowedLine(_mat_img, ptr.get()->getCenter(), ptr.get()->getVel(), ptr.get()->getColor(), 1);
-		// Draw trajectories
-		boost::circular_buffer<cv::Point> centers = ptr.get()->getCenters_q();
-		for (int i=0; i<(centers.size()-1); ++i) {
-			cv::line(_mat_img, centers.at(i+1), centers.at(i), ptr.get()->getColor(), 1);
+		if (ptr.get()->getCenters_q().size() == 5) {
+			// Draw velocities
+			cv::Point vel_draw = (ptr.get()->getVel() - ptr.get()->getCenter())*10;
+			cv::arrowedLine(_mat_img, ptr.get()->getCenter(), ptr.get()->getCenter()+vel_draw, cv::Scalar(0,0,255), 1);
+			// Draw trajectories
+			boost::circular_buffer<cv::Point> positions = ptr.get()->getAvgPos();
+			std::cout<<positions.size()-1<<std::endl;
+			for (int i=1; i < (positions.size()); i++) {
+				std::cout<<positions.size()<<std::endl;
+				std::cout<<i<<std::endl;
+				cv::line(_mat_img, positions.at(i), positions.at(i-1), ptr.get()->getColor(), 1);
+			}
 		}
 		std::string str_label;
 
