@@ -230,23 +230,27 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 
 	// Convert _mat_img to dlib::array2d<unsigned char>
 	dlib::array2d<unsigned char> dlib_img = Util::cvtMatToArray2d(_mat_img);
-
+	cv::Rect updated_rect = this -> rect;
 	// Track using dlib::update function
-	if (this->getUpdateFromDetection()) {
+	/*if (this->getUpdateFromDetection()) {
 		dlib::drectangle dlib_rect = Util::cvtRectToDrect(this->getRect());
 		this->tracker.start_track(dlib_img, dlib_rect);
 		this->setUpdateFromDetection(false);
 	} else {
 		double confidence = this->tracker.update_noscale(dlib_img);
+	}*/
+	if (!this->getUpdateFromDetection()) {
+		this ->setCenter(cv::Point2f(this -> vel.x, this -> vel.y));
+		updated_rect.x = updated_rect.x + vel_x;
+		updated_rect.y = updated_rect.y + vel_y;
 	}
-
+	this->setUpdateFromDetection(false);
 	// New position of the target
-	dlib::drectangle updated_rect = this->tracker.get_position();
 
 	// Update variables(center, rect, confidence)
 	this->setCenter(updated_rect);
 	this->setRect(updated_rect);
-	this->setConfidence(confidence);
+	//this->setConfidence(confidence);
 	this->saveLastCenter(this->getCenter());
 	this->calcAvgPos();
 	this->calcVel();
