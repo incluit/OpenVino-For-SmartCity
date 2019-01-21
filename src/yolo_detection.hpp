@@ -1,3 +1,5 @@
+#pragma once
+
 #include "base_detection.hpp"
 
 #define yolo_scale_13 13

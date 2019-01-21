@@ -1,3 +1,5 @@
+#pragma once
+
 #include "base_detection.hpp"
 
 class ObjectDetection : public BaseDetection{

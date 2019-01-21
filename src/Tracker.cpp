@@ -535,15 +535,8 @@ int TrackingSystem::initTrackingSystem()
 	int label = LABEL_UNKNOWN;
 
 	for( auto && i : this->init_target){
-		if (i.second == LABEL_CAR) {
-			color = COLOR_CAR;
-			label = LABEL_CAR;
-		}
-		else if (i.second == LABEL_PERSON) {
-			color = COLOR_PERSON;
-			label = LABEL_PERSON;
-		}
-
+		color = getLabelColor(i.second);
+		label = i.second;
 		if (this->manager.insertTracker(i.first, color, index, label, false, this->last_event) == FAIL)
 		{
 			std::cout << "====================== Error Occured! =======================" << std::endl;
@@ -586,36 +579,8 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 
 	for( auto && i : updated_results){
 		int index;
-		
-		switch (i.second)
-		{
-			case LABEL_CAR:
-				color = COLOR_CAR;
-				label = LABEL_CAR;
-				break;
-			case LABEL_PERSON:
-				color = COLOR_PERSON;
-				label = LABEL_PERSON;
-				break;	
-			case LABEL_BUS:
-				color = COLOR_BUS;
-				label = LABEL_BUS;
-                break;
-            case LABEL_TRUCK:
-				color = COLOR_TRUCK;
-				label = LABEL_TRUCK;
-                break;
-            case LABEL_BICYCLE:
-				color = COLOR_BIKE;
-				label = LABEL_BICYCLE;
-                break;
-            case LABEL_MOTORBIKE:
-				color = COLOR_MOTORBIKE;
-				label = LABEL_MOTORBIKE;
-                break;	
-			default:
-				break;
-		}
+		color = getLabelColor(i.second);
+		label = i.second;
 		index = this->manager.findTracker(i.first, label);
 		if ( index != -1) {
 			if (this->manager.insertTracker(i.first, color, index, label, true,this->last_event) == FAIL)
@@ -734,17 +699,7 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 		}
 		std::string str_label;
 
-		switch (ptr.get()->getLabel()) {
-		case LABEL_CAR:
-			str_label = "Car";
-			break;
-		case LABEL_PERSON:
-			str_label = "Person";
-			break;
-		default:
-			str_label = "Unknown";
-			break;
-		}
+		str_label = getLabelStr(ptr.get()->getLabel());
 		cv::String text(std::string("ID: ") + std::to_string(ptr.get()->getTargetID()) + " Class: " + str_label);
 		cv::Point text_pos = ptr.get()->getRect().tl();
 		text_pos.x = text_pos.x - 10;
