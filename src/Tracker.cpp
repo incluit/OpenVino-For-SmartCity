@@ -810,7 +810,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		boost::circular_buffer<double> vel_x = iRef.getVelX_q();
 		boost::circular_buffer<double> vel_y = iRef.getVelY_q();
 		boost::circular_buffer<double> acc = iRef.getAcc_q();
-		double avg_acc = 2;	// Initialize avg with some value to avoid triggering the condition at the beginning
+		double avg_acc = 1;	// Initialize avg with some value to avoid triggering the condition at the beginning
 
 		// Normalize velocity as in calcAcc
 		int y = iRef.getCenter().y+10;
