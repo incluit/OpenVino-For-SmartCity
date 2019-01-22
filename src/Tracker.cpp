@@ -74,11 +74,12 @@ from detection stage.
 ---------------------------------------------------------------------------------*/
 void SingleTracker::calcAvgPos()
 {
+	const int full = 5;
 	double delta_x = 0;
 	double delta_y = 0;
 	cv::Point2f avg = cv::Point2f(0,0);
 
-	if (this->c_q.size() == 5) {
+	if (this->c_q.size() == full) { // Start calculating the averages when the queue is full.
 		for (int i = 0; i<5; i++) {
 		avg = avg + (cv::Point2f)this->c_q[i];
 		}
@@ -96,12 +97,13 @@ Calculate velocity as an average of last n_frames frames (dX, dY).
 ---------------------------------------------------------------------------------*/
 void SingleTracker::calcVel()
 {
+	const int full = 5;
 	double delta_x = 0;
 	double delta_y = 0;
 	cv::Point2f avgvel;
 
-	int lim = std::min(5,(int)this->avg_pos.size()-2);
-	if (lim > 0) {
+	int lim = std::min(full,(int)this->avg_pos.size()-1); // Wait for one frame to calculate speed
+	if (lim > 1) {
 	for (int i = 0; i < lim; i++) {
 		delta_x = delta_x + (this->avg_pos[i].x - this->avg_pos[i+1].x);
 		delta_y = delta_y + (this->avg_pos[i].y - this->avg_pos[i+1].y);
@@ -125,12 +127,13 @@ Calculate acceleration as an average of last n_frames frames (dX, dY).
 ---------------------------------------------------------------------------------*/
 void SingleTracker::calcAcc()
 {
+	const int full = 5;
 	double delta_x = 0;
 	double delta_y = 0;
 	cv::Point2f acc;
 
-	int lim = std::min(5,(int)this->v_q.size()-1);
-	if (lim > 1) {
+	int lim = std::min(full,(int)this->v_q.size()-1); // Wait for one frame to get 2 speeds
+	if (lim > 1) { // We need 2 speeds
 	for (int i = 0; i < lim; i++) {
 		delta_x = delta_x + ((this->v_x_q[i]+1)*1000.0/(double)(this->avg_pos[i].y+10) - (this->v_x_q[i+1]+1)*1000.0/(double)(this->avg_pos[i+1].y+10));
 		delta_y = delta_y + ((this->v_y_q[i]+1)*1000.0/(double)(this->avg_pos[i].y+10) - (this->v_y_q[i+1]+1)*1000.0/(double)(this->avg_pos[i+1].y+10));
@@ -807,18 +810,21 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		boost::circular_buffer<double> vel_x = iRef.getVelX_q();
 		boost::circular_buffer<double> vel_y = iRef.getVelY_q();
 		boost::circular_buffer<double> acc = iRef.getAcc_q();
-		double avg_acc = 2;
+		double avg_acc = 2;	// Initialize avg with some value to avoid triggering the condition at the beginning
+
+		// Normalize velocity as in calcAcc
 		int y = iRef.getCenter().y+10;
 		double norm_vel = iRef.getModVel()*1000/y;
 
+		// Get historic avg_acc
 		if (acc.size() > 1) {
 		for (int i = 1; i < acc.size(); i++)
 			avg_acc = avg_acc + acc.at(i);
 		avg_acc = avg_acc / (acc.size());
 		}
 
-		if (iRef.getModAcc() > 2*(avg_acc)+1) {
-			iRef.setColor(cv::Scalar(0,0,255));
+		if (iRef.getModAcc() > 2*(avg_acc)+1) { // +1 to set a minimum threshold
+			iRef.setColor(cv::Scalar(0,0,255)); // Change color to red for now
 		}
 	}
 
