@@ -76,13 +76,13 @@ void SingleTracker::calcAvgPos()
 {
 	double delta_x = 0;
 	double delta_y = 0;
-	cv::Point avg = cv::Point(0,0);
+	cv::Point2f avg = cv::Point2f(0,0);
 
 	if (this->c_q.size() == 5) {
 		for (int i = 0; i<5; i++) {
-		avg = avg + this->c_q[i];
+		avg = avg + (cv::Point2f)this->c_q[i];
 		}
-		avg = avg / 5;
+		avg = avg / 5.0;
 		this->saveAvgPos(avg);
 	}
 }
@@ -100,23 +100,27 @@ void SingleTracker::calcVel()
 	double delta_y = 0;
 	cv::Point2f avgvel;
 
-	if (this->avg_pos.size() > 5) {
-	for (int i = 0; i < 5; i++) {
+	int lim = std::min(5,(int)this->avg_pos.size()-2);
+	if (lim > 0) {
+	for (int i = 0; i < lim; i++) {
 		delta_x = delta_x + (this->avg_pos[i].x - this->avg_pos[i+1].x);
 		delta_y = delta_y + (this->avg_pos[i].y - this->avg_pos[i+1].y);
 	}
-	delta_x = delta_x / 5;
-	delta_y = delta_y / 5;
-	}
+	delta_x = delta_x / lim;
+	delta_y = delta_y / lim;
 	avgvel = cv::Point2f(delta_x,delta_y);
 	this->setVel((cv::Point2f)this->getCenter() + avgvel);
+	this->saveLastVel(this->getVel_X(), this->getVel_Y(), this->getModVel());
+	} else {
+	this->setVel((cv::Point2f)this->getCenter());
+	}
 }
 
 /* ---------------------------------------------------------------------------------
 
-Function : calcVel
+Function : calcAcc
 
-Calculate velocity as an average of last n_frames frames (dX, dY).
+Calculate acceleration as an average of last n_frames frames (dX, dY).
 
 ---------------------------------------------------------------------------------*/
 void SingleTracker::calcAcc()
@@ -125,18 +129,23 @@ void SingleTracker::calcAcc()
 	double delta_y = 0;
 	cv::Point2f acc;
 
-	if (this->v_q.size() > 5) {
-	for (int i = 0; i < 5; i++) {
-		delta_x = delta_x + (this->v_x_q[i] - this->v_x_q[i+1]);
-		delta_y = delta_y + (this->v_y_q[i] - this->v_y_q[i+1]);
+	int lim = std::min(5,(int)this->v_q.size()-1);
+	if (lim > 1) {
+	for (int i = 0; i < lim; i++) {
+		delta_x = delta_x + ((this->v_x_q[i]+1)*1000.0/(double)(this->avg_pos[i].y+10) - (this->v_x_q[i+1]+1)*1000.0/(double)(this->avg_pos[i+1].y+10));
+		delta_y = delta_y + ((this->v_y_q[i]+1)*1000.0/(double)(this->avg_pos[i].y+10) - (this->v_y_q[i+1]+1)*1000.0/(double)(this->avg_pos[i+1].y+10));
 	}
-	delta_x = delta_x / 5;
-	delta_y = delta_y / 5;
-	}
-
+	delta_x = delta_x / lim;
+	delta_y = delta_y / lim;
 	acc = cv::Point2f(delta_x,delta_y);
 	this->setAcc((cv::Point2f)this->getCenter() + acc);
+	this->saveLastAcc(this->getAcc_X(), this->getAcc_Y(), this->getModAcc());
+	} else {
+	this->setAcc((cv::Point2f)this->getCenter());
+	}
+
 }
+
 /* ---------------------------------------------------------------------------------
 
 Function : startSingleTracking
@@ -284,9 +293,7 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 	this->saveLastCenter(this->getCenter());
 	this->calcAvgPos();
 	this->calcVel();
-	this->saveLastVel(this->getVel_X(), this->getVel_Y(), this->getModVel());
 	this->calcAcc();
-	this->saveLastAcc(this->getAcc_X(), this->getAcc_Y(), this->getModAcc());
 	this->no_update_counter++;
 	this->markForDeletion();
 	return SUCCESS;
@@ -332,8 +339,10 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 			this->tracker_vec[result_idx]->setRect(_init_rect);
 			this->tracker_vec[result_idx]->setUpdateFromDetection(update);
 			this->tracker_vec[result_idx]->setNoUpdateCounter(0);
-			this->tracker_vec[result_idx]->setLabel(_label);
-			this->tracker_vec[result_idx]->setColor(_color);
+			if (tracker_vec[result_idx]->getLabel() == LABEL_UNKNOWN) {
+				this->tracker_vec[result_idx]->setLabel(_label);
+				this->tracker_vec[result_idx]->setColor(_color);
+			}
 		}
 	} else {
 		this->tracker_vec.push_back(new_tracker);
@@ -688,7 +697,7 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 			cv::Point2f vel_draw = (ptr.get()->getVel() - ptr.get()->getCenter())*20;
 			cv::arrowedLine(_mat_img, ptr.get()->getCenter(), (cv::Point2f)ptr.get()->getCenter()+vel_draw, cv::Scalar(0,0,255), 1);
 			if (ptr.get()->getAcc_q().size() > 1) {
-				cv::Point2f acc_draw = (ptr.get()->getAcc() - ptr.get()->getCenter())*50;
+				cv::Point2f acc_draw = (ptr.get()->getAcc() - ptr.get()->getCenter())*20;
 				cv::arrowedLine(_mat_img, ptr.get()->getCenter(), (cv::Point2f)ptr.get()->getCenter()+acc_draw, cv::Scalar(255,0,0), 1);
 			}
 			// Draw trajectories
@@ -770,7 +779,6 @@ bool isValidCollision(std::pair<double, int> area1, std::pair<double, int> area2
 	return FALSE;
 }
 
-
 /* -----------------------------------------------------------------------------------
 
 Function : detectCollisions
@@ -794,20 +802,23 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 
 	std::vector<std::shared_ptr<SingleTracker>> trackerVec = manager.getTrackerVec();
 	for (auto i = trackerVec.begin(); i != trackerVec.end(); ++i) {
-		SingleTracker iRef = *(*i);
-		for (auto j = i + 1; j != trackerVec.end(); ++j) {
-		SingleTracker jRef = *(*j);
-		cv::Rect recti = iRef.getRect();
-		cv::Rect rectj = jRef.getRect();
-		bool intersects = ((recti & rectj).area() > 0);
-		if (intersects && isValidCollision(std::make_pair(recti.area(),iRef.getLabel()),std::make_pair(rectj.area(),jRef.getLabel()))) {
-			std::cout<<"Collision between object "<<iRef.getTargetID()<<" and "<<jRef.getTargetID()<<std::endl;
-			cv::circle(_mat_img,
-					   (iRef.getCenter() + jRef.getCenter())*.5,
-					   10, //radius
-					   cv::Scalar(0,0,255),
-					   3); //width
-			}
+		SingleTracker& iRef = *(*i);
+		boost::circular_buffer<double> vel = iRef.getVel_q();
+		boost::circular_buffer<double> vel_x = iRef.getVelX_q();
+		boost::circular_buffer<double> vel_y = iRef.getVelY_q();
+		boost::circular_buffer<double> acc = iRef.getAcc_q();
+		double avg_acc = 2;
+		int y = iRef.getCenter().y+10;
+		double norm_vel = iRef.getModVel()*1000/y;
+
+		if (acc.size() > 1) {
+		for (int i = 1; i < acc.size(); i++)
+			avg_acc = avg_acc + acc.at(i);
+		avg_acc = avg_acc / (acc.size());
+		}
+
+		if (iRef.getModAcc() > 2*(avg_acc)+1) {
+			iRef.setColor(cv::Scalar(0,0,255));
 		}
 	}
 
