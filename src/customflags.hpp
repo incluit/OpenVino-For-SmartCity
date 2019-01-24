@@ -88,6 +88,8 @@ static const char show_interest_areas_selection[] = "Draw interest areas locatio
 
 static const char do_tracking[] = "Track objects.";
 
+static const char do_collision[] = "Detect collisions between objects.";
+
 static const char run_yolo[] = "Running Yolo v3 as detector.";
 
 static const char intersection_over_union_yolo[] = "Intersection over Yolo ROI threshold";
@@ -147,6 +149,7 @@ DEFINE_uint32(n_async, 1, async_depth_message);
 
 DEFINE_bool(show_selection, false, show_interest_areas_selection);
 DEFINE_bool(tracking, false, do_tracking);
+DEFINE_bool(collision, false, do_collision);
 DEFINE_bool(yolo, false, run_yolo);
 
 DEFINE_string(m_p, "", pedestrians_model_message);
@@ -193,7 +196,8 @@ static void showUsage() {
     std::cout << "    -no_wait                   " << no_wait_for_keypress_message << std::endl;
     std::cout << "    -no_show                   " << no_show_processed_video << std::endl;
     std::cout << "    -show_selection         	 " << show_interest_areas_selection << std::endl;
-    std::cout << "    -tracking         	     " << do_tracking << std::endl;
+    std::cout << "    -tracking         	 " << do_tracking << std::endl;
+    std::cout << "    -collision         	 " << do_collision << std::endl;
     std::cout << "    -yolo         	         " << run_yolo << std::endl;
     std::cout << "    -iou_t         	         " << intersection_over_union_yolo << std::endl;
     std::cout << "    -pc                        " << performance_counter_message << std::endl;

@@ -447,7 +447,9 @@ int main(int argc, char *argv[]) {
                     }
                     if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
                         tracking_system.drawTrackingResult(outputFrame_clean);
-                        tracking_system.detectCollisions(outputFrame_clean);
+			if (FLAGS_collision) {
+				tracking_system.detectCollisions(outputFrame_clean);
+			}
                     }
                 }
                 if(update_counter == update_frame){
