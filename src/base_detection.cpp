@@ -43,7 +43,7 @@ bool BaseDetection::enabled() const  {
     if (!this -> enablingChecked) {
         this -> _enabled = !this -> commandLineFlag.empty();
         if (!this -> _enabled) {
-            slog::info << this -> topoName << " DISABLED" << slog::endl;
+            BOOST_LOG_TRIVIAL(info) << this -> topoName << " DISABLED";
         }
         this -> enablingChecked = true;
     }
@@ -55,7 +55,7 @@ void BaseDetection::printPerformanceCounts() {
     }
     // use last request used
     int idx = std::max(0, (this -> inputRequestIdx)-1);
-    slog::info << "Performance counts for " << this -> topoName << slog::endl << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Performance counts for " << this -> topoName;
     ::printPerformanceCounts(this -> requests[idx]->GetPerformanceCounts(), std::cout, false);
 }
 

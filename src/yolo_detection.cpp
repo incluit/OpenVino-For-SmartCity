@@ -128,7 +128,7 @@ void YoloDetection::submitRequest() {
 void YoloDetection::enqueue(const cv::Mat &frame) {
     if (!this -> enabled()) return;
     if (this -> enquedFrames >= this -> maxBatch) {
-        slog::warn << "Number of frames more than maximum(" << this -> maxBatch << ") processed by Vehicles detector" << slog::endl;
+        BOOST_LOG_TRIVIAL(warning) << "Number of frames more than maximum(" << this -> maxBatch << ") processed by Vehicles detector" ;
         return;
     }
     if (nullptr == this -> requests[this -> inputRequestIdx]) {
@@ -148,12 +148,12 @@ void YoloDetection::enqueue(const cv::Mat &frame) {
 }
 
 InferenceEngine::CNNNetwork YoloDetection::read() {
-    slog::info << "Loading network files" << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Loading network files" ;
     InferenceEngine::CNNNetReader netReader;
     /** Reading network model **/
     netReader.ReadNetwork(this -> commandLineFlag);
     /** Setting batch size to 1 **/
-    slog::info << "Batch size is forced to  1." << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Batch size is forced to  1." ;
     netReader.getNetwork().setBatchSize(1);
     /** Extracting the model name and loading its weights **/
     std::string binFileName = fileNameNoExt(this -> commandLineFlag) + ".bin";
@@ -168,7 +168,7 @@ InferenceEngine::CNNNetwork YoloDetection::read() {
     /** YOLOV3-based network should have one input and three output **/
     // --------------------------- 3. Configuring input and output -----------------------------------------
     // --------------------------------- Preparing input blobs ---------------------------------------------
-    slog::info << "Checking that the inputs are as the demo expects" << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Checking that the inputs are as the demo expects" ;
     InferenceEngine::InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
     if (inputInfo.size() != 1) {
         throw std::logic_error("This demo accepts networks that have only one input");
@@ -186,7 +186,7 @@ InferenceEngine::CNNNetwork YoloDetection::read() {
         input->getInputData()->setLayout(InferenceEngine::Layout::NCHW);
     }
             // --------------------------------- Preparing output blobs -------------------------------------------
-    slog::info << "Checking that the outputs are as the demo expects" << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Checking that the outputs are as the demo expects" ;
     InferenceEngine::OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
     /*if (outputInfo.size() != 3) {
         throw std::logic_error("This demo only accepts networks with three layers");

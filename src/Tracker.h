@@ -11,8 +11,13 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
 #include <boost/circular_buffer.hpp>
-
 #include "yolo_labels.hpp"
+
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/utility/setup/file.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
 
 #define FAIL		-1
 #define SUCCESS		1

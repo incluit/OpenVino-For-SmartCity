@@ -28,6 +28,8 @@ else()
     return()
 endif()
 
+find_package(Boost COMPONENTS log program_options system filesystem REQUIRED)
+
 if( BUILD_SAMPLE_NAME AND NOT ${BUILD_SAMPLE_NAME} STREQUAL ${TARGET_NAME} )
     message(STATUS "SAMPLE ${TARGET_NAME} SKIPPED")
     return()
@@ -47,12 +49,14 @@ source_group("src" FILES ${MAIN_SRC})
 source_group("include" FILES ${MAIN_HEADERS})
 
 include_directories (${OpenCV_INCLUDE_DIRS})
+include_directories (${Boost_INCLUDE_DIRS})
 link_directories(${LIB_FOLDER})
 
 # Create library file from sources.
 add_executable(${TARGET_NAME} ${MAIN_SRC} ${MAIN_HEADERS})
 
 add_dependencies(${TARGET_NAME} gflags)
+add_definitions(-DBOOST_LOG_DYN_LINK)
 
 set_target_properties(${TARGET_NAME} PROPERTIES "CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS} -fPIE"
 COMPILE_PDB_NAME ${TARGET_NAME})
@@ -61,5 +65,5 @@ COMPILE_PDB_NAME ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} format_reader IE::ie_cpu_extension ${IE_LIBRARIES} gflags)
 
 if(UNIX)
-    target_link_libraries( ${TARGET_NAME} ${LIB_DL} pthread ${OpenCV_LIBRARIES} dlib::dlib)
+    target_link_libraries( ${TARGET_NAME} ${LIB_DL} pthread ${OpenCV_LIBRARIES} ${Boost_LIBRARIES} dlib::dlib)
 endif()

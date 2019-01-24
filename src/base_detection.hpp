@@ -19,6 +19,11 @@
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <ext_list.hpp>
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/utility/setup/file.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
 
 typedef struct {
             std::vector<cv::Mat*> batchOfInputFrames;

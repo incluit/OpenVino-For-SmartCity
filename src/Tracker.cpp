@@ -6,6 +6,7 @@
 #include <dlib/dir_nav.h>
 #include <dlib/opencv.h>
 
+
 /* ==========================================================================
 
 Class : Util
@@ -162,10 +163,10 @@ int SingleTracker::startSingleTracking(cv::Mat _mat_img)
 	// Exception
 	if (_mat_img.empty())
 	{
-		std::cout << "====================== Error Occured! =======================" << std::endl;
-		std::cout << "Function : int SingleTracker::startSingleTracking" << std::endl;
-		std::cout << "Parameter cv::Mat& _mat_img is empty image!" << std::endl;
-		std::cout << "=============================================================" << std::endl;
+		BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================";
+		BOOST_LOG_TRIVIAL(error) << "Function : int SingleTracker::startSingleTracking";
+		BOOST_LOG_TRIVIAL(error) << "Parameter cv::Mat& _mat_img is empty image!";
+		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 
 		return FAIL;
 	}
@@ -262,10 +263,10 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 	//Exception
 	if (_mat_img.empty())
 	{
-		std::cout << "====================== Error Occured! ======================= " << std::endl;
-		std::cout << "Function : int SingleTracker::doSingleTracking" << std::endl;
-		std::cout << "Parameter cv::Mat& _mat_img is empty image!" << std::endl;
-		std::cout << "=============================================================" << std::endl;
+		BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! ======================= ";
+		BOOST_LOG_TRIVIAL(error) << "Function : int SingleTracker::doSingleTracking";
+		BOOST_LOG_TRIVIAL(error) << "Parameter cv::Mat& _mat_img is empty image!";
+		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 
 		return FAIL;
 	}
@@ -316,10 +317,10 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 	// Exceptions
 	if (_init_rect.area() == 0)
 	{
-		std::cout << "======================= Error Occured! ====================== " << std::endl;
-		std::cout << "Function : int SingleTracker::initTracker" << std::endl;
-		std::cout << "Parameter cv::Rect _init_rect's area is 0" << std::endl;
-		std::cout << "=============================================================" << std::endl;
+		BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ====================== ";
+		BOOST_LOG_TRIVIAL(error) << "Function : int SingleTracker::initTracker";
+		BOOST_LOG_TRIVIAL(error) << "Parameter cv::Rect _init_rect's area is 0";
+		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 
 		return FAIL;
 	}
@@ -331,10 +332,10 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 
 	if (result_idx != FAIL)	{
 		if (!update) {
-			std::cout << "======================= Error Occured! ======================" << std::endl;
-			std::cout << "Function : int SingleTracker::initTracker" << std::endl;
-			std::cout << "_target_id already exists!" << std::endl;
-			std::cout << "=============================================================" << std::endl;
+			BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ======================";
+			BOOST_LOG_TRIVIAL(error) << "Function : int SingleTracker::initTracker";
+			BOOST_LOG_TRIVIAL(error) << "_target_id already exists!";
+			BOOST_LOG_TRIVIAL(error) << "=============================================================";
 
 			return FAIL;
 		} else {
@@ -350,13 +351,17 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 	} else {
 		this->tracker_vec.push_back(new_tracker);
 		this->id_list = _target_id + 1; // Next ID
-		std::stringstream aux_str;
+		
+		std::string a,b,c,d,aux_str;
 
-		aux_str << "========================== Notice! ==========================" << std::endl;
-		aux_str << "Target ID : " << this->id_list-1 << " is now been tracked" << std::endl;
-		aux_str << "=============================================================" << std::endl;
-
-		*last_event = aux_str.str();
+		a = "========================== Notice! ==========================\n";
+		BOOST_LOG_TRIVIAL(info) << a;
+		b = "Target ID : " + std::to_string(this->id_list-1) + " is now been tracked\n";
+		BOOST_LOG_TRIVIAL(info) << b;
+		c = "=============================================================\n";
+		BOOST_LOG_TRIVIAL(info) << c;
+		aux_str = a + b + c;
+		*last_event = aux_str;
 	}
 
 	return SUCCESS;
@@ -368,10 +373,10 @@ int TrackerManager::insertTracker(std::shared_ptr<SingleTracker> new_single_trac
 	//Exception
 	if (new_single_tracker == nullptr)
 	{
-		std::cout << "======================== Error Occured! ===================== " << std::endl;
-		std::cout << "Function : int TrackerManager::insertTracker" << std::endl;
-		std::cout << "Parameter shared_ptr<SingleTracker> new_single_tracker is nullptr" << std::endl;
-		std::cout << "=============================================================" << std::endl;
+		BOOST_LOG_TRIVIAL(error) << "======================== Error Occured! ===================== ";
+		BOOST_LOG_TRIVIAL(error) << "Function : int TrackerManager::insertTracker";
+		BOOST_LOG_TRIVIAL(error) << "Parameter shared_ptr<SingleTracker> new_single_tracker is nullptr";
+		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 
 		return FAIL;
 	}
@@ -380,10 +385,10 @@ int TrackerManager::insertTracker(std::shared_ptr<SingleTracker> new_single_trac
 	int result_idx = findTrackerByID(new_single_tracker.get()->getTargetID());
 	if (result_idx != FAIL) {
 		if (!update) {
-			std::cout << "====================== Error Occured! =======================" << std::endl;
-			std::cout << "Function : int SingleTracker::insertTracker" << std::endl;
-			std::cout << "_target_id already exists!" << std::endl;
-			std::cout << "=============================================================" << std::endl;
+			BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================";
+			BOOST_LOG_TRIVIAL(error) << "Function : int SingleTracker::insertTracker";
+			BOOST_LOG_TRIVIAL(error) << "_target_id already exists!";
+			BOOST_LOG_TRIVIAL(error) << "=============================================================";
 
 			return FAIL;
 		} else {
@@ -494,10 +499,10 @@ int TrackerManager::deleteTracker(int _target_id, std::string *last_event)
 
 	if (result_idx == FAIL)
 	{
-		std::cout << "======================== Error Occured! =====================" << std::endl;
-		std::cout << "Function : int TrackerManager::deleteTracker" << std::endl;
-		std::cout << "Cannot find given _target_id" << std::endl;
-		std::cout << "=============================================================" << std::endl;
+		BOOST_LOG_TRIVIAL(error) << "======================== Error Occured! =====================";
+		BOOST_LOG_TRIVIAL(error) << "Function : int TrackerManager::deleteTracker";
+		BOOST_LOG_TRIVIAL(error) << "Cannot find given _target_id";
+		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 
 		return FAIL;
 	}
@@ -509,14 +514,18 @@ int TrackerManager::deleteTracker(int _target_id, std::string *last_event)
 		// Remove SingleTracker object from the vector
 		this->tracker_vec.erase(tracker_vec.begin() + result_idx);
 
-		std::stringstream aux_str;
+		std::string a,b,c,d,aux_str;
 
-		aux_str << "========================== Notice! ==========================" << std::endl;
-		aux_str << "Target ID : " << _target_id << " is going out of the frame." << std::endl;
-		aux_str << "Target ID : " << _target_id << " is erased!" << std::endl;
-		aux_str << "=============================================================" << std::endl;
-
-		*last_event = aux_str.str();
+		a = "========================== Notice! ==========================\n";
+		BOOST_LOG_TRIVIAL(info) << a;
+		b = "Target ID : " + std::to_string(_target_id) + " is going out of the frame.\n";
+		BOOST_LOG_TRIVIAL(info) << b;
+		c = "Target ID : " + std::to_string(_target_id) + " is erased!\n";
+		BOOST_LOG_TRIVIAL(info) << c;
+		d = "=============================================================\n";
+		BOOST_LOG_TRIVIAL(info) << d;
+		aux_str = a + b + c + d;
+		*last_event = aux_str;
 		return SUCCESS;
 	}
 }
@@ -553,10 +562,10 @@ int TrackingSystem::initTrackingSystem()
 			continue;
 		if (this->manager.insertTracker(i.first, color, index, label, false, this->last_event) == FAIL)
 		{
-			std::cout << "====================== Error Occured! =======================" << std::endl;
-			std::cout << "Function : int TrackingSystem::initTrackingSystem" << std::endl;
-			std::cout << "Cannot insert new SingleTracker object to the vector" << std::endl;
-			std::cout << "=============================================================" << std::endl;
+			BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================";
+			BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::initTrackingSystem";
+			BOOST_LOG_TRIVIAL(error) << "Cannot insert new SingleTracker object to the vector";
+			BOOST_LOG_TRIVIAL(error) << "=============================================================";
 			return FAIL;
 		}
 		index++;
@@ -601,10 +610,10 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 		if ( index != -1) {
 			if (this->manager.insertTracker(i.first, color, index, label, true,this->last_event) == FAIL)
 			{
-				std::cout << "====================== Error Occured! =======================" << std::endl;
-				std::cout << "Function : int TrackingSystem::updateTrackingSystem" << std::endl;
-				std::cout << "Sth went wrong" << std::endl;
-				std::cout << "=============================================================" << std::endl;
+				BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================";
+				BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::updateTrackingSystem";
+				BOOST_LOG_TRIVIAL(error) << "Sth went wrong";
+				BOOST_LOG_TRIVIAL(error) << "=============================================================";
 				return FAIL;
 			}
 		}
@@ -626,10 +635,10 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 	// Check the image is empty
 	if (_mat_img.empty())
 	{
-		std::cout << "======================= Error Occured! ======================" << std::endl;
-		std::cout << "Function : int TrackingSystem::startTracking" << std::endl;
-		std::cout << "Input image is empty" << std::endl;
-		std::cout << "=============================================================" << std::endl;
+		BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ======================";
+		BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::startTracking";
+		BOOST_LOG_TRIVIAL(error) << "Input image is empty";
+		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 		return FAIL;
 	}
 
@@ -689,10 +698,10 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 	// Exception
 	if (manager.getTrackerVec().size() == 0)
 	{
-		std::cout << "======================= Error Occured! ======================" << std::endl;
-		std::cout << "Function : int TrackingSystem::drawTrackingResult" << std::endl;
-		std::cout << "Nothing to draw" << std::endl;
-		std::cout << "=============================================================" << std::endl;
+		BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ======================";
+		BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::drawTrackingResult";
+		BOOST_LOG_TRIVIAL(error) << "Nothing to draw";
+		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 		return FAIL;
 	}
 
@@ -800,10 +809,10 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 	// Exception
 	if (manager.getTrackerVec().size() == 0)
 	{
-		std::cout << "======================= Error Occured! ======================" << std::endl;
-		std::cout << "Function : int TrackingSystem::detectCollisions" << std::endl;
-		std::cout << "Nothing to detect" << std::endl;
-		std::cout << "=============================================================" << std::endl;
+		BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ======================";
+		BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::detectCollisions";
+		BOOST_LOG_TRIVIAL(error) << "Nothing to detect";
+		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 		return FAIL;
 	}
 
@@ -861,7 +870,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 				if (intersects) {
 					iRef.setRectWidth(2);
 					jRef.setRectWidth(2);
-					std::cout<<"Collision between object "<<iRef.getTargetID()<<" and "<<jRef.getTargetID()<<std::endl;
+					BOOST_LOG_TRIVIAL(error)<<"Collision between object "<<iRef.getTargetID()<<" and "<<jRef.getTargetID();
 					if (jRef.getNearMiss()) {
 						iRef.setColor(cv::Scalar(0,0,255)); // Red
 						jRef.setColor(cv::Scalar(0,0,255));
@@ -892,5 +901,5 @@ void TrackingSystem::terminateSystem()
 	std::for_each(remaining_tracker.begin(), remaining_tracker.end(),
 		[](std::shared_ptr<SingleTracker> ptr) { ptr.reset(); });
 
-	std::cout << "Close Tracking System..." << std::endl;
+	BOOST_LOG_TRIVIAL(error) << "Close Tracking System...";
 }

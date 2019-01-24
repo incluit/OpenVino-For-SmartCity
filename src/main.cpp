@@ -43,45 +43,75 @@
 #include "object_detection.hpp"
 #include "yolo_detection.hpp"
 #include "yolo_labels.hpp"
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/utility/setup/file.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
 
+
+// -------------------------Generic routines for detection networks-------------------------------------------------
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
-
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
         return false;
     }
-    slog::info << "Parsing input parameters" << slog::endl;
-
+    BOOST_LOG_TRIVIAL(info) << "Parsing input parameters";
     if (FLAGS_i.empty()) {
         throw std::invalid_argument("Parameter -i is not set");
     }
-
     /*if (!(FLAGS_m.empty() && FLAGS_m_p.empty() && !FLAGS_m_y.empty()) && !(!FLAGS_m.empty() && !FLAGS_m_p.empty() && FLAGS_m_y.empty())) {
         throw std::invalid_argument("Check the models combinations.");
     }*/
-
     if (FLAGS_auto_resize) {
-	    slog::warn << "auto_resize=1, forcing all batch sizes to 1" << slog::endl;
-	    FLAGS_n = 1;
-	    FLAGS_n_p = 1;
-	    FLAGS_n_y = 1;
+        BOOST_LOG_TRIVIAL(warning) << "auto_resize=1, forcing all batch sizes to 1";
+        FLAGS_n = 1;
+        FLAGS_n_p = 1;
+        FLAGS_n_y = 1;
     }
-
     if (FLAGS_n_async < 1) {
         throw std::invalid_argument("Parameter -n_async must be >= 1");
     }
-
     return true;
 }
-
-// -------------------------Generic routines for detection networks-------------------------------------------------
-
+std::string return_current_time_and_date(){
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d - %X");
+    return ss.str();
+}
+void init_logging(std::string base)
+{
+    std::stringstream fileName;
+    fileName << "log/" << base << "_" << return_current_time_and_date() << ".log";
+    boost::log::register_simple_formatter_factory<boost::log::trivial::severity_level, char>("Severity");
+    boost::log::add_file_log(
+        boost::log::keywords::file_name = fileName.str(),
+        boost::log::keywords::format = "[%Severity%] - %Message%"
+    );
+    boost::log::core::get()->set_filter
+    (
+        boost::log::trivial::severity >= boost::log::trivial::info
+    );
+    boost::log::core::get()->add_global_attribute("MyAttr", boost::log::attributes::constant<int>(42));
+    boost::log::core::get()->add_global_attribute("CountDown", boost::log::attributes::counter<int>(100, -1));
+    boost::log::add_common_attributes();
+}
 int main(int argc, char *argv[]) {
     try {
+        init_logging("test");
+        BOOST_LOG_TRIVIAL(trace) << "This is a trace severity message";
+        BOOST_LOG_TRIVIAL(debug) << "This is a debug severity message";
+        BOOST_LOG_TRIVIAL(info) << "This is an informational severity message"; 
+        BOOST_LOG_TRIVIAL(warning) << "This is a warning severity message";
+        BOOST_LOG_TRIVIAL(error) << "This is an error severity message";
+        BOOST_LOG_TRIVIAL(fatal) << "and this is a fatal severity message";        
+
         /** This sample covers 2 certain topologies and cannot be generalized **/
-        std::cout << "InferenceEngine: " << InferenceEngine::GetInferenceEngineVersion() << std::endl;
+        BOOST_LOG_TRIVIAL(info) << "InferenceEngine: " << InferenceEngine::GetInferenceEngineVersion();
 
         // ---------------------------Parsing and validation of input args--------------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
@@ -89,7 +119,7 @@ int main(int argc, char *argv[]) {
         }
 
         // -----------------------------Read input -----------------------------------------------------
-        slog::info << "Reading input" << slog::endl;
+        BOOST_LOG_TRIVIAL(info) << "Reading input";
         cv::VideoCapture cap;
         if (!(FLAGS_i == "cam" ? cap.open(0) : cap.open(FLAGS_i))) {
             throw std::invalid_argument("Cannot open input file or camera: " + FLAGS_i);
@@ -104,9 +134,9 @@ int main(int argc, char *argv[]) {
         };
 
         const bool runningAsync = (FLAGS_n_async > 1);
-        slog::info << "FLAGS_n_async=" << FLAGS_n_async << ", inference pipeline will operate "
+        BOOST_LOG_TRIVIAL(info) << "FLAGS_n_async=" << FLAGS_n_async << ", inference pipeline will operate "
                 << (runningAsync ? "asynchronously" : "synchronously")
-                << slog::endl;
+               ;
 
         FramePipelineFifo pipeS0Fifo;
         FramePipelineFifo pipeS0Fifo2;
@@ -143,12 +173,13 @@ int main(int argc, char *argv[]) {
             if (pluginsForDevices.find(deviceName) != pluginsForDevices.end()) {
                 continue;
             }
-            slog::info << "Loading plugin " << deviceName << slog::endl;
+            BOOST_LOG_TRIVIAL(info) << "Loading plugin " << deviceName;
             InferenceEngine::InferencePlugin plugin = InferenceEngine::PluginDispatcher({"../../../lib/intel64", ""}).getPluginByDevice(deviceName);
 
+            std::stringstream aux;
             /** Printing plugin version **/
-            printPluginVersion(plugin, std::cout);
-
+            printPluginVersion(plugin, aux);
+            BOOST_LOG_TRIVIAL(info) << aux.str();
             /** Load extensions for the CPU plugin **/
             if (deviceName.find("CPU") != std::string::npos) {
                 plugin.AddExtension(std::make_shared<InferenceEngine::Extensions::Cpu::CpuExtensions>());
@@ -215,7 +246,7 @@ int main(int argc, char *argv[]) {
 
         
         // ----------------------------Do inference-------------------------------------------------------------
-        slog::info << "Start inference " << slog::endl;
+        BOOST_LOG_TRIVIAL(info) << "Start inference ";
         typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
         std::chrono::high_resolution_clock::time_point wallclockStart;
 		std::chrono::high_resolution_clock::time_point wallclockEnd;
@@ -289,7 +320,7 @@ int main(int argc, char *argv[]) {
                     ps0.batchOfInputFrames.push_back(curFrame);
                     ps0.batchOfInputFrames_clean.push_back(curFrame_clean);
                     if (firstFrame && !FLAGS_no_show) {
-                        slog::info << "Press 's' key to save a snapshot, press any other key to stop" << slog::endl;
+                        BOOST_LOG_TRIVIAL(info) << "Press 's' key to save a snapshot, press any other key to stop";
                     }
 
                     firstFrame = false;
@@ -566,7 +597,7 @@ int main(int argc, char *argv[]) {
                 {
                     if ('s' == keyPressed) {
                         // save screen to output file
-                        slog::info << "Saving snapshot of image" << slog::endl;
+                        BOOST_LOG_TRIVIAL(info) << "Saving snapshot of image";
                         cv::imwrite("snapshot.bmp", outputFrame);
                     } else {
                         haveMoreFrames = false;
@@ -590,10 +621,10 @@ int main(int argc, char *argv[]) {
                 wallclockEnd = std::chrono::high_resolution_clock::now();
 
                 if (!FLAGS_no_wait && !FLAGS_no_show) {
-                    slog::info << "Press 's' key to save a snapshot, press any other key to exit" << slog::endl;
+                    BOOST_LOG_TRIVIAL(info) << "Press 's' key to save a snapshot, press any other key to exit";
                     while (cv::waitKey(0) == 's') {
                         // save screen to output file
-                        slog::info << "Saving snapshot of image" << slog::endl;
+                        BOOST_LOG_TRIVIAL(info) << "Saving snapshot of image";
                         cv::imwrite("snapshot.bmp", *lastOutputFrame);
                     }
                     haveMoreFrames = false;
@@ -606,13 +637,13 @@ int main(int argc, char *argv[]) {
         ms total_wallclock_time = std::chrono::duration_cast<ms>(wallclockEnd - wallclockStart);
 
         // report loop time
-        slog::info << "     Total main-loop time:" << std::fixed << std::setprecision(2)
-                << total_wallclock_time.count() << " ms " <<  slog::endl;
-        slog::info << "           Total # frames:" << totalFrames <<  slog::endl;
+        BOOST_LOG_TRIVIAL(info) << "     Total main-loop time:" << std::fixed << std::setprecision(2)
+                << total_wallclock_time.count() << " ms ";
+        BOOST_LOG_TRIVIAL(info) << "           Total # frames:" << totalFrames;
         float avgTimePerFrameMs = total_wallclock_time.count() / (float)totalFrames;
-        slog::info << "   Average time per frame:" << std::fixed << std::setprecision(2)
+        BOOST_LOG_TRIVIAL(info) << "   Average time per frame:" << std::fixed << std::setprecision(2)
                     << avgTimePerFrameMs << " ms "
-                    << "(" << 1000.0F / avgTimePerFrameMs << " fps)" << slog::endl;
+                    << "(" << 1000.0F / avgTimePerFrameMs << " fps)";
 
         // ---------------------------Some perf data--------------------------------------------------
         if (FLAGS_pc) {
@@ -622,14 +653,14 @@ int main(int argc, char *argv[]) {
         delete [] inputFrames;
     }
     catch (const std::exception& error) {
-        slog::err << error.what() << slog::endl;
+        BOOST_LOG_TRIVIAL(error) << error.what();
         return 1;
     }
     catch (...) {
-        slog::err << "Unknown/internal exception happened." << slog::endl;
+        BOOST_LOG_TRIVIAL(error) << "Unknown/internal exception happened.";
         return 1;
     }
 
-    slog::info << "Execution successful" << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Execution successful";
     return 0;
 }

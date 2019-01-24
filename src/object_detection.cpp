@@ -9,7 +9,7 @@ void ObjectDetection::submitRequest(){
 void ObjectDetection::enqueue(const cv::Mat &frame) {
     if (!this -> enabled()) return;
     if (this -> enquedFrames >= this -> maxBatch) {
-        slog::warn << "Number of frames more than maximum(" << this -> maxBatch << ") processed by Vehicles detector" << slog::endl;
+        BOOST_LOG_TRIVIAL(warning) << "Number of frames more than maximum(" << this -> maxBatch << ") processed by Vehicles detector" ;
         return;
     }
     if (nullptr == this -> requests[this -> inputRequestIdx]) {
@@ -29,19 +29,19 @@ void ObjectDetection::enqueue(const cv::Mat &frame) {
 }
 
 InferenceEngine::CNNNetwork ObjectDetection::read() {
-    slog::info << "Loading network files for " << this -> topoName << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Loading network files for " << this -> topoName ;
     InferenceEngine::CNNNetReader netReader;
     /** Read network model **/
     netReader.ReadNetwork(this -> commandLineFlag);
     netReader.getNetwork().setBatchSize(this -> maxBatch);
-    slog::info << "Batch size is set to " << netReader.getNetwork().getBatchSize() << " for " << this -> topoName << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Batch size is set to " << netReader.getNetwork().getBatchSize() << " for " << this -> topoName ;
     /** Extract model name and load it's weights **/
     std::string binFileName = fileNameNoExt(this -> commandLineFlag) + ".bin";
     netReader.ReadWeights(binFileName);
     // -----------------------------------------------------------------------------------------------------
     /** SSD-based network should have one input and one output **/
     // ---------------------------Check inputs ------------------------------------------------------
-    slog::info << "Checking " << this -> topoName << " inputs" << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Checking " << this -> topoName << " inputs" ;
     InferenceEngine::InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
     if (inputInfo.size() != 1) {
         std::string msg = this -> topoName + "network should have only one input";
@@ -58,7 +58,7 @@ InferenceEngine::CNNNetwork ObjectDetection::read() {
 	}
     // -----------------------------------------------------------------------------------------------------
     // ---------------------------Check outputs ------------------------------------------------------
-    slog::info << "Checking " << this -> topoName << " outputs" << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Checking " << this -> topoName << " outputs" ;
     InferenceEngine::OutputsDataMap outputInfo(netReader.getNetwork().getOutputsInfo());
     if (outputInfo.size() != 1) {
         std::string msg = this -> topoName + "network should have only one output";
@@ -77,7 +77,7 @@ InferenceEngine::CNNNetwork ObjectDetection::read() {
     }
     _output->setPrecision(InferenceEngine::Precision::FP32);
     _output->setLayout(InferenceEngine::Layout::NCHW);
-    slog::info << "Loading " << this -> topoName << " model to the "<< this -> deviceName << " plugin" << slog::endl;
+    BOOST_LOG_TRIVIAL(info) << "Loading " << this -> topoName << " model to the "<< this -> deviceName << " plugin" ;
     this -> input = inputInfo.begin()->first;
     this -> net_readed = netReader.getNetwork();
     return net_readed;
