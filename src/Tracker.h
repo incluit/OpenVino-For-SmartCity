@@ -47,6 +47,7 @@ private:
 	cv::Point	center;				// Current center point of target
 	bool		is_tracking_started;		// Is tracking started or not? (Is initializing done or not?)
 	cv::Scalar	color;				// Box color
+	int		rect_width;			// Box width
 	int		label;				// Label (LABEL_CAR, LABEL_PERSON)
 	boost::circular_buffer<cv::Point> 	c_q;	// Queue with last n_frames centers
 	boost::circular_buffer<cv::Point> 	avg_pos;// Queue with last n_frames centers
@@ -67,6 +68,7 @@ private:
 	bool		update;				// Update from Detection (new rois)
 	bool		to_delete;			// Mark for deletion
 	int		no_update_counter;		// Counter if object doesn't get updated
+	bool		near_miss;			// If in near miss situation
 	
 
 public:
@@ -74,7 +76,7 @@ public:
 
 	/* Member Initializer & Constructor*/
 	SingleTracker(int _target_id, cv::Rect _init_rect, cv::Scalar _color, int _label)
-		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0), v_x_q(boost::circular_buffer<double>(n_frames_vel)), v_y_q(boost::circular_buffer<double>(n_frames_vel)), v_q(boost::circular_buffer<double>(n_frames_vel)), avg_pos(boost::circular_buffer<cv::Point>(n_frames_pos)), a_q(boost::circular_buffer<double>(n_frames_vel)), a_x_q(boost::circular_buffer<double>(n_frames_vel)), a_y_q(boost::circular_buffer<double>(n_frames_vel))
+		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0), v_x_q(boost::circular_buffer<double>(n_frames_vel)), v_y_q(boost::circular_buffer<double>(n_frames_vel)), v_q(boost::circular_buffer<double>(n_frames_vel)), avg_pos(boost::circular_buffer<cv::Point>(n_frames_pos)), a_q(boost::circular_buffer<double>(n_frames_vel)), a_x_q(boost::circular_buffer<double>(n_frames_vel)), a_y_q(boost::circular_buffer<double>(n_frames_vel)), near_miss(false), rect_width(1)
 	{
 		// Exception
 		if (_init_rect.area() == 0)
@@ -122,6 +124,8 @@ public:
 	bool		getUpdateFromDetection() { return this->update; }
 	bool		getDelete() { return this->to_delete; }
 	int		getNoUpdateCounter() { return this->no_update_counter; }
+	bool		getNearMiss() { return this->near_miss; }
+	int		getRectWidth() { return this->rect_width; }
 
 	/* Set Function */
 	void setTargetId(int _target_id) { this->target_id = _target_id; }
@@ -138,6 +142,8 @@ public:
 	void setLabel(int _label) { this->label = _label; }
 	void setUpdateFromDetection(bool _update) { this->update = _update; }
 	void setNoUpdateCounter(int _counter) { this->no_update_counter = _counter; }
+	void setNearMiss(bool _near_miss) { this->near_miss = _near_miss; }
+	void setRectWidth(int _rect_width) { this->rect_width = _rect_width; }
 
 	/* Velocity Related */
 	void saveLastCenter(cv::Point _center) { this->c_q.push_front(_center); }

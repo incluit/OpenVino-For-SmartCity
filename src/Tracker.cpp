@@ -282,7 +282,7 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 		double confidence = this->tracker.update_noscale(dlib_img);
 	}*/
 	if (!this->getUpdateFromDetection()) {
-		this ->setCenter(cv::Point2f(this -> vel.x, this -> vel.y));
+		this->setCenter(cv::Point2f(this->vel.x, this->vel.y));
 		updated_rect.x = updated_rect.x + vel_x;
 		updated_rect.y = updated_rect.y + vel_y;
 	}
@@ -549,6 +549,8 @@ int TrackingSystem::initTrackingSystem()
 	for( auto && i : this->init_target){
 		color = getLabelColor(i.second);
 		label = i.second;
+		if ((double)i.first.area()/(double)(getFrameWidth()*getFrameHeight()) < 0.009 && label == LABEL_CAR)
+			continue;
 		if (this->manager.insertTracker(i.first, color, index, label, false, this->last_event) == FAIL)
 		{
 			std::cout << "====================== Error Occured! =======================" << std::endl;
@@ -593,6 +595,8 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 		int index;
 		color = getLabelColor(i.second);
 		label = i.second;
+		if ((double)i.first.area()/(double)(getFrameWidth()*getFrameHeight()) < 0.009 && label == LABEL_CAR)
+			continue;
 		index = this->manager.findTracker(i.first, label);
 		if ( index != -1) {
 			if (this->manager.insertTracker(i.first, color, index, label, true,this->last_event) == FAIL)
@@ -694,7 +698,7 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 
 	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&_mat_img](std::shared_ptr<SingleTracker> ptr) {
 		// Draw all rectangles
-		cv::rectangle(_mat_img, ptr.get()->getRect(), ptr.get()->getColor(), 1);
+		cv::rectangle(_mat_img, ptr.get()->getRect(), ptr.get()->getColor(), ptr.get()->getRectWidth());
 		if (ptr.get()->getCenters_q().size() == 5) {
 			// Draw velocities
 			cv::Point2f vel_draw = (ptr.get()->getVel() - ptr.get()->getCenter())*20;
@@ -809,22 +813,64 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		boost::circular_buffer<double> vel = iRef.getVel_q();
 		boost::circular_buffer<double> vel_x = iRef.getVelX_q();
 		boost::circular_buffer<double> vel_y = iRef.getVelY_q();
-		boost::circular_buffer<double> acc = iRef.getAcc_q();
-		double avg_acc = 1;	// Initialize avg with some value to avoid triggering the condition at the beginning
+		boost::circular_buffer<double> acc_x = iRef.getAccX_q();
+		boost::circular_buffer<double> acc_y = iRef.getAccY_q();
+		double avg_acc_x = 0;
+		double avg_acc_y = 0;
 
+		// Keep here for plotting purposes
 		// Normalize velocity as in calcAcc
-		int y = iRef.getCenter().y+10;
-		double norm_vel = iRef.getModVel()*1000/y;
+		//int y = iRef.getCenter().y+10;
+		//double norm_vel = iRef.getModVel()*1000/y;
+
+
+		bool inc_speed = (vel[0]-vel[5] > 0 ? true : false);
+
+		bool same_sign_x = ((acc_x[0] > 0) - (acc_x[0] < 0)) == ((vel_x[0] > 0) - (vel_x[0] < 0));
+		bool same_sign_y = ((acc_y[0] > 0) - (acc_y[0] < 0)) == ((vel_y[0] > 0) - (vel_y[0] < 0));
+		int sign_x = (same_sign_x ? 1 : -1);
+		int sign_y = (same_sign_y ? 1 : -1);
 
 		// Get historic avg_acc
-		if (acc.size() > 1) {
-		for (int i = 1; i < acc.size(); i++)
-			avg_acc = avg_acc + acc.at(i);
-		avg_acc = avg_acc / (acc.size());
+		if (acc_x.size() > 1) {
+			int lim = std::min((int)acc_x.size(),3);
+			for (int i = 1; i < lim; i++) {
+				bool same_sign_x = ((acc_x[i] > 0) - (acc_x[i] < 0)) == ((vel_x[i] > 0) - (vel_x[i] < 0));
+				bool same_sign_y = ((acc_y[i] > 0) - (acc_y[i] < 0)) == ((vel_y[i] > 0) - (vel_y[i] < 0));
+				int sign_x = (same_sign_x ? 1 : -1);
+				int sign_y = (same_sign_y ? 1 : -1);
+				avg_acc_x = avg_acc_x + sign_x*std::abs(acc_x.at(i));
+				avg_acc_y = avg_acc_y + sign_y*std::abs(acc_y.at(i));
+			}
+		avg_acc_x = avg_acc_x / lim;
+		avg_acc_y = avg_acc_y / lim;
 		}
 
-		if (iRef.getModAcc() > 2*(avg_acc)+1) { // +1 to set a minimum threshold
-			iRef.setColor(cv::Scalar(0,0,255)); // Change color to red for now
+		double threshold_x = std::abs(sign_x*std::abs(iRef.getAcc_X()) - (avg_acc_x));
+		double threshold_y = std::abs(sign_y*std::abs(iRef.getAcc_Y()) - (avg_acc_y));
+
+		if (threshold_x > 4 || threshold_y >= 3 /*&& !same_sign && !inc_speed*/) {
+			iRef.setNearMiss(true);
+			for (auto j = trackerVec.begin(); j != trackerVec.end(); ++j) {
+				SingleTracker& jRef = *(*j);
+				if (iRef.getTargetID() == jRef.getTargetID())
+					continue;
+				cv::Rect recti = iRef.getRect();
+				cv::Rect rectj = jRef.getRect();
+				bool intersects = ((recti & rectj).area() > 0);
+				if (intersects) {
+					iRef.setRectWidth(2);
+					jRef.setRectWidth(2);
+					std::cout<<"Collision between object "<<iRef.getTargetID()<<" and "<<jRef.getTargetID()<<std::endl;
+					if (jRef.getNearMiss()) {
+						iRef.setColor(cv::Scalar(0,0,255)); // Red
+						jRef.setColor(cv::Scalar(0,0,255));
+					} else {
+						iRef.setColor(cv::Scalar(0,165,255)); // Orange
+						jRef.setColor(cv::Scalar(0,165,255));
+					}
+				}
+			}
 		}
 	}
 
