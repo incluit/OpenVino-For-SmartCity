@@ -1,11 +1,6 @@
 #pragma once
 
-#include <dlib/image_processing.h>
-#include <dlib/gui_widgets.h>
-#include <dlib/image_io.h>
-#include <dlib/dir_nav.h>
-#include <dlib/opencv.h>
-
+#include <thread>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -77,8 +72,6 @@ private:
 	
 
 public:
-	dlib::correlation_tracker tracker;  // Correlation tracker
-
 	/* Member Initializer & Constructor*/
 	SingleTracker(int _target_id, cv::Rect _init_rect, cv::Scalar _color, int _label)
 		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0), v_x_q(boost::circular_buffer<double>(n_frames_vel)), v_y_q(boost::circular_buffer<double>(n_frames_vel)), v_q(boost::circular_buffer<double>(n_frames_vel)), avg_pos(boost::circular_buffer<cv::Point>(n_frames_pos)), a_q(boost::circular_buffer<double>(n_frames_vel)), a_x_q(boost::circular_buffer<double>(n_frames_vel)), a_y_q(boost::circular_buffer<double>(n_frames_vel)), near_miss(false), rect_width(1)
@@ -135,10 +128,8 @@ public:
 	/* Set Function */
 	void setTargetId(int _target_id) { this->target_id = _target_id; }
 	void setRect(cv::Rect _rect) { this->rect = _rect; }
-	void setRect(dlib::drectangle _drect) { this->rect = cv::Rect(_drect.tl_corner().x(), _drect.tl_corner().y(), _drect.width(), _drect.height()); }
 	void setCenter(cv::Point _center) { this->center = _center; }
 	void setCenter(cv::Rect _rect) { this->center = cv::Point(_rect.x + (_rect.width) / 2, _rect.y + (_rect.height) / 2); }
-	void setCenter(dlib::drectangle _drect) { this->center = cv::Point(_drect.tl_corner().x() + (_drect.width() / 2), _drect.tl_corner().y() + (_drect.height() / 2)); }
 	void setVel(cv::Point _vel) { this->vel = _vel; updateVel_X(); updateVel_Y(); updateModVel(); }
 	void setAcc(cv::Point _acc) { this->acc = _acc; updateAcc_X(); updateAcc_Y(); updateModAcc(); }
 	void setConfidence(double _confidence) { this->confidence = _confidence; }

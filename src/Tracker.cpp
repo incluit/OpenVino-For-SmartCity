@@ -1,12 +1,5 @@
 #include "Tracker.h"
 
-#include <dlib/image_processing.h>
-#include <dlib/gui_widgets.h>
-#include <dlib/image_io.h>
-#include <dlib/dir_nav.h>
-#include <dlib/opencv.h>
-
-
 /* ==========================================================================
 
 Class : Util
@@ -19,37 +12,6 @@ to use these functions.
 class Util
 {
 public:
-
-	/* --------------------------------------------
-	Function : cvtRectToRect
-	Convert cv::Rect to dlib::drectangle
-	----------------------------------------------- */
-	static dlib::drectangle cvtRectToDrect(cv::Rect _rect)
-	{
-		return dlib::drectangle(_rect.tl().x, _rect.tl().y, _rect.br().x - 1, _rect.br().y - 1);
-	}
-
-
-	/* -------------------------------------------------
-	Function : cvtMatToArray2d
-	convert cv::Mat to dlib::array2d<unsigned char>
-	------------------------------------------------- */
-	static dlib::array2d<unsigned char> cvtMatToArray2d(cv::Mat _mat) // cv::Mat, not cv::Mat&. Make sure use copy of image, not the original one when converting to grayscale
-	{
-
-		//Don't need to use color image in HOG-feature-based tracker
-		//Convert color image to grayscale
-		if (_mat.channels() == 3)
-			cv::cvtColor(_mat, _mat, cv::COLOR_RGB2GRAY);
-
-		//Convert opencv 'MAT' to dlib 'array2d<unsigned char>'
-		dlib::array2d<unsigned char> dlib_img;
-		dlib::assign_image(dlib_img, dlib::cv_image<unsigned char>(_mat));
-
-		return dlib_img;
-	}
-
-
 	/* -----------------------------------------------------------------
 	Function : setRectToImage
 	Put all tracking results(new rectangle) on the frame image
@@ -170,15 +132,6 @@ int SingleTracker::startSingleTracking(cv::Mat _mat_img)
 
 		return FAIL;
 	}
-
-	// Convert _mat_img to dlib::array2d<unsigned char>
-	dlib::array2d<unsigned char> dlib_frame = Util::cvtMatToArray2d(_mat_img);
-
-	// Convert SingleTracker::rect to dlib::drectangle
-	dlib::drectangle dlib_rect = Util::cvtRectToDrect(this->getRect());
-
-	// Initialize SingleTracker::tracker
-	this->tracker.start_track(dlib_frame, dlib_rect);
 	this->setIsTrackingStarted(true);
 
 	return SUCCESS;
@@ -270,18 +223,7 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 
 		return FAIL;
 	}
-
-	// Convert _mat_img to dlib::array2d<unsigned char>
-	dlib::array2d<unsigned char> dlib_img = Util::cvtMatToArray2d(_mat_img);
 	cv::Rect updated_rect = this -> rect;
-	// Track using dlib::update function
-	/*if (this->getUpdateFromDetection()) {
-		dlib::drectangle dlib_rect = Util::cvtRectToDrect(this->getRect());
-		this->tracker.start_track(dlib_img, dlib_rect);
-		this->setUpdateFromDetection(false);
-	} else {
-		double confidence = this->tracker.update_noscale(dlib_img);
-	}*/
 	if (!this->getUpdateFromDetection()) {
 		this->setCenter(cv::Point2f(this->vel.x, this->vel.y));
 		updated_rect.x = updated_rect.x + vel_x;
@@ -641,9 +583,6 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 		return FAIL;
 	}
-
-	// Convert _mat_img to dlib::array2d<unsigned char>
-	dlib::array2d<unsigned char> dlib_cur_frame = Util::cvtMatToArray2d(_mat_img);
 
 	// For all SingleTracker, do SingleTracker::startSingleTracking.
 	// Function startSingleTracking should be done before doSingleTracking
