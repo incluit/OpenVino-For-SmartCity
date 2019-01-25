@@ -103,13 +103,8 @@ void init_logging(std::string base)
 int main(int argc, char *argv[]) {
     try {
         init_logging("test");
-        BOOST_LOG_TRIVIAL(trace) << "This is a trace severity message";
-        BOOST_LOG_TRIVIAL(debug) << "This is a debug severity message";
-        BOOST_LOG_TRIVIAL(info) << "This is an informational severity message"; 
-        BOOST_LOG_TRIVIAL(warning) << "This is a warning severity message";
-        BOOST_LOG_TRIVIAL(error) << "This is an error severity message";
-        BOOST_LOG_TRIVIAL(fatal) << "and this is a fatal severity message";        
-
+        std::cout << "Incluit - Openvino-for-Smartcity" << std::endl;
+        BOOST_LOG_TRIVIAL(info) << "Incluit - Openvino-for-Smartcity";
         /** This sample covers 2 certain topologies and cannot be generalized **/
         BOOST_LOG_TRIVIAL(info) << "InferenceEngine: " << InferenceEngine::GetInferenceEngineVersion();
 
@@ -654,6 +649,8 @@ int main(int argc, char *argv[]) {
     }
     catch (const std::exception& error) {
         BOOST_LOG_TRIVIAL(error) << error.what();
+        std::cout << error.what() << std::endl;
+        std::cout << "If missing -d_y argument, try running ../scripts/setupenv.sh" << std::endl;
         return 1;
     }
     catch (...) {
