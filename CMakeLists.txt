@@ -28,7 +28,7 @@ else()
     return()
 endif()
 
-find_package(Boost COMPONENTS log program_options system filesystem REQUIRED)
+find_package(Boost COMPONENTS log system filesystem REQUIRED)
 
 if( BUILD_SAMPLE_NAME AND NOT ${BUILD_SAMPLE_NAME} STREQUAL ${TARGET_NAME} )
     message(STATUS "SAMPLE ${TARGET_NAME} SKIPPED")
