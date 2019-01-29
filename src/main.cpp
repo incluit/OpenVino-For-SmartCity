@@ -220,24 +220,37 @@ int main(int argc, char *argv[]) {
 		//-----------------------Define regions of interest-----------------------------------------------------
         RegionsOfInterest scene;
 
-    	cap.read(scene.orig);
-    	// Do deep copy to preserve original frame
-    	scene.out = scene.orig.clone();
-        cv::Mat aux_mask;
+	cap.read(scene.orig);
+	// Do deep copy to preserve original frame
+	scene.aux = scene.orig.clone();
+	scene.out = scene.orig.clone();
+	cv::Mat aux_mask;
         cv::Mat first_frame_masked = scene.orig.clone();
 
         // Add check
-        if (FLAGS_show_selection){
-            cv::namedWindow("ImageDisplay",1);
-            cv::setMouseCallback("ImageDisplay", CallBackFunc, &scene);
-    		DrawAreasOfInterest(&scene);
-    		cv::destroyWindow("ImageDisplay");
-    		cv::namedWindow("Result",1);
-    		cv::imshow("Result", scene.out);
-    		cv::waitKey();
-            aux_mask = scene.streets[0].first;
-            cv::bitwise_and(scene.orig,aux_mask,first_frame_masked);
-        }
+	if (FLAGS_show_selection){
+		int ret = 0;
+		cv::namedWindow("Crop",1);
+		cv::setMouseCallback("Crop", CallBCrop, &scene);
+		ret = CropFrame("Crop", &scene);
+		if (ret < 0) {
+			return FAIL;
+		}
+		cv::namedWindow("Draw Areas",1);
+		cv::setMouseCallback("Draw Areas", CallBDraw, &scene);
+		ret = DrawAreasOfInterest("Draw Areas", &scene);
+		if (ret < 0) {
+			return FAIL;
+		}
+		cv::destroyWindow("Draw Areas");
+		cv::namedWindow("Result",1);
+		cv::imshow("Result", scene.out);
+		cv::waitKey();
+		aux_mask = scene.mask;
+		cv::bitwise_and(scene.orig,scene.mask,first_frame_masked);
+		cv::imshow("Result", first_frame_masked);
+		cv::waitKey();
+	}
 
         
         // ----------------------------Do inference-------------------------------------------------------------
@@ -533,7 +546,7 @@ int main(int argc, char *argv[]) {
 		        }
                 if(FLAGS_show_selection){
                     cv::addWeighted(aux_mask, 0.05, outputFrame_clean, 1.0, 0.0, outputFrame_clean);
-                    cv::polylines(outputFrame_clean,scene.street_vertices,true, cv::Scalar(255,0,0),1);
+                    cv::polylines(outputFrame_clean,scene.mask_vertices,true, cv::Scalar(255,0,0),1);
                 }
 		        // ----------------------------Execution statistics -----------------------------------------------------
                 std::ostringstream out;

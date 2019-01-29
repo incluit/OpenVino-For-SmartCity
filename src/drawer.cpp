@@ -2,118 +2,208 @@
 #include <iostream>
 #include "drawer.hpp"
 
-void CallBackFunc(int event, int x, int y, int flags, void *scn)
+enum {
+	STREETS = 0,
+	SIDEWALKS,
+	CROSSWALKS,
+};
+
+const cv::Scalar STREETS_COLOR = cv::Scalar(0, 0, 255);
+const cv::Scalar SIDEWALKS_COLOR = cv::Scalar(0, 255, 0);
+const cv::Scalar CROSSWALKS_COLOR = cv::Scalar(255, 255, 0);
+
+cv::Scalar getScnColor(RegionsOfInterest scn)
 {
-   cv::Scalar color;
-   RegionsOfInterest* scene = (RegionsOfInterest*) scn;
-   RegionsOfInterest& sceneRef = *scene;
-
-   if(sceneRef.drawing_sidewalks)
-	   color = cv::Scalar(0,255,0);
-   else
-	   color = cv::Scalar(0,0,255);
-
-   if(event==cv::EVENT_LBUTTONDOWN){
-	  std::cout << "Left mouse button clicked at (" << x << ", " << y << ")" << std::endl;
-      if(sceneRef.vertices.size()==0){
-         // First click - just draw point
-         sceneRef.out.at<cv::Vec3b>(cv::Point(x,y))=cv::Vec3b(255,0,0);
-      } else {
-         // Second, or later click, draw line to previous vertex
-		 cv::line(sceneRef.out,cv::Point(x,y),sceneRef.vertices[sceneRef.vertices.size()-1],color,2);
-      }
-      sceneRef.vertices.push_back(cv::Point(x,y));
-      return;
-   }
+	cv::Scalar color = cv::Scalar(0,0,0);
+	switch(scn.state) {
+		case STREETS:
+			color = STREETS_COLOR;
+			break;
+		case SIDEWALKS:
+			color = SIDEWALKS_COLOR;
+			break;
+		case CROSSWALKS:
+			color = CROSSWALKS_COLOR;
+			break;
+		default:
+			std::cout<<"Something is broken"<<std::endl;
+			break;
+	}
+	return color;
 }
 
-void DrawAreasOfInterest(RegionsOfInterest *scn)
+void CallBCrop(int event, int x, int y, int flags, void *scn)
 {
-   bool finished = false;
-   bool can_finish = false;
-   RegionsOfInterest* scene = (RegionsOfInterest*) scn;
-   RegionsOfInterest& sceneRef = *scene;
+	RegionsOfInterest* scene = (RegionsOfInterest*) scn;
+	RegionsOfInterest& sceneRef = *scene;
+	static int x1=0, x2=0, y1=0, y2=0;
+	static bool release = false;
 
-   std::cout<<"Select sidewalks, press c to continue, press f to finish." << std::endl;
-   while(!finished){
-	  cv::imshow("ImageDisplay", sceneRef.out);
-      switch (cv::waitKey(1)) {
-	  case 'c':
-         if(sceneRef.vertices.size()<2){
-			 std::cout << "You need a minimum of three points!" << std::endl;
-			 can_finish = false;
-         }
-		 else {
-             // Close polygon
-		     cv::line(sceneRef.out,sceneRef.vertices[sceneRef.vertices.size()-1],sceneRef.vertices[0],cv::Scalar(0,255,0),2);
+	if(event==cv::EVENT_LBUTTONDOWN && !release){
+		std::cout << "Left mouse button clicked at (" << x << ", " << y << ")" << std::endl;
+		x1 = x;
+		y1 = y;
+		release = true;
+	}
 
-             // Mask is black with white where our ROI is
-		     cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
-	         std::vector< std::vector< cv::Point > > pts{sceneRef.vertices};
-             fillPoly(roi,pts,cv::Scalar(0,125,0));
-             sceneRef.sidewalks.push_back(roi);
-		     sceneRef.vertices.clear();
-		     can_finish = true;
-         }
-		 break;
-	  case 'f':
-		 if (can_finish) {
-             finished=true;
-		 }
-		 break;
-	  default:
-		 break;
-	  }
-   }
-   finished = false;
-   can_finish = false;
-   sceneRef.drawing_sidewalks = false;
+	if(event==cv::EVENT_LBUTTONUP && release) {
+		std::cout << "Left mouse button release at (" << x << ", " << y << ")" << std::endl;
+		x2 = ( x < sceneRef.orig.cols ? x : sceneRef.orig.cols-2);
+		x2 = ( x2 > 0 ? x2 : 1);
+		y2 = ( y < sceneRef.orig.rows ? y : sceneRef.orig.rows-2);
+		y2 = ( y2 > 0 ? y2 : 1);
+		release = false;
 
-   std::cout<<"Select streets, press c to continue, press f to finish." << std::endl;
-   while(!finished){
-	  cv::imshow("ImageDisplay", sceneRef.out);
-      switch (cv::waitKey(1)) {
-	      case 'c':
-            if(sceneRef.vertices.size()<2){
-		         std::cout << "You need a minimum of three points!" << std::endl;
-			      can_finish = false;
-            }
-		      else {
-	            std::cout<<"Define orientation (n, s, e, w)" << std::endl;
-               int key = 'x';
-		         while (key != 'n' && key != 's' && key != 'e' && key !='w') {
-			         key = cv::waitKey();
-			         }
+		std::cout<<x1<<","<<y1<<","<<x2<<","<<y2<<std::endl;
+		cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
+		cv::rectangle(roi,cv::Point(x2,y2),cv::Point(x1,y1),cv::Scalar(255,255,255),cv::FILLED);
+		sceneRef.mask = roi;
+		cv::bitwise_and(sceneRef.orig,roi,sceneRef.aux);
+	}
+}
 
-		         // Close polygon
-               line(sceneRef.out,sceneRef.vertices[sceneRef.vertices.size()-1],sceneRef.vertices[0],cv::Scalar(0,0,255),2);
+void drawVertices(RegionsOfInterest *scn)
+{
+	cv::Scalar color = getScnColor(*scn);
+	scn->aux = scn->orig.clone();
+	if (scn->vertices.size()>0) {
+		// Second, or later click, draw all lines to previous vertex
+		for (int i = scn->vertices.size()-1; i > 0; i--){
+			cv::line(scn->aux,scn->vertices[i-1],scn->vertices[i],color,2);
+		}
+	}
+}
 
-               // Mask is black with white where our ROI is
-		         cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
-	            cv::Mat roi2 = roi.clone();  
-               std::vector< std::vector< cv::Point > > pts{sceneRef.vertices};
-               fillPoly(roi, pts, cv::Scalar(0,0,125));
-               fillPoly(roi2, pts, cv::Scalar(255,255,255));
-               sceneRef.street_vertices = sceneRef.vertices;
-		         sceneRef.vertices.clear();
-			      sceneRef.streets.push_back(std::make_pair(roi2, key));
-			      can_finish = true;
-		      }
-		      break;
-	      case 'f':
-		      if (can_finish) {
-		         finished=true;
-		      }
-		      break;
-	      default:
-		      break;
-	   }
-   }
-   double alpha = 0.3;
-   for (int i=0; i<sceneRef.sidewalks.size(); i++)
-	   cv::addWeighted(sceneRef.sidewalks[i], alpha, sceneRef.out, 1.0, 0.0, sceneRef.out);
-   for (int i=0; i<sceneRef.streets.size(); i++) {
-      cv::addWeighted(sceneRef.streets[i].first, alpha, sceneRef.out, 1.0, 0.0, sceneRef.out);
-	  std::cout << "Orientations: " << i << "," << (char) sceneRef.streets[i].second << std::endl;
-   }
+void CallBDraw(int event, int x, int y, int flags, void *scn)
+{
+	RegionsOfInterest* scene = (RegionsOfInterest*) scn;
+	RegionsOfInterest& sceneRef = *scene;
+
+	if(event==cv::EVENT_LBUTTONDOWN){
+		std::cout << "Left mouse button clicked at (" << x << ", " << y << ")" << std::endl;
+		sceneRef.vertices.push_back(cv::Point(x,y));
+		drawVertices(scene);
+	}
+}
+
+bool closePolygon(RegionsOfInterest *scn)
+{
+	RegionsOfInterest* scene = (RegionsOfInterest*) scn;
+	RegionsOfInterest& sceneRef = *scene;
+	cv::Scalar color;
+	double alpha = 0.3;
+
+	if(sceneRef.vertices.size()<2){
+		std::cout << "You need a minimum of three points!" << std::endl;
+		return false;
+	}
+
+	color = getScnColor(sceneRef);
+	// Close polygon
+	cv::line(sceneRef.aux,sceneRef.vertices[sceneRef.vertices.size()-1],sceneRef.vertices[0],color,2);
+
+	// Mask is black with white where our ROI is
+	cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
+	std::vector< std::vector< cv::Point > > pts{sceneRef.vertices};
+	fillPoly(roi,pts,color);
+	int key = 'x';
+	switch(sceneRef.state) {
+		case STREETS:
+			std::cout<<"Define orientation (n, s, e, w)" << std::endl;
+			while (key != 'n' && key != 's' && key != 'e' && key !='w') {
+				key = cv::waitKey();
+			}
+			sceneRef.streets.push_back(std::make_pair(roi,key));
+			break;
+		case SIDEWALKS:
+			sceneRef.sidewalks.push_back(roi);
+			break;
+		case CROSSWALKS:
+			sceneRef.crosswalks.push_back(roi);
+			break;
+		default:
+			std::cout<<"Something is broken"<<std::endl;
+			break;
+	}
+	cv::addWeighted(roi, alpha, sceneRef.out, 1.0, 0.0, sceneRef.out);
+	sceneRef.vertices.clear();
+	return true;
+}
+
+int CropFrame(const cv::String & winname, RegionsOfInterest *scn) {
+	bool finished = false;
+	RegionsOfInterest* scene = (RegionsOfInterest*) scn;
+	RegionsOfInterest& sceneRef = *scene;
+
+	std::cout<<"Select rectangle to crop image. Click, drag and drop. Press 'F' to continue." << std::endl;
+	while(!finished){
+		cv::imshow(winname, sceneRef.aux);
+		switch (cv::waitKey(1)) {
+			case 'F':
+				finished = true;
+				break;
+			case 8: // Del
+				sceneRef.aux = sceneRef.orig.clone();
+				break;
+			case 27: // Esc
+				return -1;
+			default:
+				break;
+		}
+	}
+
+	return 0;
+}
+
+int DrawAreasOfInterest(const cv::String & winname, RegionsOfInterest *scn)
+{
+	bool finished = false;
+	bool can_finish = true;
+	RegionsOfInterest* scene = (RegionsOfInterest*) scn;
+	RegionsOfInterest& sceneRef = *scene;
+
+	sceneRef.aux = sceneRef.orig;
+	std::cout<<"Draw streets (S), sidewalks(W), crosswalks (Z). To draw next area, press (N) or to finish drawing, press (F)." << std::endl;
+	while(!finished){
+		cv::imshow(winname, sceneRef.aux);
+		switch (cv::waitKey(1)) {
+			case 'S':
+				if(can_finish) {
+					sceneRef.state = STREETS;
+					can_finish = false;
+				}
+				break;
+			case 'W':
+				if(can_finish) {
+					sceneRef.state = SIDEWALKS;
+					can_finish = false;
+				}
+				break;
+			case 'Z':
+				if(can_finish) {
+					sceneRef.state = CROSSWALKS;
+					can_finish = false;
+				}
+				break;
+			case 'N':
+				can_finish = closePolygon(scn);
+				break;
+			case 'F':
+				if (can_finish) {
+					finished=true;
+				}
+				break;
+			case 8: // Del
+				if (sceneRef.vertices.size() > 0) {
+					sceneRef.vertices.pop_back();
+				}
+				drawVertices(scene);
+				break;
+			case 27: // Esc
+				return -1;
+			default:
+				break;
+		}
+	}
+	return 0;
 }

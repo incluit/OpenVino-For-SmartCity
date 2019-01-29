@@ -152,10 +152,10 @@ int SingleTracker::isTargetInsideFrame(int _frame_width, int _frame_height, cv::
 
 	if( mask != nullptr ){
 		cv::Mat gray;
-    	cv::cvtColor(*mask, gray, cv::COLOR_BGR2GRAY);
-    	cv::Canny(gray, gray, 100, 200, 3);
+		cv::cvtColor(*mask, gray, cv::COLOR_BGR2GRAY);
+		cv::Canny(gray, gray, 100, 200, 3);
 		std::vector<std::vector<cv::Point>> contours;
-    	findContours( gray, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+		cv::findContours( gray, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 		std::vector<double> r_values;
 		for(auto && i : contours){
 			double aux;
