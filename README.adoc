@@ -71,6 +71,7 @@ A summary of what is needed:
 [source,bash]
 ----
 apt-get install libboost-dev
+apt-get install libboost-log-dev
 ----
 
 === Checks
