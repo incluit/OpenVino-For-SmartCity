@@ -34,11 +34,11 @@ As mentioned previously, we will take the https://github.com/intel-iot-devkit/in
 
 To run the application in this tutorial, the OpenVINO™ toolkit and its dependencies must already be installed and verified using the included demos. Installation instructions may be found at: https://software.intel.com/en-us/articles/OpenVINO-Install-Linux
 
-If to be used, any optional hardware must also be installed and verified including:
+When needed, the following optional hardware can be used:
 
 * USB camera - Standard USB Video Class (UVC) camera.
 
-* GPU - normally embedded with supported Intel® CPUs and requires drivers and updated Linux kernel to run
+* Intel® Core™ CPU with integrated graphics.
 
 * VPU - USB Intel® Movidius™ Neural Compute Stick and what is being referred to as "Myriad"
 
@@ -56,7 +56,7 @@ A summary of what is needed:
 
 ** USB UVC camera
 
-** GPU support
+** Intel® Core™ CPU with integrated graphics
 
 === Software
 
