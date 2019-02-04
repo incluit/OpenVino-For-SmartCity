@@ -296,13 +296,11 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 		
 		std::string a,b,c,d,aux_str;
 
-		a = "========================== Notice! ==========================\n";
-		BOOST_LOG_TRIVIAL(info) << a;
-		b = "Target ID : " + std::to_string(this->id_list-1) + " is now been tracked\n";
+		a = "========================== Notice! ==========================";
+		b = "Target ID : " + std::to_string(this->id_list-1) + " is now been tracked";
 		BOOST_LOG_TRIVIAL(info) << b;
-		c = "=============================================================\n";
-		BOOST_LOG_TRIVIAL(info) << c;
-		aux_str = a + b + c;
+		c = "=============================================================";
+		aux_str = a + '\n' + b + '\n'+ c + '\n';
 		*last_event = aux_str;
 	}
 
@@ -458,15 +456,13 @@ int TrackerManager::deleteTracker(int _target_id, std::string *last_event)
 
 		std::string a,b,c,d,aux_str;
 
-		a = "========================== Notice! ==========================\n";
-		BOOST_LOG_TRIVIAL(info) << a;
-		b = "Target ID : " + std::to_string(_target_id) + " is going out of the frame.\n";
+		a = "========================== Notice! ==========================";
+		b = "Target ID : " + std::to_string(_target_id) + " is going out of the frame";
 		BOOST_LOG_TRIVIAL(info) << b;
-		c = "Target ID : " + std::to_string(_target_id) + " is erased!\n";
+		c = "Target ID : " + std::to_string(_target_id) + " is erased!";
 		BOOST_LOG_TRIVIAL(info) << c;
-		d = "=============================================================\n";
-		BOOST_LOG_TRIVIAL(info) << d;
-		aux_str = a + b + c + d;
+		d = "=============================================================";
+		aux_str = a + '\n' + b + '\n' + c + '\n' + d + '\n';
 		*last_event = aux_str;
 		return SUCCESS;
 	}

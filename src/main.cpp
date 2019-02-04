@@ -49,7 +49,6 @@
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
 
-
 // -------------------------Generic routines for detection networks-------------------------------------------------
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
@@ -90,14 +89,12 @@ void init_logging(std::string base)
     boost::log::register_simple_formatter_factory<boost::log::trivial::severity_level, char>("Severity");
     boost::log::add_file_log(
         boost::log::keywords::file_name = fileName.str(),
-        boost::log::keywords::format = "[%Severity%] - %Message%"
+        boost::log::keywords::format = "[%TimeStamp%] [%Severity%] [%LineID%] - %Message%"
     );
     boost::log::core::get()->set_filter
     (
         boost::log::trivial::severity >= boost::log::trivial::info
     );
-    boost::log::core::get()->add_global_attribute("MyAttr", boost::log::attributes::constant<int>(42));
-    boost::log::core::get()->add_global_attribute("CountDown", boost::log::attributes::counter<int>(100, -1));
     boost::log::add_common_attributes();
 }
 int main(int argc, char *argv[]) {
