@@ -1,4 +1,4 @@
-= OpenVino-For-SmartCity
+= OpenVino For SmartCity
 :idprefix:
 :idseparator: -
 :sectanchors:
