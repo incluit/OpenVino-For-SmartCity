@@ -57,12 +57,13 @@ add_executable(${TARGET_NAME} ${MAIN_SRC} ${MAIN_HEADERS})
 
 add_dependencies(${TARGET_NAME} gflags)
 add_definitions(-DBOOST_LOG_DYN_LINK)
+add_definitions(-DINTEL_CVSDK_VER=$ENV{INTEL_CVSDK_VER})
 
 set_target_properties(${TARGET_NAME} PROPERTIES "CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS} -fPIE"
 COMPILE_PDB_NAME ${TARGET_NAME})
 
 
-target_link_libraries(${TARGET_NAME} format_reader IE::ie_cpu_extension ${IE_LIBRARIES} gflags)
+target_link_libraries(${TARGET_NAME} format_reader IE::ie_cpu_extension ${IE_LIBRARIES} ${InferenceEngine_LIBRARIES} gflags)
 
 if(UNIX)
     target_link_libraries( ${TARGET_NAME} ${LIB_DL} pthread ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})

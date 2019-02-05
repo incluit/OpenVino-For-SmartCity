@@ -16,6 +16,12 @@
 
 #include <inference_engine.hpp>
 
+#define INTEL_LAST_VER 5
+
+#if (INTEL_CVSDK_VER >= INTEL_LAST_VER)
+#include <samples/ocv_common.hpp>
+#endif
+
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <ext_list.hpp>

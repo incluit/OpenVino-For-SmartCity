@@ -4,6 +4,12 @@
 # check for variable set by setupvars.sh in the SDK, need it to find models
 : ${InferenceEngine_DIR:?"Must source the setupvars.sh in the SDK to set InferenceEngine_DIR"}
 
+if (echo $INTEL_CVSDK_DIR | grep -q "\.5\."); then
+	export INTEL_CVSDK_VER=5
+else
+	export INTEL_CVSDK_VER=4
+fi
+
 modelDir=$InferenceEngine_DIR/../../intel_models
 
 # Vehicle and License Plates Detection Model
