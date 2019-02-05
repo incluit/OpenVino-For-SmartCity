@@ -120,7 +120,16 @@ mkdir build
 cd build
 ----
 
-**5.** Compile:
+**5.** Before running each of the following sections, be sure to source the
+helper script. That will make it easier to use environment variables
+instead of long names to the models:
+
+[source,bash]
+----
+source ../scripts/setupenv.sh
+----
+
+**6.** Compile:
 
 [source,bash]
 ----
@@ -134,16 +143,7 @@ make
 
 ==== Detection
 
-**1.** Before running each of the following sections, be sure to source the
-helper script. That will make it easier to use environment variables
-instead of long names to the models:
-
-[source,bash]
-----
-source ../scripts/setupenv.sh 
-----
-
-**2.** First, let us see how it works on a single image file using default
+**1.** First, let us see how it works on a single image file using default
 synchronous mode.
 
 [source,bash]
@@ -151,7 +151,7 @@ synchronous mode.
 ./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -i ../data/car_1.bmp
 ----
 
-**3.** For video files:
+**2.** For video files:
 
 [source,bash]
 ----
@@ -160,7 +160,7 @@ synchronous mode.
 
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/detection.gif[detection]
 
-**4.** You can also run the command in asynchronous mode using the option
+**3.** You can also run the command in asynchronous mode using the option
 "-n_async 2":
 
 [source,bash]
@@ -170,7 +170,7 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/dete
 
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/detection2.gif[detection2]
 
-**5.** You can also load the models into the **GPU** or **MYRIAD**:
+**4.** You can also load the models into the **GPU** or **MYRIAD**:
 
 **Note**: In order to run this section, the **GPU** and/or **MYRIAD** are required to be present and correctly configured.
 
