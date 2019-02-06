@@ -215,13 +215,5 @@ int DrawAreasOfInterest(const cv::String & winname, RegionsOfInterest *scn)
 				break;
 		}
 	}
-	cv::namedWindow("aoi");
-	cv::namedWindow("sidewalks");
-	cv::namedWindow("crosswalks");
-	cv::namedWindow("streets");
-	cv::imshow("aoi", sceneRef.mask);
-	cv::imshow("sidewalks", sceneRef.mask_sidewalks);
-	cv::imshow("crosswalks", sceneRef.mask_crosswalks);
-	cv::imshow("streets", sceneRef.mask_streets);
 	return 0;
 }
