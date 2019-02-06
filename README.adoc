@@ -232,6 +232,8 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/coll
 
 ===== Short explanation
 
+An in-depth explanation can we found in the https://github.com/incluit/OpenVino-For-SmartCity/wiki/3---Collision-Detection[wiki].
+
 Once we have the tracking working, we can retrieve for every object its actual and past positions. We average the last 5 frames to filter the noise of the detection models. Once we have the position, we can get the velocity as the difference of two consecutive positions. Again, we calculate the average of the last 5 velocities to avoid abrupt changes that do not match what actually happens in the scene. We also normalize this speed with a factor of 1/y (being y the vertical position of the object in the image). This has to be done because objects moving closer to the camera appear to be moving faster (in terms of pixels/frame) but that it is not true in reality. Once we get the velocities of each tracked object, we can calculate the acceleration analogously.
 
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/graph.gif[collisionexample]
@@ -240,7 +242,7 @@ In the image above, we can assume that the white van goes at constant speed befo
 
 ===== Near misses (In Progress)
 
-We define near misses as an "extension" of collisions, in the way that we can identify thresholds in speed and acceleration and search for other vehicles in the neighborhood of the offender. We could then detect near misses.
+We define near misses as an "extension" of collisions, in the way that we can identify thresholds in speed and acceleration and search for other vehicles in the neighborhood of the offender. We could then detect near misses. This situations and other dangerous ones are further explored in the https://github.com/incluit/OpenVino-For-SmartCity/wiki/4-Near-Misses[wiki].
 
 ==== Areas of Interest (In Progress)
 
