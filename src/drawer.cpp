@@ -105,7 +105,9 @@ bool closePolygon(RegionsOfInterest *scn)
 	// Mask is black with white where our ROI is
 	cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
 	std::vector< std::vector< cv::Point > > pts{sceneRef.vertices};
-	fillPoly(roi,pts,color);
+	cv::Mat roi2 = roi.clone();
+	cv::fillPoly(roi2,pts,cv::Scalar(255, 255, 255));
+	cv::fillPoly(roi,pts,color);
 	int key = 'x';
 	switch(sceneRef.state) {
 		case STREETS:
@@ -114,12 +116,15 @@ bool closePolygon(RegionsOfInterest *scn)
 				key = cv::waitKey();
 			}
 			sceneRef.streets.push_back(std::make_pair(roi,key));
+			cv::bitwise_or(sceneRef.mask_streets, roi2, sceneRef.mask_streets); 
 			break;
 		case SIDEWALKS:
 			sceneRef.sidewalks.push_back(roi);
+			cv::bitwise_or(sceneRef.mask_sidewalks, roi2, sceneRef.mask_sidewalks); 
 			break;
 		case CROSSWALKS:
 			sceneRef.crosswalks.push_back(roi);
+			cv::bitwise_or(sceneRef.mask_crosswalks, roi2, sceneRef.mask_crosswalks); 
 			break;
 		default:
 			std::cout<<"Something is broken"<<std::endl;
@@ -163,6 +168,10 @@ int DrawAreasOfInterest(const cv::String & winname, RegionsOfInterest *scn)
 	RegionsOfInterest& sceneRef = *scene;
 
 	sceneRef.aux = sceneRef.orig;
+	cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
+	sceneRef.mask_crosswalks = roi.clone();
+	sceneRef.mask_sidewalks = roi.clone();
+	sceneRef.mask_streets = roi.clone();
 	std::cout<<"Draw streets (S), sidewalks(W), crosswalks (Z). To draw next area, press (N) or to finish drawing, press (F)." << std::endl;
 	while(!finished){
 		cv::imshow(winname, sceneRef.aux);
@@ -186,6 +195,7 @@ int DrawAreasOfInterest(const cv::String & winname, RegionsOfInterest *scn)
 				}
 				break;
 			case 'N':
+				std::cout<<"Draw streets (S), sidewalks(W), crosswalks (Z). To draw next area, press (N) or to finish drawing, press (F)." << std::endl;
 				can_finish = closePolygon(scn);
 				break;
 			case 'F':
@@ -205,5 +215,13 @@ int DrawAreasOfInterest(const cv::String & winname, RegionsOfInterest *scn)
 				break;
 		}
 	}
+	cv::namedWindow("aoi");
+	cv::namedWindow("sidewalks");
+	cv::namedWindow("crosswalks");
+	cv::namedWindow("streets");
+	cv::imshow("aoi", sceneRef.mask);
+	cv::imshow("sidewalks", sceneRef.mask_sidewalks);
+	cv::imshow("crosswalks", sceneRef.mask_crosswalks);
+	cv::imshow("streets", sceneRef.mask_streets);
 	return 0;
 }

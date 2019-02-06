@@ -9,6 +9,10 @@ struct RegionsOfInterest {
 	cv::Mat out;
 	int state = 0;
 	cv::Mat mask;
+	cv::Mat mask_streets;
+	cv::Mat mask_sidewalks;
+	cv::Mat mask_crosswalks;
+
 	std::vector<cv::Point> mask_vertices;
 	std::vector<cv::Mat> street_borders;
 	std::vector<cv::Point> vertices;
