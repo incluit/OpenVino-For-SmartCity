@@ -242,7 +242,7 @@ In the image above, we can assume that the white van goes at constant speed befo
 
 ===== Near misses (In Progress)
 
-We define near misses as an "extension" of collisions, in the way that we can identify thresholds in speed and acceleration and search for other vehicles in the neighborhood of the offender. We could then detect near misses. This situations and other dangerous ones are further explored in the https://github.com/incluit/OpenVino-For-SmartCity/wiki/4-Near-Misses[wiki].
+We define near misses as an "extension" of collisions, in the way that we can identify thresholds in speed and acceleration and search for other vehicles in the neighborhood of the offender. We could then detect near misses. These situations and other dangerous ones are further explored in the https://github.com/incluit/OpenVino-For-SmartCity/wiki/4-Near-Misses[wiki].
 
 ==== Areas of Interest (In Progress)
 
