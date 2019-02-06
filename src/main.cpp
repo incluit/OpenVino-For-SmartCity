@@ -222,6 +222,10 @@ int main(int argc, char *argv[]) {
 	scene.aux = scene.orig.clone();
 	scene.out = scene.orig.clone();
 	cv::Mat aux_mask;
+    cv::Mat mask_sidewalk;
+    cv::Mat mask_crosswalk;
+    cv::Mat mask_street;
+
         cv::Mat first_frame_masked = scene.orig.clone();
 
         // Add check
@@ -244,6 +248,10 @@ int main(int argc, char *argv[]) {
 		cv::imshow("Result", scene.out);
 		cv::waitKey();
 		aux_mask = scene.mask;
+        mask_crosswalk = scene.mask_crosswalks;
+        mask_sidewalk = scene.mask_sidewalks;
+        mask_street = scene.mask_streets;
+
 		cv::bitwise_and(scene.orig,scene.mask,first_frame_masked);
 		cv::imshow("Result", first_frame_masked);
 		cv::waitKey();
@@ -273,7 +281,7 @@ int main(int argc, char *argv[]) {
         std::string last_event;
         TrackingSystem tracking_system(&last_event);
         if(FLAGS_show_selection){
-            tracking_system.setMask(&aux_mask);
+            tracking_system.setMask(&aux_mask, &mask_crosswalk, &mask_sidewalk, &mask_street);
         }
         
 

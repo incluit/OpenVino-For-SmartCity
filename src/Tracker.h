@@ -228,10 +228,15 @@ private:
 	std::string 	*last_event;
 	TrackerManager		manager;	// TrackerManager
 	cv::Mat*		mask;
+	cv::Mat*		mask_sidewalks;
+	cv::Mat*		mask_streets;
+	cv::Mat*		mask_crosswalks;
+
 
 public:
 	/* Constructor */
-	TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr){};
+	TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
+					mask_sidewalks(nullptr),mask_streets(nullptr),mask_crosswalks(nullptr){};
 
 	/* Get Function */
 	int    getFrameWidth() { return this->frame_width; }
@@ -246,7 +251,12 @@ public:
 	void   	setFrameHeight(int _frame_height) { this->frame_height = _frame_height; }
 	void   	setCurrentFrame(cv::Mat _current_frame) { this->current_frame = _current_frame; }
 	void   	setInitTarget(std::vector<std::pair<cv::Rect, int>> _init_target) { this->init_target = _init_target; }
-	void   	setMask(cv::Mat* _mask){ this->mask = _mask;}
+	void   	setMask(cv::Mat* _mask, cv::Mat* _mask_crosswalks, cv::Mat* _mask_sidewalks, cv::Mat* _mask_streets){ 
+		this ->	mask = _mask;
+		this -> mask_sidewalks = _mask_sidewalks;
+		this -> mask_streets = _mask_streets;
+		this -> mask_crosswalks = _mask_crosswalks;
+	}
 	/* Core Function */
 	// Initialize TrackingSystem
 	int initTrackingSystem();
