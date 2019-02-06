@@ -230,9 +230,28 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/coll
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/collision2.gif[collision2]
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/collision3.gif[collision3]
 
+===== Short explanation
+
+Once we have the tracking working, we can retrieve for every object its actual and past positions. We average the last 5 frames to filter the noise of the detection models. Once we have the position, we can get the velocity as the difference of two consecutive positions. Again, we calculate the average of the last 5 velocities to avoid abrupt changes that do not match what actually happens in the scene. We also normalize this speed with a factor of 1/y (being y the vertical position of the object in the image). This has to be done because objects moving closer to the camera appear to be moving faster (in terms of pixels/frame) but that it is not true in reality. Once we get the velocities of each tracked object, we can calculate the acceleration analogously.
+
+image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/graph.gif[collisionexample]
+
+In the image above, we can assume that the white van goes at constant speed before getting to the intersection, we can see this plotted as a red line in the chart. Then, it tries to break (we can see a small down peak) and then the black car crashes into it, increasing its speed. The yellow line represents the acceleration of the van, we can clearly see that we could define a threshold on the acceleration to define a hard crash like this one.
+
+===== Near misses (In Progress)
+
+We define near misses as an "extension" of collisions, in the way that we can identify thresholds in speed and acceleration and search for other vehicles in the neighborhood of the offender. We could then detect near misses.
+
 ==== Areas of Interest (In Progress)
 
-One of the main benefits of defining areas of interest, is that it will help us to optimize and focus the precision of the detection model into a specific space, reducing the margin of error (false positives, misdetections, etc). With these regions defined we could also trim or mask the original frames to reduce the computing times of the inference and further image processing.
+To draw areas of interest you should run the command with the `-show_selection` argument.
+
+[source,bash]
+----
+./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -d_vp GPU -i ../data/video82.mp4 -n_async 16 -show_selection -tracking -collision
+----
+
+One of the main benefits of defining areas of interest is that it will help us to optimize and focus the precision of the detection model into a specific space, reducing the margin of error (false positives, misdetections, etc). With these regions defined we could also trim or mask the original frames to reduce the computing times of the inference and further image processing.
 
 The user can crop the image to a rectangle of their interest and draw on the first frame of the video the areas involved, being streets, sidewalks and crosswalks. In the particular case of a street, the user will have to type its orientation (east, west, north, south). Taking into account these criterias for defining AoIs, we are in a position to define rules for considering dangerous situations scenarios, i.e.: a car going from the street to the sidewalks or cars on a crosswalk while there are pedestrians on it. (In Progress)
 
