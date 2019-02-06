@@ -230,6 +230,16 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/coll
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/collision2.gif[collision2]
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/collision3.gif[collision3]
 
+==== Areas of Interest (In Progress)
+
+One of the main benefits of defining areas of interest, is that it will help us to optimize and focus the precision of the detection model into a specific space, reducing the margin of error (false positives, misdetections, etc). With these regions defined we could also trim or mask the original frames to reduce the computing times of the inference and further image processing.
+
+The user can crop the image to a rectangle of their interest and draw on the first frame of the video the areas involved, being streets, sidewalks and crosswalks. In the particular case of a street, the user will have to type its orientation (east, west, north, south). Taking into account these criterias for defining AoIs, we are in a position to define rules for considering dangerous situations scenarios, i.e.: a car going from the street to the sidewalks or cars on a crosswalk while there are pedestrians on it. (In Progress)
+
+image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/areas.gif[areas]
+
+Step by step instructions can be found on the https://github.com/incluit/OpenVino-For-SmartCity/wiki/0---Areas-of-Interest[wiki].
+
 === Performance on detection
 
 **Note**: In order to run this section, the GPU is required to be present and correctly configured.
