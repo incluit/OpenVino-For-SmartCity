@@ -251,7 +251,7 @@ public:
 	void   	setFrameHeight(int _frame_height) { this->frame_height = _frame_height; }
 	void   	setCurrentFrame(cv::Mat _current_frame) { this->current_frame = _current_frame; }
 	void   	setInitTarget(std::vector<std::pair<cv::Rect, int>> _init_target) { this->init_target = _init_target; }
-	void   	setMask(cv::Mat* _mask, std::vector<cv::Mat>* _mask_crosswalks, std::vector<cv::Mat>* _mask_sidewalks, std::vector<std::pair<cv::Mat, int>* _mask_streets){ 
+	void   	setMask(cv::Mat* _mask, std::vector<cv::Mat>* _mask_crosswalks, std::vector<cv::Mat>* _mask_sidewalks, std::vector<std::pair<cv::Mat, int>>* _mask_streets){ 
 		this ->	mask = _mask;
 		this -> mask_sidewalks = _mask_sidewalks;
 		this -> mask_streets = _mask_streets;
