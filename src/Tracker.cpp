@@ -610,6 +610,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 			int target_id = i.get()->getTargetID();
 			tracker_erase.push_back(target_id);
 		}
+		
 	}
 
 	for(auto && i : tracker_erase){

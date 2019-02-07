@@ -111,20 +111,20 @@ bool closePolygon(RegionsOfInterest *scn)
 	int key = 'x';
 	switch(sceneRef.state) {
 		case STREETS:
-			std::cout<<"Define orientation (n, s, e, w)" << std::endl;
+			std::cout<<"Define orientation, (n, s, e, w)" << std::endl;
 			while (key != 'n' && key != 's' && key != 'e' && key !='w') {
 				key = cv::waitKey();
 			}
-			sceneRef.streets.push_back(std::make_pair(roi,key));
-			cv::bitwise_or(sceneRef.mask_streets, roi2, sceneRef.mask_streets); 
+			sceneRef.streets.push_back(std::make_pair(roi, key));
+			sceneRef.mask_streets.push_back(std::make_pair(roi2, key));
 			break;
 		case SIDEWALKS:
 			sceneRef.sidewalks.push_back(roi);
-			cv::bitwise_or(sceneRef.mask_sidewalks, roi2, sceneRef.mask_sidewalks); 
+			sceneRef.mask_sidewalks.push_back(roi2); 
 			break;
 		case CROSSWALKS:
 			sceneRef.crosswalks.push_back(roi);
-			cv::bitwise_or(sceneRef.mask_crosswalks, roi2, sceneRef.mask_crosswalks); 
+			sceneRef.mask_crosswalks.push_back(roi2); 
 			break;
 		default:
 			std::cout<<"Something is broken"<<std::endl;
@@ -168,10 +168,6 @@ int DrawAreasOfInterest(const cv::String & winname, RegionsOfInterest *scn)
 	RegionsOfInterest& sceneRef = *scene;
 
 	sceneRef.aux = sceneRef.orig;
-	cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
-	sceneRef.mask_crosswalks = roi.clone();
-	sceneRef.mask_sidewalks = roi.clone();
-	sceneRef.mask_streets = roi.clone();
 	std::cout<<"Draw streets (S), sidewalks(W), crosswalks (Z). To draw next area, press (N) or to finish drawing, press (F)." << std::endl;
 	while(!finished){
 		cv::imshow(winname, sceneRef.aux);
