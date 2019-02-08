@@ -443,7 +443,7 @@ int main(int argc, char *argv[]) {
                     outputFrame2_clean = ps1ys4i.outputFrame_clean;
 
                     for (auto && loc : ps1ys4i.resultsLocations) {
-
+                        //std::cout << "Confidence: " << loc.first
                         if(loc.second == 1){
                             loc.second = LABEL_PERSON;
                         }else if(loc.second == 0){
@@ -528,7 +528,7 @@ int main(int argc, char *argv[]) {
                                 break;
                         }
                     }
-                    int clear = std::system("clear");
+                    /*int clear = std::system("clear");
                     std::cout << "Frame n°:[" << totalFrames << "]" << std::endl;
                     std::cout << "Amount of infered objects: " << firstResults.size() << std::endl; 
                     std::cout << "Person:       " << n_person << std::endl; 
@@ -538,7 +538,7 @@ int main(int argc, char *argv[]) {
                     std::cout << "Bicycle:      " << n_bike << std::endl; 
                     std::cout << "Motorbike:    " << n_motorbike << std::endl; 
                     std::cout << "Unknown:      " << n_ukn << std::endl; 
-                    std::cout << last_event << std::endl;
+                    std::cout << last_event << std::endl;*/
                 }
 
                 firstFrameWithDetections = false;
@@ -662,6 +662,11 @@ int main(int argc, char *argv[]) {
         }
 
         delete [] inputFrames;
+
+        if(FLAGS_show_graph){
+            int ret = system("../scripts/show_graph.sh"); // myfile.sh should be chmod +x
+        }
+
     }
     catch (const std::exception& error) {
         BOOST_LOG_TRIVIAL(error) << error.what();

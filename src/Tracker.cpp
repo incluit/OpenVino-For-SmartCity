@@ -760,6 +760,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		boost::circular_buffer<double> vel_y = iRef.getVelY_q();
 		boost::circular_buffer<double> acc_x = iRef.getAccX_q();
 		boost::circular_buffer<double> acc_y = iRef.getAccY_q();
+
 		double avg_acc_x = 0;
 		double avg_acc_y = 0;
 
@@ -767,7 +768,6 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		// Normalize velocity as in calcAcc
 		//int y = iRef.getCenter().y+10;
 		//double norm_vel = iRef.getModVel()*1000/y;
-
 
 		bool inc_speed = (vel[0]-vel[5] > 0 ? true : false);
 
@@ -794,6 +794,18 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		double threshold_x = std::abs(sign_x*std::abs(iRef.getAcc_X()) - (avg_acc_x));
 		double threshold_y = std::abs(sign_y*std::abs(iRef.getAcc_Y()) - (avg_acc_y));
 
+		BOOST_LOG_TRIVIAL(info) << "#" << this -> totalFrames << ',' 
+								<< iRef.getTargetID() << ',' 
+								<< vel_x[0] << ',' 
+								<< vel_y[0] << ',' 
+								<< vel[0] << ',' 
+								<< acc_x[0] << ','
+								<< acc_y[0] << ',' 
+								<< iRef.getAcc_q()[0] << ',' 
+								<< threshold_x << ',' 
+								<< threshold_y << ','
+								<< sqrt(threshold_x*threshold_x+threshold_y*threshold_y);
+		
 		if (threshold_x > 4 || threshold_y >= 3 /*&& !same_sign && !inc_speed*/) {
 			iRef.setNearMiss(true);
 			for (auto j = trackerVec.begin(); j != trackerVec.end(); ++j) {
@@ -806,7 +818,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 				if (intersects) {
 					iRef.setRectWidth(2);
 					jRef.setRectWidth(2);
-					BOOST_LOG_TRIVIAL(error)<<"Collision between object "<<iRef.getTargetID()<<" and "<<jRef.getTargetID();
+					BOOST_LOG_TRIVIAL(error)<< "$" << totalFrames << "$Collision between object "<<iRef.getTargetID()<<" and "<<jRef.getTargetID();
 					if (jRef.getNearMiss()) {
 						iRef.setColor(cv::Scalar(0,0,255)); // Red
 						jRef.setColor(cv::Scalar(0,0,255));
@@ -818,6 +830,8 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 			}
 		}
 	}
+	
+	this -> totalFrames++;
 
 	return SUCCESS;
 }

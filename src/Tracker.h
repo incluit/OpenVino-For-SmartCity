@@ -1,6 +1,7 @@
 #pragma once
 
 #include <thread>
+#include <string>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -231,12 +232,12 @@ private:
 	std::vector<cv::Mat>*		mask_sidewalks;
 	std::vector<std::pair<cv::Mat, int>>*		mask_streets;
 	std::vector<cv::Mat>*		mask_crosswalks;
-
+	int 			totalFrames;
 
 public:
 	/* Constructor */
 	TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
-					mask_sidewalks(nullptr),mask_streets(nullptr),mask_crosswalks(nullptr){};
+					mask_sidewalks(nullptr),mask_streets(nullptr),mask_crosswalks(nullptr), totalFrames(0){};
 
 	/* Get Function */
 	int    getFrameWidth() { return this->frame_width; }
