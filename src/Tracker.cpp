@@ -239,7 +239,7 @@ void SingleTracker::assignArea(std::vector<cv::Mat>* mask_sw, std::vector<cv::Ma
 	int ret = 0;
 	cv::Mat* mask_ptr = nullptr;
 
-	if (mask_sw != nullptr || !mask_sw->empty()) {
+	if (mask_sw != nullptr) {
 		for (auto && mask: *mask_sw) {
 			ret = isInsideMask(&mask, &pos);
 			if (ret) {
@@ -248,7 +248,7 @@ void SingleTracker::assignArea(std::vector<cv::Mat>* mask_sw, std::vector<cv::Ma
 		}
 	}
 
-	if (mask_cw != nullptr || !mask_cw->empty()) {
+	if (mask_cw != nullptr) {
 		for (auto && mask: *mask_cw) {
 			ret = isInsideMask(&mask, &pos);
 			if (ret) {
@@ -258,7 +258,7 @@ void SingleTracker::assignArea(std::vector<cv::Mat>* mask_sw, std::vector<cv::Ma
 		}
 	}
 
-	if (mask_str != nullptr || !mask_str->empty()) {
+	if (mask_str != nullptr) {
 		for (auto mask: *mask_str) {
 			ret = isInsideMask(&mask.first, &pos);
 			if (ret) {
@@ -687,20 +687,22 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 			int target_id = i.get()->getTargetID();
 			tracker_erase.push_back(target_id);
 		}
-		for(auto && crosswalk: *this->mask_crosswalks) {
-			if (i->getAreas().second == &crosswalk and &crosswalk != nullptr) {
-				if (i->getLabel() == LABEL_PERSON) {
-					person_cw = true;
+		if(this -> mask_crosswalks != nullptr){
+			for(auto && crosswalk: *this->mask_crosswalks) {
+				if (i->getAreas().second == &crosswalk and &crosswalk != nullptr) {
+					if (i->getLabel() == LABEL_PERSON) {
+						person_cw = true;
+					}
+					if (i->getLabel() == LABEL_CAR) {
+						car_cw = true;
+					}
+					if (car_cw && person_cw) {
+						cv::Mat roi(cv::Size(_mat_img.cols, _mat_img.rows), _mat_img.type(), cv::Scalar(0,0,255));
+						cv::bitwise_and(roi,crosswalk,roi);
+						this->saveCrosswalk(roi);
+					}
+					std::cout<<"OBJECT "<<i->getTargetID()<<" IN CROSSWALK!!!"<<std::endl;
 				}
-				if (i->getLabel() == LABEL_CAR) {
-					car_cw = true;
-				}
-				if (car_cw && person_cw) {
-					cv::Mat roi(cv::Size(_mat_img.cols, _mat_img.rows), _mat_img.type(), cv::Scalar(0,0,255));
-					cv::bitwise_and(roi,crosswalk,roi);
-					this->saveCrosswalk(roi);
-				}
-				std::cout<<"OBJECT "<<i->getTargetID()<<" IN CROSSWALK!!!"<<std::endl;
 			}
 		}
 	}
