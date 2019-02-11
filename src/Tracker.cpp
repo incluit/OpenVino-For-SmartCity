@@ -201,6 +201,74 @@ int SingleTracker::markForDeletion()
 	return SUCCESS;
 }
 
+int isInsideMask(cv::Mat * mask, cv::Point2f * pos)
+{
+	cv::Mat gray;
+	cv::cvtColor(*mask, gray, cv::COLOR_BGR2GRAY);
+	cv::Canny(gray, gray, 100, 200, 3);
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours( gray, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+	std::vector<double> r_values;
+	for(auto && i : contours){
+		double aux;
+		aux = cv::pointPolygonTest(i,*pos,false);
+		r_values.push_back(aux);
+	}
+	bool band = FALSE;
+	for(auto && i :r_values){
+		if (i == 1){
+			band = TRUE;
+		} else {
+			band = FALSE;
+		}
+	}
+	return band;
+}
+
+/* ---------------------------------------------------------------------------------
+
+Function : assignArea
+
+Assign area to each object based on the areas drawn by the user.
+
+--------------------------------------------------------------------------------- */
+void SingleTracker::assignArea(std::vector<cv::Mat>* mask_sw, std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str )
+{
+	char areas = 0;
+	cv::Point2f pos = (cv::Point2f)this->getBottom();
+	int ret = 0;
+	cv::Mat* mask_ptr = nullptr;
+
+	if (mask_sw != nullptr || !mask_sw->empty()) {
+		for (auto && mask: *mask_sw) {
+			ret = isInsideMask(&mask, &pos);
+			if (ret) {
+				areas = areas | FLAG_SW;
+			}
+		}
+	}
+
+	if (mask_cw != nullptr || !mask_cw->empty()) {
+		for (auto && mask: *mask_cw) {
+			ret = isInsideMask(&mask, &pos);
+			if (ret) {
+				areas = areas | FLAG_CW;
+				mask_ptr = &mask;
+			}
+		}
+	}
+
+	if (mask_str != nullptr || !mask_str->empty()) {
+		for (auto mask: *mask_str) {
+			ret = isInsideMask(&mask.first, &pos);
+			if (ret) {
+				areas = areas | FLAG_STR;
+			}
+		}
+	}
+
+	this->setArea(areas, mask_ptr);
+}
 /* ---------------------------------------------------------------------------------
 
 Function : doSingleTracking
@@ -211,7 +279,7 @@ SingleTracker::rect is initialized to the target position in the constructor of 
 Using correlation_tracker in dlib, start tracking 'one' target
 
 --------------------------------------------------------------------------------- */
-int SingleTracker::doSingleTracking(cv::Mat _mat_img)
+int SingleTracker::doSingleTracking(cv::Mat _mat_img, std::vector<cv::Mat>* mask_sw, std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str )
 {
 	//Exception
 	if (_mat_img.empty())
@@ -231,12 +299,12 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img)
 	}
 	this->setUpdateFromDetection(false);
 	// New position of the target
-
 	// Update variables(center, rect, confidence)
 	this->setCenter(updated_rect);
 	this->setRect(updated_rect);
 	//this->setConfidence(confidence);
 	this->saveLastCenter(this->getCenter());
+	this->assignArea(mask_sw, mask_cw, mask_str);
 	this->calcAvgPos();
 	this->calcVel();
 	this->calcAcc();
@@ -592,15 +660,24 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 
 	std::vector<std::thread> thread_pool;
 
+	std::vector<cv::Mat>* mask_sw = this->mask_sidewalks;
+
+	std::vector<cv::Mat>* mask_cw = this->mask_crosswalks;
+
+	std::vector<std::pair<cv::Mat, int>>* mask_str = this->mask_streets;
+
 	// Multi thread
 	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&](std::shared_ptr<SingleTracker> ptr) {
-		thread_pool.emplace_back([ptr, &_mat_img]() { 
-		 ptr.get()->doSingleTracking(_mat_img); 
+		thread_pool.emplace_back([ptr, &_mat_img, &mask_sw, &mask_cw, &mask_str]() {
+		 ptr.get()->doSingleTracking(_mat_img, mask_sw, mask_cw, mask_str);
 		});
 	});
 
 	for (int i = 0; i < thread_pool.size(); i++)
 		thread_pool[i].join();
+
+	bool person_cw = false;
+	bool car_cw = false;
 
 	// If target is going out of the frame, delete that tracker.
 	std::vector<int> tracker_erase;
@@ -610,7 +687,22 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 			int target_id = i.get()->getTargetID();
 			tracker_erase.push_back(target_id);
 		}
-		
+		for(auto && crosswalk: *this->mask_crosswalks) {
+			if (i->getAreas().second == &crosswalk and &crosswalk != nullptr) {
+				if (i->getLabel() == LABEL_PERSON) {
+					person_cw = true;
+				}
+				if (i->getLabel() == LABEL_CAR) {
+					car_cw = true;
+				}
+				if (car_cw && person_cw) {
+					cv::Mat roi(cv::Size(_mat_img.cols, _mat_img.rows), _mat_img.type(), cv::Scalar(0,0,255));
+					cv::bitwise_and(roi,crosswalk,roi);
+					this->saveCrosswalk(roi);
+				}
+				std::cout<<"OBJECT "<<i->getTargetID()<<" IN CROSSWALK!!!"<<std::endl;
+			}
+		}
 	}
 
 	for(auto && i : tracker_erase){
@@ -675,6 +767,12 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 			ptr.get()->getColor(),
 			1); //Width
 	});
+
+	// Draw dangerous (?) crosswalks
+	for (auto && cw: this->d_cws)
+		cv::addWeighted(cw, 0.5, _mat_img, 1.0, 0.0, _mat_img);
+
+	this->d_cws.clear();
 
 	return SUCCESS;
 }
@@ -755,6 +853,9 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 	std::vector<std::shared_ptr<SingleTracker>> trackerVec = manager.getTrackerVec();
 	for (auto i = trackerVec.begin(); i != trackerVec.end(); ++i) {
 		SingleTracker& iRef = *(*i);
+		if (iRef.getLabel() == LABEL_PERSON) {
+			continue;
+		}
 		boost::circular_buffer<double> vel = iRef.getVel_q();
 		boost::circular_buffer<double> vel_x = iRef.getVelX_q();
 		boost::circular_buffer<double> vel_y = iRef.getVelY_q();

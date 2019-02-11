@@ -280,9 +280,7 @@ int main(int argc, char *argv[]) {
         int update_counter = 0;
         std::string last_event;
         TrackingSystem tracking_system(&last_event);
-        if(FLAGS_show_selection){
-            tracking_system.setMask(&aux_mask, &mask_crosswalk, &mask_sidewalk, &mask_streets);
-        }
+        tracking_system.setMask(&aux_mask, &mask_crosswalk, &mask_sidewalk, &mask_streets);
         
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
@@ -465,7 +463,7 @@ int main(int argc, char *argv[]) {
                                                         color_obj = COLOR_UNKNOWN;
                                                         break;
                                                 }
-                            cv::rectangle(outputFrame, loc.first, color_obj, 1);
+                            cv::rectangle(outputFrame_clean, loc.first, color_obj, 1);
                         }
                         if (firstFrameWithDetections || update_counter == update_frame ){
                             firstResults.push_back(loc);

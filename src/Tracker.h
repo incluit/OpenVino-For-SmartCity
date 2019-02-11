@@ -14,6 +14,7 @@
 #include <boost/log/expressions.hpp>
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include <algorithm>
 
 #define FAIL		-1
 #define SUCCESS		1
@@ -24,6 +25,10 @@
 
 #define ENTER		13
 #define ESC		27
+
+#define FLAG_SW 1
+#define FLAG_CW 1<<1
+#define FLAG_STR 1<<2
 
 const int n_frames = 5; // Number of positions to save in the circular buffer
 const int n_frames_pos = 50; // Number of positions to save in the circular buffer
@@ -46,6 +51,7 @@ private:
 	double		confidence;			// Confidence of tracker
 	cv::Rect	rect;				// Initial Rectangle for target
 	cv::Point	center;				// Current center point of target
+	cv::Point	bottom;				// Base center point of target
 	bool		is_tracking_started;		// Is tracking started or not? (Is initializing done or not?)
 	cv::Scalar	color;				// Box color
 	int		rect_width;			// Box width
@@ -70,12 +76,12 @@ private:
 	bool		to_delete;			// Mark for deletion
 	int		no_update_counter;		// Counter if object doesn't get updated
 	bool		near_miss;			// If in near miss situation
-	
+	std::pair<char, cv::Mat*>	b_areas;	// Areas where the tracker belongs
 
 public:
 	/* Member Initializer & Constructor*/
 	SingleTracker(int _target_id, cv::Rect _init_rect, cv::Scalar _color, int _label)
-		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0), v_x_q(boost::circular_buffer<double>(n_frames_vel)), v_y_q(boost::circular_buffer<double>(n_frames_vel)), v_q(boost::circular_buffer<double>(n_frames_vel)), avg_pos(boost::circular_buffer<cv::Point>(n_frames_pos)), a_q(boost::circular_buffer<double>(n_frames_vel)), a_x_q(boost::circular_buffer<double>(n_frames_vel)), a_y_q(boost::circular_buffer<double>(n_frames_vel)), near_miss(false), rect_width(1)
+		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0), v_x_q(boost::circular_buffer<double>(n_frames_vel)), v_y_q(boost::circular_buffer<double>(n_frames_vel)), v_q(boost::circular_buffer<double>(n_frames_vel)), avg_pos(boost::circular_buffer<cv::Point>(n_frames_pos)), a_q(boost::circular_buffer<double>(n_frames_vel)), a_x_q(boost::circular_buffer<double>(n_frames_vel)), a_y_q(boost::circular_buffer<double>(n_frames_vel)), near_miss(false), rect_width(1), b_areas(std::make_pair(0, nullptr))
 	{
 		// Exception
 		if (_init_rect.area() == 0)
@@ -100,6 +106,7 @@ public:
 	int		getTargetID() { return this->target_id; }
 	cv::Rect	getRect() { return this->rect; }
 	cv::Point	getCenter() { return this->center; }
+	cv::Point	getBottom() { return this->bottom; }
 	cv::Point	getVel() { return this->vel; }
 	double		getVel_X() { return this->vel_x; }
 	double		getVel_Y() { return this->vel_y; }
@@ -125,12 +132,13 @@ public:
 	int		getNoUpdateCounter() { return this->no_update_counter; }
 	bool		getNearMiss() { return this->near_miss; }
 	int		getRectWidth() { return this->rect_width; }
+	std::pair<char, cv::Mat*> getAreas() {return this->b_areas; }
 
 	/* Set Function */
 	void setTargetId(int _target_id) { this->target_id = _target_id; }
 	void setRect(cv::Rect _rect) { this->rect = _rect; }
-	void setCenter(cv::Point _center) { this->center = _center; }
-	void setCenter(cv::Rect _rect) { this->center = cv::Point(_rect.x + (_rect.width) / 2, _rect.y + (_rect.height) / 2); }
+	void setCenter(cv::Point _center) { this->center = _center; this->bottom = cv::Point(this->center.x,this->center.y + (this->rect.height / 2)); }
+	void setCenter(cv::Rect _rect) { this->center = cv::Point(_rect.x + (_rect.width) / 2, _rect.y + (_rect.height) / 2); this->bottom = cv::Point(this->center.x,this->center.y + (this->rect.height / 2)); }
 	void setVel(cv::Point _vel) { this->vel = _vel; updateVel_X(); updateVel_Y(); updateModVel(); }
 	void setAcc(cv::Point _acc) { this->acc = _acc; updateAcc_X(); updateAcc_Y(); updateModAcc(); }
 	void setConfidence(double _confidence) { this->confidence = _confidence; }
@@ -141,6 +149,7 @@ public:
 	void setNoUpdateCounter(int _counter) { this->no_update_counter = _counter; }
 	void setNearMiss(bool _near_miss) { this->near_miss = _near_miss; }
 	void setRectWidth(int _rect_width) { this->rect_width = _rect_width; }
+	void setArea(char _areas, cv::Mat* _mask) {this->b_areas = std::make_pair(_areas,_mask); } 
 
 	/* Velocity Related */
 	void saveLastCenter(cv::Point _center) { this->c_q.push_front(_center); }
@@ -157,15 +166,17 @@ public:
 	void calcAvgPos();
 	void calcAcc();
 
+	void assignArea(std::vector<cv::Mat>* mask_sw, std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str );
+
 	/* Core Function */
 	// Initialize
 	int startSingleTracking(cv::Mat _mat_img);
 
 	// Do tracking
-	int doSingleTracking(cv::Mat _mat_img);
+	int doSingleTracking(cv::Mat _mat_img, std::vector<cv::Mat>* mask_sw, std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str);
 
 	// Check the target is inside of the frame
-	int isTargetInsideFrame(int _frame_width, int _frame_height, cv::Mat 	*mask);
+	int isTargetInsideFrame(int _frame_width, int _frame_height, cv::Mat *mask);
 
 	// Check if tracker needs to be deleted
 	int markForDeletion();
@@ -220,23 +231,24 @@ TrackingSystem is using these classes properly and hadling all expected exceptio
 ====================================================================================================== */
 class TrackingSystem
 {
-private:
-	int				frame_width;	// Frame image width
-	int				frame_height;	// Frame image height
-	cv::Mat			current_frame;	// Current frame
-	std::vector<std::pair<cv::Rect, int>> init_target;
-	std::vector<std::pair<cv::Rect, int>> updated_target;
-	std::string 	*last_event;
-	TrackerManager		manager;	// TrackerManager
-	cv::Mat*		mask;
-	std::vector<cv::Mat>*		mask_sidewalks;
-	std::vector<std::pair<cv::Mat, int>>*		mask_streets;
-	std::vector<cv::Mat>*		mask_crosswalks;
-	int 			totalFrames;
+	private:
+		int				frame_width;	// Frame image width
+		int				frame_height;	// Frame image height
+		cv::Mat			current_frame;	// Current frame
+		std::vector<std::pair<cv::Rect, int>> init_target;
+		std::vector<std::pair<cv::Rect, int>> updated_target;
+		std::string 	*last_event;
+		TrackerManager		manager;	// TrackerManager
+		cv::Mat*		mask;
+		std::vector<cv::Mat>*		mask_sidewalks;
+		std::vector<std::pair<cv::Mat, int>>*		mask_streets;
+		std::vector<cv::Mat>*		mask_crosswalks;
+		std::vector<cv::Mat>		d_cws;
+		int 			totalFrames;
 
-public:
-	/* Constructor */
-	TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
+	public:
+		/* Constructor */
+		TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
 					mask_sidewalks(nullptr),mask_streets(nullptr),mask_crosswalks(nullptr), totalFrames(0){};
 
 	/* Get Function */
@@ -244,6 +256,9 @@ public:
 	int    getFrameHeight() { return this->frame_height; }
 	cv::Mat   getCurrentFrame() { return this->current_frame; }
 	TrackerManager getTrackerManager() { return this->manager; }
+	std::vector<cv::Mat>* getMask_sw() { return this->mask_sidewalks; }
+	std::vector<cv::Mat>* getMask_cw() { return this->mask_crosswalks; }
+	std::vector<std::pair<cv::Mat, int>>* getMask_str() { return this->mask_streets; }
 
 
 	/* Set Function */
@@ -258,6 +273,9 @@ public:
 		this -> mask_streets = _mask_streets;
 		this -> mask_crosswalks = _mask_crosswalks;
 	}
+
+	void saveCrosswalk(cv::Mat _roi) { this->d_cws.push_back(_roi); }
+
 	/* Core Function */
 	// Initialize TrackingSystem
 	int initTrackingSystem();
