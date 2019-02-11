@@ -662,7 +662,7 @@ int main(int argc, char *argv[]) {
         delete [] inputFrames;
 
         if(FLAGS_show_graph){
-            int ret = system("../scripts/show_graph.sh"); // myfile.sh should be chmod +x
+            int ret = system("../scripts/show_graph.sh"); // file should be chmod +x
         }
 
     }

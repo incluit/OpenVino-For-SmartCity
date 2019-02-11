@@ -919,7 +919,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 				if (intersects) {
 					iRef.setRectWidth(2);
 					jRef.setRectWidth(2);
-					BOOST_LOG_TRIVIAL(error)<< "$" << totalFrames << "$Collision between object "<<iRef.getTargetID()<<" and "<<jRef.getTargetID();
+					BOOST_LOG_TRIVIAL(error)<< "$" << totalFrames << "$Collision between object $"<<iRef.getTargetID()<<"$ and $"<< jRef.getTargetID() << "$";
 					if (jRef.getNearMiss()) {
 						iRef.setColor(cv::Scalar(0,0,255)); // Red
 						jRef.setColor(cv::Scalar(0,0,255));
