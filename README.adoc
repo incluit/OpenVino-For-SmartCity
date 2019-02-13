@@ -261,32 +261,7 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/area
 
 Step by step instructions can be found on the https://github.com/incluit/OpenVino-For-SmartCity/wiki/0---Areas-of-Interest[wiki].
 
-=== Performance on detection
-
-**Note**: In order to run this section, the GPU is required to be present and correctly configured.
-
-While **person-vehicle-bike-detection-crossroad-0078** and **yolo_v3** detect better in most cases, they have the disadvantage of being too slow for processing, achieving 20 fps and 8 fps respectively. On the other hand, if we can use 2 lighter models to detect different objects, we can parallelize the processing in different devices and take advantage of the asynchronous mode, as follows:
-
-**1.** First we run in synchronous mode and then asynchronously with increasing -n_async values using the commands:
-
-[source,bash]
-----
-./intel64/Release/smart_city_tutorial -m $mVDR16 -d {CPU,GPU} -m_p $person232 -d_p {GPU,CPU} -i ../data/video1_640x320.mp4 -n_async 1
-./intel64/Release/smart_city_tutorial -m $mVDR16 -d {CPU,GPU} -m_p $person232 -d_p {GPU,CPU} -i ../data/video1_640x320.mp4 -n_async 2
-./intel64/Release/smart_city_tutorial -m $mVDR16 -d {CPU,GPU} -m_p $person232 -d_p {GPU,CPU} -i ../data/video1_640x320.mp4 -n_async 4
-./intel64/Release/smart_city_tutorial -m $mVDR16 -d {CPU,GPU} -m_p $person232 -d_p {GPU,CPU} -i ../data/video1_640x320.mp4 -n_async 8
-./intel64/Release/smart_city_tutorial -m $mVDR16 -d {CPU,GPU} -m_p $person232 -d_p {GPU,CPU} -i ../data/video1_640x320.mp4 -n_async 16
-----
-
-**2.** Asynchronous mode should be faster by some amount for `-n_async 2` then a little more for `-n_async 4` and `-n_async 8`, then not as noticeable for `-n_async 16`. The improvements come from the CPU running in parallel more and more with the GPU. The absence of improvement shows when the CPU is doing less in parallel and is waiting on the other devices. This is referred to as “diminishing returns” and will vary across devices and inference models.
-
-**3.** We run a performance analysis by running each 9 combinations of model/device/precision with `-n_async 16`. The following graph shows the results:
-
-image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Vehicle%20and%20Pedestrian%20detection%20performance.png[performance]
-
-=== Observations on Models and Performance
-
-While the 2 light combined models work way faster than the heavy single ones, they're restricted in terms of perspective, making them unavailable for most use cases where the camera is not positioned in a way that they can detect properly. That is why we recommend using any of the other 2 for further implementations and analyses.
+=== Performance analysis (in progress)
 
 == To Do
 
