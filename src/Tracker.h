@@ -76,12 +76,13 @@ private:
 	bool		to_delete;			// Mark for deletion
 	int		no_update_counter;		// Counter if object doesn't get updated
 	bool		near_miss;			// If in near miss situation
+	bool		collision;			// If in collision situation
 	std::pair<char, cv::Mat*>	b_areas;	// Areas where the tracker belongs
 
 public:
 	/* Member Initializer & Constructor*/
 	SingleTracker(int _target_id, cv::Rect _init_rect, cv::Scalar _color, int _label)
-		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0), v_x_q(boost::circular_buffer<double>(n_frames_vel)), v_y_q(boost::circular_buffer<double>(n_frames_vel)), v_q(boost::circular_buffer<double>(n_frames_vel)), avg_pos(boost::circular_buffer<cv::Point>(n_frames_pos)), a_q(boost::circular_buffer<double>(n_frames_vel)), a_x_q(boost::circular_buffer<double>(n_frames_vel)), a_y_q(boost::circular_buffer<double>(n_frames_vel)), near_miss(false), rect_width(1), b_areas(std::make_pair(0, nullptr))
+		: target_id(_target_id), confidence(0), is_tracking_started(false), c_q(boost::circular_buffer<cv::Point>(n_frames)), modvel(0), vel_x(0), vel_y(0), to_delete(false), no_update_counter(0), v_x_q(boost::circular_buffer<double>(n_frames_vel)), v_y_q(boost::circular_buffer<double>(n_frames_vel)), v_q(boost::circular_buffer<double>(n_frames_vel)), avg_pos(boost::circular_buffer<cv::Point>(n_frames_pos)), a_q(boost::circular_buffer<double>(n_frames_vel)), a_x_q(boost::circular_buffer<double>(n_frames_vel)), a_y_q(boost::circular_buffer<double>(n_frames_vel)), near_miss(false), collision(false), rect_width(1), b_areas(std::make_pair(0, nullptr))
 	{
 		// Exception
 		if (_init_rect.area() == 0)
@@ -131,6 +132,7 @@ public:
 	bool		getDelete() { return this->to_delete; }
 	int		getNoUpdateCounter() { return this->no_update_counter; }
 	bool		getNearMiss() { return this->near_miss; }
+	bool		getCollision() { return this->collision; }
 	int		getRectWidth() { return this->rect_width; }
 	std::pair<char, cv::Mat*> getAreas() {return this->b_areas; }
 
@@ -148,6 +150,7 @@ public:
 	void setUpdateFromDetection(bool _update) { this->update = _update; }
 	void setNoUpdateCounter(int _counter) { this->no_update_counter = _counter; }
 	void setNearMiss(bool _near_miss) { this->near_miss = _near_miss; }
+	void setCollision(bool _collision) { this->collision = _collision; }
 	void setRectWidth(int _rect_width) { this->rect_width = _rect_width; }
 	void setArea(char _areas, cv::Mat* _mask) {this->b_areas = std::make_pair(_areas,_mask); } 
 

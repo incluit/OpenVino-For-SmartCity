@@ -757,17 +757,35 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 		str_label = getLabelStr(ptr.get()->getLabel());
 		cv::String text(std::string("ID: ") + std::to_string(ptr.get()->getTargetID()) + " Class: " + str_label);
 		cv::Point text_pos = ptr.get()->getRect().tl();
-		text_pos.x = text_pos.x - 10;
+		text_pos.x = text_pos.x + 2;
 		text_pos.y = text_pos.y - 5;
 
+		int box_width = ptr.get()->getRect().width;
+		cv::rectangle(_mat_img,cv::Point(text_pos.x-3,text_pos.y-15),cv::Point(text_pos.x-2+box_width,text_pos.y+5),ptr.get()->getColor(),cv::FILLED);
 		// Put all target ids
 		cv::putText(_mat_img,
 			text,
 			text_pos,
 			cv::FONT_HERSHEY_SIMPLEX,
 			0.5, //Scale
-			ptr.get()->getColor(),
-			1); //Width
+			/*ptr.get()->getColor()*/cv::Scalar(0,0,0),
+			2); //Width
+
+		if (ptr.get()->getCollision() || ptr.get()->getNearMiss()) {
+			cv::String text_status;
+			text_pos = ptr.get()->getRect().tl();
+			text_pos.x = text_pos.x + 2;
+			text_pos.y = text_pos.y + ptr.get()->getRect().height + 12;
+
+			cv::rectangle(_mat_img,cv::Point(text_pos.x-3,text_pos.y-12),cv::Point(text_pos.x-2+box_width,text_pos.y+3),ptr.get()->getColor(),cv::FILLED);
+
+			if (ptr.get()->getCollision()) {
+				text_status = "Collision";
+			} else {
+				text_status = "Near Miss";
+			}
+			cv::putText(_mat_img,text_status,text_pos,cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(0,0,0),2);
+		}
 	});
 
 	// Draw dangerous (?) crosswalks
@@ -923,6 +941,8 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 					jRef.setRectWidth(2);
 					BOOST_LOG_TRIVIAL(error)<< "$" << totalFrames << "$Collision between object $"<<iRef.getTargetID()<<"$ and $"<< jRef.getTargetID() << "$";
 					if (jRef.getNearMiss()) {
+						iRef.setCollision(true);
+						jRef.setCollision(true);
 						iRef.setColor(cv::Scalar(0,0,255)); // Red
 						jRef.setColor(cv::Scalar(0,0,255));
 					} else {
