@@ -102,6 +102,7 @@ int main(int argc, char *argv[]) {
         init_logging("test");
         std::cout << "Incluit - Openvino-for-Smartcity" << std::endl;
         BOOST_LOG_TRIVIAL(info) << "Incluit - Openvino-for-Smartcity";
+        
         /** This sample covers 2 certain topologies and cannot be generalized **/
         BOOST_LOG_TRIVIAL(info) << "InferenceEngine: " << InferenceEngine::GetInferenceEngineVersion();
 
@@ -283,12 +284,14 @@ int main(int argc, char *argv[]) {
         if(FLAGS_show_selection){
             tracking_system.setMask(&aux_mask, &mask_crosswalk, &mask_sidewalk, &mask_streets);
         }
-        
+        if(FLAGS_show_graph)
+            tracking_system.setUpCollections();
+
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
         
         // Queues to pass information across pipeline stages
-
+        
         wallclockStart = std::chrono::high_resolution_clock::now();
         /** Start inference & calc performance **/
         do {
@@ -664,7 +667,7 @@ int main(int argc, char *argv[]) {
         delete [] inputFrames;
 
         if(FLAGS_show_graph){
-            int ret = system("../scripts/show_graph.sh"); // file should be chmod +x
+            //int ret = system("../scripts/show_graph.sh"); // file should be chmod +x
         }
 
     }

@@ -29,6 +29,7 @@ else()
 endif()
 
 find_package(Boost COMPONENTS log system filesystem REQUIRED)
+find_package(libmongocxx)
 
 if( BUILD_SAMPLE_NAME AND NOT ${BUILD_SAMPLE_NAME} STREQUAL ${TARGET_NAME} )
     message(STATUS "SAMPLE ${TARGET_NAME} SKIPPED")
@@ -50,6 +51,8 @@ source_group("include" FILES ${MAIN_HEADERS})
 
 include_directories (${OpenCV_INCLUDE_DIRS})
 include_directories (${Boost_INCLUDE_DIRS})
+include_directories (${LIBMONGOCXX_INCLUDE_DIRS})
+
 link_directories(${LIB_FOLDER})
 
 # Create library file from sources.
@@ -66,5 +69,5 @@ COMPILE_PDB_NAME ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} format_reader IE::ie_cpu_extension ${IE_LIBRARIES} ${InferenceEngine_LIBRARIES} gflags)
 
 if(UNIX)
-    target_link_libraries( ${TARGET_NAME} ${LIB_DL} pthread ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
+    target_link_libraries( ${TARGET_NAME} ${LIB_DL} pthread ${OpenCV_LIBRARIES} ${Boost_LIBRARIES} ${LIBMONGOCXX_LIBRARIES})
 endif()

@@ -279,7 +279,9 @@ SingleTracker::rect is initialized to the target position in the constructor of 
 Using correlation_tracker in dlib, start tracking 'one' target
 
 --------------------------------------------------------------------------------- */
-int SingleTracker::doSingleTracking(cv::Mat _mat_img, std::vector<cv::Mat>* mask_sw, std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str )
+int SingleTracker::doSingleTracking(cv::Mat _mat_img, std::vector<cv::Mat>* mask_sw, 
+								std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str,
+								Pipe* buffer, int* totalFrames, bool dbEnable)
 {
 	//Exception
 	if (_mat_img.empty())
@@ -310,6 +312,20 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img, std::vector<cv::Mat>* mask
 	this->calcAcc();
 	this->no_update_counter++;
 	this->markForDeletion();
+
+	if(dbEnable){
+		PipeItem document;
+		document.frame = *totalFrames; 
+		document.Id = getTargetID();
+		document.vel_x = getVelX_q()[0];
+		document.vel_y = getVelY_q()[0]; 
+		document.vel = getVel_q()[0]; 
+		document.acc_x = getAccX_q()[0];
+		document.acc_y = getAccY_q()[0]; 
+		document.acc = getAcc_q()[0]; 
+		buffer->push_back(document);
+	}
+	
 	return SUCCESS;
 }
 
@@ -322,7 +338,7 @@ If you are about to track new person, need to use this function.
 
 ------------------------------------------------------------------------- */
 
-int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool update, std::string *last_event)
+int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool update, std::string *last_event, bool* dbEnable, int* totalFrames, Pipe* buffer)
 {
 	// Exceptions
 	if (_init_rect.area() == 0)
@@ -363,6 +379,14 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 		this->id_list = _target_id + 1; // Next ID
 		
 		std::string a,b,c,d,aux_str;
+
+		if(*dbEnable){
+			PipeItem document;
+			document.Id = this->id_list-1;
+			document.frame = *totalFrames;
+			document.event = "Start being tracked";
+			buffer -> push_back(document); 
+		}
 
 		a = "========================== Notice! ==========================";
 		b = "Target ID : " + std::to_string(this->id_list-1) + " is now been tracked";
@@ -501,7 +525,7 @@ Function : deleteTracker
 Delete SingleTracker object which has ID : _target_id in the TrackerManager::tracker_vec
 
 ----------------------------------------------------------------------------------- */
-int TrackerManager::deleteTracker(int _target_id, std::string *last_event)
+int TrackerManager::deleteTracker(int _target_id, std::string *last_event, bool* dbEnable, int* totalFrames, Pipe* buffer)
 {
 	int result_idx = this->findTrackerByID(_target_id);
 
@@ -521,6 +545,14 @@ int TrackerManager::deleteTracker(int _target_id, std::string *last_event)
 
 		// Remove SingleTracker object from the vector
 		this->tracker_vec.erase(tracker_vec.begin() + result_idx);
+
+		if(*dbEnable){
+			PipeItem document;
+			document.Id = _target_id;
+			document.frame = *totalFrames;
+			document.event = "Stop being tracked";
+			buffer -> push_back(document); 
+		}
 
 		std::string a,b,c,d,aux_str;
 
@@ -566,7 +598,7 @@ int TrackingSystem::initTrackingSystem()
 		label = i.second;
 		if ((double)i.first.area()/(double)(getFrameWidth()*getFrameHeight()) < 0.009 && label == LABEL_CAR)
 			continue;
-		if (this->manager.insertTracker(i.first, color, index, label, false, this->last_event) == FAIL)
+		if (this->manager.insertTracker(i.first, color, index, label, false, this->last_event, &this->dbEnable,&this->totalFrames, &this->buffer_events) == FAIL)
 		{
 			BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================";
 			BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::initTrackingSystem";
@@ -614,7 +646,7 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 			continue;
 		index = this->manager.findTracker(i.first, label);
 		if ( index != -1) {
-			if (this->manager.insertTracker(i.first, color, index, label, true,this->last_event) == FAIL)
+			if (this->manager.insertTracker(i.first, color, index, label, true,this->last_event, &this->dbEnable,&this->totalFrames, &this->buffer_events) == FAIL)
 			{
 				BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================";
 				BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::updateTrackingSystem";
@@ -624,6 +656,7 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 			}
 		}
 	}
+	//this->dbWrite(&this->events, &this->buffer_events);
 	return SUCCESS;
 }
 
@@ -666,15 +699,23 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 
 	std::vector<std::pair<cv::Mat, int>>* mask_str = this->mask_streets;
 
+	Pipe* buffer = &this->buffer_tracker;
+
+	int* tFrames = &this->totalFrames;
+
+	bool dbEn = this->dbEnable;
+
 	// Multi thread
 	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&](std::shared_ptr<SingleTracker> ptr) {
-		thread_pool.emplace_back([ptr, &_mat_img, &mask_sw, &mask_cw, &mask_str]() {
-		 ptr.get()->doSingleTracking(_mat_img, mask_sw, mask_cw, mask_str);
+		thread_pool.emplace_back([ptr, &_mat_img, &mask_sw, &mask_cw, &mask_str, &buffer, &tFrames, dbEn]() {
+		 ptr.get()->doSingleTracking(_mat_img, mask_sw, mask_cw, mask_str, buffer, tFrames, dbEn);
 		});
 	});
 
 	for (int i = 0; i < thread_pool.size(); i++)
 		thread_pool[i].join();
+
+	std::thread t1(&TrackingSystem::dbWrite, this, &this->tracker, &this->buffer_tracker);
 
 	bool person_cw = false;
 	bool car_cw = false;
@@ -708,8 +749,10 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 	}
 
 	for(auto && i : tracker_erase){
-		int a = manager.deleteTracker(i,this->last_event);
+		int a = manager.deleteTracker(i,this->last_event, &this->dbEnable, &this->totalFrames, &this->buffer_events);
 	}
+	//this->dbWrite(&this->events, &this->buffer_events);
+	t1.join();
 
 	return SUCCESS;
 }
@@ -849,6 +892,39 @@ bool isValidCollision(std::pair<double, int> area1, std::pair<double, int> area2
 	return FALSE;
 }
 
+void TrackingSystem::dbWrite(mongocxx::v_noabi::collection* col, Pipe* buffer_ptr){
+	//std::this_thread::sleep_for(std::chrono::microseconds(10));
+	if(buffer_ptr->size() != 0){
+		
+	std::vector<bsoncxx::document::value> documents;
+	while(buffer_ptr->size() != 0){
+        //std::cout << "thread" << buffer_ptr->size() << std::endl;
+		PipeItem aux = buffer_ptr->back();
+		buffer_ptr -> pop_back();
+		documents.push_back(
+			bsoncxx::builder::stream::document{} 
+			<< "frame" << aux.frame
+			<< "Id" << aux.Id
+			<< "vel_x" << aux.vel_x
+			<< "vel_y" << aux.vel_y 
+			<< "vel" << aux.vel
+			<< "acc_x" << aux.acc_x
+			<< "acc_y" << aux.acc_y 
+			<< "acc" << aux.acc
+			<< "ob1" << aux.ob1
+			<< "ob2" << aux.ob2
+			<< "event" << aux.event
+			<< "nearMiss" << aux.nearMiss
+			<< bsoncxx::builder::stream::finalize
+		);
+		}
+		//std::cout << documents.size () << std::endl;
+		this -> dbWrite_mutex.lock();
+		col -> insert_many(documents);
+		this -> dbWrite_mutex.unlock();
+	}
+}
+
 /* -----------------------------------------------------------------------------------
 
 Function : detectCollisions
@@ -856,6 +932,19 @@ Function : detectCollisions
 Draw red circle when collision is detected and write to log.
 
 ----------------------------------------------------------------------------------- */
+void TrackingSystem::setUpCollections(){
+	this -> dbEnable = true;
+	this -> tracker = this -> conn["smart_city_metadata"]["tracker_data"];
+	this -> tracker.drop();
+	this -> tracker.insert_one({});
+	this -> collisions = this -> conn["smart_city_metadata"]["collisions_data"];
+	this -> collisions.drop();
+	this -> collisions.insert_one({});
+	this -> events = this -> conn["smart_city_metadata"]["events"];
+	this -> events.drop();
+	this -> events.insert_one({});
+
+}
 int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 {
 	TrackerManager manager = this->getTrackerManager();
@@ -869,7 +958,6 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 		return FAIL;
 	}
-
 	std::vector<std::shared_ptr<SingleTracker>> trackerVec = manager.getTrackerVec();
 	for (auto i = trackerVec.begin(); i != trackerVec.end(); ++i) {
 		SingleTracker& iRef = *(*i);
@@ -913,8 +1001,35 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		}
 
 		double threshold_x = std::abs(sign_x*std::abs(iRef.getAcc_X()) - (avg_acc_x));
-		double threshold_y = std::abs(sign_y*std::abs(iRef.getAcc_Y()) - (avg_acc_y));
+		double threshold_y = std::abs(sign_y*std::abs(iRef.getAcc_Y()) - (avg_acc_y));												
+		
+		/*typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
 
+		std::chrono::high_resolution_clock::time_point tracker_db_time_t0,tracker_db_time_t1;
+		tracker_db_time_t0 = std::chrono::high_resolution_clock::now();*/
+		/*bsoncxx::builder::stream::document document{};
+		document << "frame" << this -> totalFrames; 
+		document << "Id" << iRef.getTargetID();
+		document << "vel_x" << vel_x[0];
+		document << "vel_y" << vel_y[0]; 
+		document << "vel" << vel[0]; 
+		document << "acc_x" << acc_x[0];
+		document << "acc_y" << acc_y[0]; 
+		document << "acc" << iRef.getAcc_q()[0]; 
+		document << "th_x" << threshold_x;
+		document << "th_y" << threshold_y;
+		document << "th" << sqrt(threshold_x*threshold_x+threshold_y*threshold_y);
+		
+		this -> collection_tracker.insert_one(document.view());
+		document.clear();*/
+		/*tracker_db_time_t1 = std::chrono::high_resolution_clock::now();
+		ms detection_time;
+        detection_time = std::chrono::duration_cast<ms>(tracker_db_time_t1 - tracker_db_time_t0);
+		std::cout << "DB Tracker time: " << detection_time.count() << std::endl;
+
+		tracker_db_time_t0 = std::chrono::high_resolution_clock::now();*/
+		//this->buffer_tracker.push_back(totalFrames);
+		//std::thread t1(&TrackingSystem::dbWrite, this, &this->tracker, &this->buffer_tracker);
 		BOOST_LOG_TRIVIAL(info) << "#" << this -> totalFrames << ',' 
 								<< iRef.getTargetID() << ',' 
 								<< vel_x[0] << ',' 
@@ -927,8 +1042,21 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 								<< threshold_y << ','
 								<< sqrt(threshold_x*threshold_x+threshold_y*threshold_y);
 		
+		/*tracker_db_time_t1 = std::chrono::high_resolution_clock::now();
+		detection_time = std::chrono::duration_cast<ms>(tracker_db_time_t1 - tracker_db_time_t0);
+		std::cout << "BOOST_LOG Tracker time: " << detection_time.count() << std::endl;
+		*/
 		if (threshold_x > 4 || threshold_y >= 3 /*&& !same_sign && !inc_speed*/) {
 			iRef.setNearMiss(true);
+			if(this -> dbEnable){
+				PipeItem document;
+				document.frame = totalFrames;
+				document.Id = iRef.getTargetID();
+				document.event = "Strong speed change";
+				document.nearMiss = true;
+				this->buffer_events.push_back(document); 
+			}
+			std::thread t3(&TrackingSystem::dbWrite, this, &this->events, &this->buffer_events);
 			for (auto j = trackerVec.begin(); j != trackerVec.end(); ++j) {
 				SingleTracker& jRef = *(*j);
 				if (iRef.getTargetID() == jRef.getTargetID())
@@ -939,7 +1067,18 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 				if (intersects) {
 					iRef.setRectWidth(2);
 					jRef.setRectWidth(2);
+
+					if(this -> dbEnable){
+						PipeItem document;
+						document.frame = totalFrames;
+						document.ob1 = iRef.getTargetID();
+						document.ob2 = jRef.getTargetID();
+						this->buffer_collisions.push_back(document); 
+					}
+					std::thread t2(&TrackingSystem::dbWrite, this, &this->collisions, &this->buffer_collisions);
 					BOOST_LOG_TRIVIAL(error)<< "$" << totalFrames << "$Collision between object $"<<iRef.getTargetID()<<"$ and $"<< jRef.getTargetID() << "$";
+					
+					
 					if (jRef.getNearMiss()) {
 						iRef.setCollision(true);
 						jRef.setCollision(true);
@@ -949,9 +1088,12 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 						iRef.setColor(cv::Scalar(0,165,255)); // Orange
 						jRef.setColor(cv::Scalar(0,165,255));
 					}
+					t2.join();
 				}
 			}
+			t3.join();
 		}
+		//t1.join();
 	}
 	
 	this -> totalFrames++;

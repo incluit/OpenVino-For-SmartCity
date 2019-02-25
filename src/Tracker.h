@@ -2,6 +2,9 @@
 
 #include <thread>
 #include <string>
+#include <chrono>
+#include <mutex>
+
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -15,6 +18,14 @@
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <algorithm>
+
+//MongoDB
+#include <iostream>
+#include <bsoncxx/builder/stream/document.hpp>
+#include <bsoncxx/json.hpp>
+#include <mongocxx/client.hpp>
+#include <mongocxx/instance.hpp>
+
 
 #define FAIL		-1
 #define SUCCESS		1
@@ -34,6 +45,22 @@ const int n_frames = 5; // Number of positions to save in the circular buffer
 const int n_frames_pos = 50; // Number of positions to save in the circular buffer
 const int n_frames_vel = 50; // Number of positions to save in the circular buffer
 
+typedef struct
+		{
+		 	int frame = 0; 
+		 	int Id = 0;
+		 	float vel_x = 0;
+		 	float vel_y = 0; 
+		 	float vel = 0; 
+		 	float acc_x = 0;
+		 	float acc_y = 0;
+		 	float acc = 0;
+			int ob1 = 0;
+			int ob2 = 0;
+			std::string event = "";
+			bool nearMiss = false;
+		}PipeItem;
+typedef std::vector<PipeItem> Pipe;
 /* ==========================================================================
 
 Class : SingleTracker
@@ -176,7 +203,7 @@ public:
 	int startSingleTracking(cv::Mat _mat_img);
 
 	// Do tracking
-	int doSingleTracking(cv::Mat _mat_img, std::vector<cv::Mat>* mask_sw, std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str);
+	int doSingleTracking(cv::Mat _mat_img, std::vector<cv::Mat>* mask_sw, std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str, Pipe* buffer, int* totalFrames, bool dbEnable);
 
 	// Check the target is inside of the frame
 	int isTargetInsideFrame(int _frame_width, int _frame_height, cv::Mat *mask);
@@ -195,6 +222,7 @@ for multi-object tracking.
 So, this class provides insert, find, delete function.
 
 ========================================================================== */
+
 class TrackerManager
 {
 private:
@@ -208,7 +236,7 @@ public:
 
 	/* Core Function */
 	// Insert new SingleTracker shared pointer into the TrackerManager::tracker_vec
-	int insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool _update, std::string *last_event);
+	int insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool update, std::string *last_event, bool* dbEnable, int* totalFrames, Pipe* buffer);
 	int insertTracker(std::shared_ptr<SingleTracker> new_single_tracker, bool _update);
 
 	// Find SingleTracker by similarity and return id, return new id if no coincidence
@@ -217,7 +245,7 @@ public:
 	int findTrackerByID(int _target_id);
 
 	// Deleter SingleTracker which has ID : _target_id from TrackerManager::tracker_vec
-	int deleteTracker(int _target_id, std::string *last_event);
+	int deleteTracker(int _target_id, std::string *last_event, bool* dbEnable, int* totalFrames, Pipe* buffer);
 };
 
 /* ===================================================================================================
@@ -248,11 +276,23 @@ class TrackingSystem
 		std::vector<cv::Mat>*		mask_crosswalks;
 		std::vector<cv::Mat>		d_cws;
 		int 			totalFrames;
+		mongocxx::instance inst{};
+		mongocxx::client conn{mongocxx::uri{}};
+		mongocxx::v_noabi::collection  	tracker;
+		mongocxx::v_noabi::collection  	collisions;
+		mongocxx::v_noabi::collection	events; 	
+		Pipe buffer_tracker;
+		Pipe buffer_collisions;
+		Pipe buffer_events;
+		bool dbEnable;
+		std::mutex dbWrite_mutex;
 
 	public:
 		/* Constructor */
 		TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
-					mask_sidewalks(nullptr),mask_streets(nullptr),mask_crosswalks(nullptr), totalFrames(0){};
+					mask_sidewalks(nullptr),mask_streets(nullptr),mask_crosswalks(nullptr), totalFrames(0),dbEnable(false){
+						this -> conn.start_session();
+					};
 
 	/* Get Function */
 	int    getFrameWidth() { return this->frame_width; }
@@ -276,7 +316,6 @@ class TrackingSystem
 		this -> mask_streets = _mask_streets;
 		this -> mask_crosswalks = _mask_crosswalks;
 	}
-
 	void saveCrosswalk(cv::Mat _roi) { this->d_cws.push_back(_roi); }
 
 	/* Core Function */
@@ -297,4 +336,9 @@ class TrackingSystem
 
 	// Terminate program
 	void terminateSystem();
+
+	//clear Mongo collections
+	void setUpCollections();
+
+	void dbWrite(mongocxx::v_noabi::collection* col, Pipe* buffer_ptr);
 };
