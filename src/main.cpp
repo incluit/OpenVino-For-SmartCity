@@ -99,17 +99,23 @@ void init_logging(std::string base)
 }
 int main(int argc, char *argv[]) {
     try {
+        // ---------------------------Init Log-------------------------------
         init_logging("test");
-        std::cout << "Incluit - Openvino-for-Smartcity" << std::endl;
-        BOOST_LOG_TRIVIAL(info) << "Incluit - Openvino-for-Smartcity";
-        
-        /** This sample covers 2 certain topologies and cannot be generalized **/
-        BOOST_LOG_TRIVIAL(info) << "InferenceEngine: " << InferenceEngine::GetInferenceEngineVersion();
-
         // ---------------------------Parsing and validation of input args--------------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
+        std::cout << "Incluit - Openvino-for-Smartcity" << std::endl;
+        BOOST_LOG_TRIVIAL(info) << "Incluit - Openvino-for-Smartcity";
+        if(FLAGS_show_graph){
+                if(system("../scripts/startupdb.sh") != 0){
+                    BOOST_LOG_TRIVIAL(error) << "MongoDB is not installed on this device";
+                    std::cerr << "[ ERROR ] - MongoDB is not installed on this device" << '\n';
+                    return 1;
+                }   
+        }
+        /** This sample covers 2 certain topologies and cannot be generalized **/
+        BOOST_LOG_TRIVIAL(info) << "InferenceEngine: " << InferenceEngine::GetInferenceEngineVersion();
 
         // -----------------------------Read input -----------------------------------------------------
         BOOST_LOG_TRIVIAL(info) << "Reading input";
@@ -291,7 +297,6 @@ int main(int argc, char *argv[]) {
         //  from stage to stage for each to do its work
         
         // Queues to pass information across pipeline stages
-        
         wallclockStart = std::chrono::high_resolution_clock::now();
         /** Start inference & calc performance **/
         do {

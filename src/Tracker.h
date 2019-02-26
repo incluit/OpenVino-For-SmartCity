@@ -291,7 +291,6 @@ class TrackingSystem
 		/* Constructor */
 		TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
 					mask_sidewalks(nullptr),mask_streets(nullptr),mask_crosswalks(nullptr), totalFrames(0),dbEnable(false){
-						this -> conn.start_session();
 					};
 
 	/* Get Function */

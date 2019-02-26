@@ -933,6 +933,7 @@ Draw red circle when collision is detected and write to log.
 
 ----------------------------------------------------------------------------------- */
 void TrackingSystem::setUpCollections(){
+	this -> conn.start_session();
 	this -> dbEnable = true;
 	this -> tracker = this -> conn["smart_city_metadata"]["tracker_data"];
 	this -> tracker.drop();
@@ -1047,8 +1048,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		std::cout << "BOOST_LOG Tracker time: " << detection_time.count() << std::endl;
 		*/
 		if (threshold_x > 4 || threshold_y >= 3 /*&& !same_sign && !inc_speed*/) {
-			iRef.setNearMiss(true);
-			if(this -> dbEnable){
+			if(this -> dbEnable && !iRef.getNearMiss()){
 				PipeItem document;
 				document.frame = totalFrames;
 				document.Id = iRef.getTargetID();
@@ -1056,6 +1056,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 				document.nearMiss = true;
 				this->buffer_events.push_back(document); 
 			}
+			iRef.setNearMiss(true);
 			std::thread t3(&TrackingSystem::dbWrite, this, &this->events, &this->buffer_events);
 			for (auto j = trackerVec.begin(); j != trackerVec.end(); ++j) {
 				SingleTracker& jRef = *(*j);
@@ -1067,12 +1068,20 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 				if (intersects) {
 					iRef.setRectWidth(2);
 					jRef.setRectWidth(2);
-
+					int ob1 = 0;
+					int ob2 = 0;
+					if(iRef.getTargetID() < jRef.getTargetID()){
+						ob1 = iRef.getTargetID();
+						ob2 = jRef.getTargetID();
+					}else{
+						ob2 = iRef.getTargetID();
+						ob1 = jRef.getTargetID();
+					}
 					if(this -> dbEnable){
 						PipeItem document;
 						document.frame = totalFrames;
-						document.ob1 = iRef.getTargetID();
-						document.ob2 = jRef.getTargetID();
+						document.ob1 = ob1;
+						document.ob2 = ob2;
 						this->buffer_collisions.push_back(document); 
 					}
 					std::thread t2(&TrackingSystem::dbWrite, this, &this->collisions, &this->buffer_collisions);
