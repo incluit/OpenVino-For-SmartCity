@@ -107,6 +107,7 @@ int main(int argc, char *argv[]) {
         }
         std::cout << "Incluit - Openvino-for-Smartcity" << std::endl;
         BOOST_LOG_TRIVIAL(info) << "Incluit - Openvino-for-Smartcity";
+#ifdef ENABLED_DB
         if(FLAGS_show_graph){
                 if(system("../scripts/startupdb.sh") != 0){
                     BOOST_LOG_TRIVIAL(error) << "MongoDB is not installed on this device";
@@ -114,6 +115,7 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }   
         }
+#endif
         /** This sample covers 2 certain topologies and cannot be generalized **/
         BOOST_LOG_TRIVIAL(info) << "InferenceEngine: " << InferenceEngine::GetInferenceEngineVersion();
 
@@ -290,9 +292,10 @@ int main(int argc, char *argv[]) {
         if(FLAGS_show_selection){
             tracking_system.setMask(&aux_mask, &mask_crosswalk, &mask_sidewalk, &mask_streets);
         }
+#ifdef ENABLED_DB
         if(FLAGS_show_graph)
             tracking_system.setUpCollections();
-
+#endif
         // structure to hold frame and associated data which are passed along
         //  from stage to stage for each to do its work
         

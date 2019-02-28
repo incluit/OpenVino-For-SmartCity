@@ -20,12 +20,13 @@
 #include <algorithm>
 
 //MongoDB
+#ifdef ENABLED_DB
 #include <iostream>
 #include <bsoncxx/builder/stream/document.hpp>
 #include <bsoncxx/json.hpp>
 #include <mongocxx/client.hpp>
 #include <mongocxx/instance.hpp>
-
+#endif
 
 #define FAIL		-1
 #define SUCCESS		1
@@ -276,17 +277,18 @@ class TrackingSystem
 		std::vector<cv::Mat>*		mask_crosswalks;
 		std::vector<cv::Mat>		d_cws;
 		int 			totalFrames;
+		bool dbEnable;
+#ifdef ENABLED_DB
 		mongocxx::instance inst{};
 		mongocxx::client conn{mongocxx::uri{}};
 		mongocxx::v_noabi::collection  	tracker;
 		mongocxx::v_noabi::collection  	collisions;
 		mongocxx::v_noabi::collection	events; 	
+		std::mutex dbWrite_mutex;
+#endif
 		Pipe buffer_tracker;
 		Pipe buffer_collisions;
 		Pipe buffer_events;
-		bool dbEnable;
-		std::mutex dbWrite_mutex;
-
 	public:
 		/* Constructor */
 		TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
@@ -336,8 +338,10 @@ class TrackingSystem
 	// Terminate program
 	void terminateSystem();
 
+#ifdef ENABLED_DB
 	//clear Mongo collections
 	void setUpCollections();
 
 	void dbWrite(mongocxx::v_noabi::collection* col, Pipe* buffer_ptr);
+#endif
 };

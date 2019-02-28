@@ -5,5 +5,5 @@ then
         echo "mongod is already running"
 else
         echo "Attempting to start MongoDB"
-        sudo service mongodasd start
+        sudo service mongod start
 fi

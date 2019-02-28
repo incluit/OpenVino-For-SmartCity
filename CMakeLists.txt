@@ -18,6 +18,8 @@ include(CMakeLists_common.cmake)
 
 set(TARGET_NAME "smart_city_tutorial")
 
+option(ENABLED_DB  "Send meta-data to database for plotting" OFF)
+
 find_package(OpenCV)
 if(OpenCV_FOUND)
     message(STATUS "OPENCV is enabled")
@@ -29,7 +31,9 @@ else()
 endif()
 
 find_package(Boost COMPONENTS log system filesystem REQUIRED)
-find_package(libmongocxx)
+if ( ENABLED_DB )
+    find_package(libmongocxx)
+endif()
 
 if( BUILD_SAMPLE_NAME AND NOT ${BUILD_SAMPLE_NAME} STREQUAL ${TARGET_NAME} )
     message(STATUS "SAMPLE ${TARGET_NAME} SKIPPED")
@@ -61,6 +65,9 @@ add_executable(${TARGET_NAME} ${MAIN_SRC} ${MAIN_HEADERS})
 add_dependencies(${TARGET_NAME} gflags)
 add_definitions(-DBOOST_LOG_DYN_LINK)
 add_definitions(-DINTEL_CVSDK_VER=$ENV{INTEL_CVSDK_VER})
+if( ENABLED_DB )
+  add_definitions(-DENABLED_DB)
+endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES "CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS} -fPIE"
 COMPILE_PDB_NAME ${TARGET_NAME})
