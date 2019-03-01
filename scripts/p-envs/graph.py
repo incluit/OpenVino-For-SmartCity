@@ -42,7 +42,6 @@ dcc._js_dist[0]['external_url'] = 'https://cdn.plot.ly/plotly-basic-latest.min.j
 """events_l = events_list()
 events_df = pd.DataFrame(events_l).replace(booleanDictionary).sort_values(by=['nearMiss','frame'],ascending=[False,True])
 """
-i = 1
 
 app.layout = html.Div([
     html.Div([
@@ -97,7 +96,6 @@ app.layout = html.Div([
 app.css.append_css({
     'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'
 })
-i = 1
 @app.callback(
     Output('datatable-collision', 'data'),
     [   Input('datatable-collision', 'derived_virtual_selected_rows'),
@@ -152,7 +150,7 @@ def update_graph(derived_virtual_selected_rows,td,n):
             title = None
             x_axis_range = [0,100]
     else:
-        object_id = td[derived_virtual_selected_rows[0]]['ob2']
+        object_id = td[derived_virtual_selected_rows[0]]['ob1']
         dff = df[df['Id'] == object_id]
         x_axis_range = [td[derived_virtual_selected_rows[0]]['min_f']-10, td[derived_virtual_selected_rows[0]]['max_f']+10]
         title = 'Object ID: ' + str(object_id)

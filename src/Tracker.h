@@ -60,6 +60,7 @@ typedef struct
 			int ob2 = 0;
 			std::string event = "";
 			bool nearMiss = false;
+			std::string objectClass;
 		}PipeItem;
 typedef std::vector<PipeItem> Pipe;
 /* ==========================================================================
