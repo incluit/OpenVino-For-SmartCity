@@ -317,13 +317,14 @@ int SingleTracker::doSingleTracking(cv::Mat _mat_img, std::vector<cv::Mat>* mask
 	if(dbEnable){
 		PipeItem document;
 		document.frame = *totalFrames; 
-		document.Id = getTargetID();
-		document.vel_x = getVelX_q()[0];
-		document.vel_y = getVelY_q()[0]; 
-		document.vel = getVel_q()[0]; 
-		document.acc_x = getAccX_q()[0];
-		document.acc_y = getAccY_q()[0]; 
-		document.acc = getAcc_q()[0]; 
+		document.Id = this->getTargetID();
+		document.vel_x = this->getVelX_q()[0];
+		document.vel_y = this->getVelY_q()[0]; 
+		document.vel = this->getVel_q()[0]; 
+		document.acc_x = this->getAccX_q()[0];
+		document.acc_y = this->getAccY_q()[0]; 
+		document.acc = this->getAcc_q()[0]; 
+		document.objectClass = getLabelStr(this->getLabel());
 		buffer->push_back(document);
 	}
 #endif
@@ -387,6 +388,7 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 			document.Id = this->id_list-1;
 			document.frame = *totalFrames;
 			document.event = "Start being tracked";
+			document.objectClass = getLabelStr(_label);
 			buffer -> push_back(document); 
 		}
 #endif
@@ -519,6 +521,19 @@ int TrackerManager::findTracker(cv::Rect rect, int label)
 
 	return index;
 }
+/* -----------------------------------------------------------------------------------
+
+Function : getTrackerLabel
+
+find tracker label
+----------------------------------------------------------------------------------- */
+
+int TrackerManager::getTrackerLabel(int result_idx){
+
+	return this->tracker_vec[result_idx]->getLabel();//Could potentially have a bug
+
+}
+
 
 /* -----------------------------------------------------------------------------------
 
@@ -530,6 +545,16 @@ Delete SingleTracker object which has ID : _target_id in the TrackerManager::tra
 int TrackerManager::deleteTracker(int _target_id, std::string *last_event, bool* dbEnable, int* totalFrames, Pipe* buffer)
 {
 	int result_idx = this->findTrackerByID(_target_id);
+#ifdef ENABLED_DB
+	if(*dbEnable){
+		PipeItem document;
+		document.Id = _target_id;
+		document.frame = *totalFrames;
+		document.event = "Stop being tracked";
+		document.objectClass = getLabelStr(this->getTrackerLabel(result_idx));
+		buffer -> push_back(document); 
+	}
+#endif
 
 	if (result_idx == FAIL)
 	{
@@ -548,15 +573,7 @@ int TrackerManager::deleteTracker(int _target_id, std::string *last_event, bool*
 		// Remove SingleTracker object from the vector
 		this->tracker_vec.erase(tracker_vec.begin() + result_idx);
 
-#ifdef ENABLED_DB
-		if(*dbEnable){
-			PipeItem document;
-			document.Id = _target_id;
-			document.frame = *totalFrames;
-			document.event = "Stop being tracked";
-			buffer -> push_back(document); 
-		}
-#endif
+
 
 		std::string a,b,c,d,aux_str;
 
@@ -923,6 +940,7 @@ void TrackingSystem::dbWrite(mongocxx::v_noabi::collection* col, Pipe* buffer_pt
 			<< "ob2" << aux.ob2
 			<< "event" << aux.event
 			<< "nearMiss" << aux.nearMiss
+			<< "class" << aux.objectClass
 			<< bsoncxx::builder::stream::finalize
 		);
 		}
@@ -1065,6 +1083,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 				document.Id = iRef.getTargetID();
 				document.event = "Strong speed change";
 				document.nearMiss = true;
+				document.objectClass = getLabelStr(iRef.getLabel());
 				this->buffer_events.push_back(document); 
 			}
 			std::thread t3(&TrackingSystem::dbWrite, this, &this->events, &this->buffer_events);

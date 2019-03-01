@@ -60,7 +60,7 @@ typedef struct
 			int ob2 = 0;
 			std::string event = "";
 			bool nearMiss = false;
-			std::string objectClass;
+			std::string objectClass = "";
 		}PipeItem;
 typedef std::vector<PipeItem> Pipe;
 /* ==========================================================================
@@ -248,6 +248,8 @@ public:
 
 	// Deleter SingleTracker which has ID : _target_id from TrackerManager::tracker_vec
 	int deleteTracker(int _target_id, std::string *last_event, bool* dbEnable, int* totalFrames, Pipe* buffer);
+	int getTrackerLabel(int _target_id);
+
 };
 
 /* ===================================================================================================
