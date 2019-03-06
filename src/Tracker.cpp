@@ -279,12 +279,12 @@ SingleTracker::rect is initialized to the target position in the constructor of 
 Using correlation_tracker in dlib, start tracking 'one' target
 
 --------------------------------------------------------------------------------- */
-int SingleTracker::doSingleTracking(cv::Mat _mat_img, std::vector<cv::Mat>* mask_sw, 
+int SingleTracker::doSingleTracking(cv::Mat* _mat_img, std::vector<cv::Mat>* mask_sw, 
 								std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str,
 								Pipe* buffer, int* totalFrames, bool dbEnable)
 {
 	//Exception
-	if (_mat_img.empty())
+	if (_mat_img -> empty())
 	{
 		BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! ======================= ";
 		BOOST_LOG_TRIVIAL(error) << "Function : int SingleTracker::doSingleTracking";
@@ -729,7 +729,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 	// Multi thread
 	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&](std::shared_ptr<SingleTracker> ptr) {
 		thread_pool.emplace_back([ptr, &_mat_img, &mask_sw, &mask_cw, &mask_str, &buffer, &tFrames, dbEn]() {
-		 ptr.get()->doSingleTracking(_mat_img, mask_sw, mask_cw, mask_str, buffer, tFrames, dbEn);
+		 ptr.get()->doSingleTracking(&_mat_img, mask_sw, mask_cw, mask_str, buffer, tFrames, dbEn);
 		});
 	});
 

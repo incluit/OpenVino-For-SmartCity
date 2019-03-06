@@ -205,7 +205,7 @@ public:
 	int startSingleTracking(cv::Mat _mat_img);
 
 	// Do tracking
-	int doSingleTracking(cv::Mat _mat_img, std::vector<cv::Mat>* mask_sw, std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str, Pipe* buffer, int* totalFrames, bool dbEnable);
+	int doSingleTracking(cv::Mat* _mat_img, std::vector<cv::Mat>* mask_sw, std::vector<cv::Mat>* mask_cw, std::vector<std::pair<cv::Mat, int>>* mask_str, Pipe* buffer, int* totalFrames, bool dbEnable);
 
 	// Check the target is inside of the frame
 	int isTargetInsideFrame(int _frame_width, int _frame_height, cv::Mat *mask);
