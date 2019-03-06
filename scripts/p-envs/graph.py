@@ -69,6 +69,7 @@ app.layout = html.Div([
                 id='datatable-paging',
                 columns=[   {"name": "Frame", "id": "frame"}, 
                             {"name": "ID", "id": "Id"},
+                            {"name": "Class", "id": "class"},
                             {"name": "Near miss", "id": "nearMiss"},
                             {"name": "Event", "id": "event"},
                         ],
@@ -127,7 +128,7 @@ def update_events_table(pagination_settings,n):
             (pagination_settings['current_page'] + 1)*pagination_settings['page_size']
         ].to_dict('rows')
     else:
-        events_df = []
+        return []
 @app.callback(Output('my-graph1', 'figure'),
                 [Input('datatable-collision', 'derived_virtual_selected_rows'),
                 Input('datatable-collision', 'data'),

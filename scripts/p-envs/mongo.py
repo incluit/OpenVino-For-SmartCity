@@ -36,7 +36,7 @@ e = db.events
 def events_list():
     events = e.aggregate([
         {'$match':{'Id':{'$exists':1}}},
-        {'$project':{'_id':0,'Id':1,'frame':1,'event':1,'nearMiss':1}},
+        {'$project':{'_id':0,'Id':1,'frame':1,'event':1,'nearMiss':1, 'class': 1}},
     ])
     el = list(events)
     return el
