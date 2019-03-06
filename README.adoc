@@ -263,6 +263,14 @@ Step by step instructions can be found on the https://github.com/incluit/OpenVin
 
 === Performance analysis (in progress)
 
+== Dashboard
+
+We notice that in order get a deeper understanding of the near miss identification, it was mandatory to view the progress of the variables metioned above (speed, acceleration). A real-time dashboard of collision and relevant events was develop as available feature as a response to this issue.
+
+image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Dashboard.png[areas]
+
+Step by step instructions to install and run the dashboard can be found on the https://github.com/incluit/OpenVino-For-SmartCity/wiki/0---Areas-of-Interest[wiki].
+
 == To Do
 
 === README
