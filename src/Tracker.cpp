@@ -677,7 +677,7 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 			}
 		}
 	}
-	//this->dbWrite(&this->events, &this->buffer_events);
+	this->dbWrite(&this->events, &this->buffer_events);
 	return SUCCESS;
 }
 
@@ -774,7 +774,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 		int a = manager.deleteTracker(i,this->last_event, &this->dbEnable, &this->totalFrames, &this->buffer_events);
 	}
 #ifdef ENABLED_DB
-	//this->dbWrite(&this->events, &this->buffer_events);
+	this->dbWrite(&this->events, &this->buffer_events);
 	t1.join();
 #endif
 

@@ -607,7 +607,10 @@ int main(int argc, char *argv[]) {
                 // -----------------------Display Results ---------------------------------------------
                 t0 = std::chrono::high_resolution_clock::now();
                 if (!FLAGS_no_show) {
-                    cv::imshow("Detection results", outputFrame_clean);
+                    std::string winname = "Detection result";
+                    cv::namedWindow(winname);
+                    cv::moveWindow(winname, 10, 10);
+                    cv::imshow(winname, outputFrame_clean);
                     lastOutputFrame = &outputFrame_clean;
                 }
                 t1 = std::chrono::high_resolution_clock::now();
