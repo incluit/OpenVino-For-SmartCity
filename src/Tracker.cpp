@@ -677,7 +677,9 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 			}
 		}
 	}
+#ifdef ENABLED_DB
 	this->dbWrite(&this->events, &this->buffer_events);
+#endif
 	return SUCCESS;
 }
 
