@@ -45,6 +45,7 @@ c = db.collisions_data
 
 def collision_list():
     collisions = c.aggregate([
+        {'$match':{'Id':{'$exists':1}}},
         {'$match':{'$or':[{'ob1':{'$ne':0}},{'ob2':{'$ne':0}}]}},
         {'$project':{'_id':0,'frame':1,'ob1':1,'ob2':1}},
     ])
@@ -60,3 +61,10 @@ def tracker_list():
     ])
     tl = list(trackers)
     return tl
+
+def drop_collections():
+    e.drop()
+    c.drop()
+    t.drop()
+
+#drop_collections()

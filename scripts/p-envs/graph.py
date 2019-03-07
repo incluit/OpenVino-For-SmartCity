@@ -122,7 +122,7 @@ def update_collision_table(derived_virtual_selected_rows,n):
 def update_events_table(pagination_settings,n):
     events_l = events_list()
     if(events_l):
-        events_df = pd.DataFrame(events_l).replace(booleanDictionary).sort_values(by=['nearMiss','frame'],ascending=[False,True])
+        events_df = pd.DataFrame(events_l).replace(booleanDictionary).sort_values(by=['nearMiss','frame'],ascending=[False,False])
         return events_df.iloc[
             pagination_settings['current_page']*pagination_settings['page_size']:
             (pagination_settings['current_page'] + 1)*pagination_settings['page_size']
