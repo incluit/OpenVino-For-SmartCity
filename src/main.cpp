@@ -49,6 +49,41 @@
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
 
+/*int blabla(cv::Mat * mask, cv::Point2f * pos)
+{
+	cv::Mat gray;
+	cv::cvtColor(*mask, gray, cv::COLOR_BGR2GRAY);
+	//cv::Canny(gray, gray, 100, 200, 3);
+    cv::imshow("gray", gray);
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours( gray, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+    int count = 0 ;
+    std::cout << "Countours size: " << contours.size() << std::endl;
+    for(auto && i:contours){
+        cv::Mat aux = cv::Mat::zeros(mask -> size(), CV_8UC3);
+        cv::drawContours(aux,contours,count,(255,255,255),3);
+        cv::imshow("contour " + std::to_string(count), aux);
+        count++;
+    }
+	std::vector<double> r_values;
+	for(auto && i : contours){
+		double aux;
+		aux = cv::pointPolygonTest(i,*pos,false);
+        std::cout << aux << std::endl;
+		r_values.push_back(aux);
+	}
+	bool band = FALSE;
+	for(auto && i :r_values){
+		if (i == 1){
+			band = TRUE;
+			std::cout << "Object over crosswalk" << std::endl;
+		} else {
+			band = FALSE;
+		}
+	}
+	return band;
+}*/
+
 // -------------------------Generic routines for detection networks-------------------------------------------------
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
@@ -240,30 +275,51 @@ int main(int argc, char *argv[]) {
         // Add check
 	if (FLAGS_show_selection){
 		int ret = 0;
-		cv::namedWindow("Crop",1);
-		cv::setMouseCallback("Crop", CallBCrop, &scene);
-		ret = CropFrame("Crop", &scene);
+        std::string winname;
+        winname = "Crop";
+		cv::namedWindow(winname);
+        cv::moveWindow(winname, 10, 10);
+		cv::setMouseCallback(winname, CallBCrop, &scene);
+		ret = CropFrame(winname, &scene);
 		if (ret < 0) {
 			return FAIL;
 		}
-		cv::namedWindow("Draw Areas",1);
-		cv::setMouseCallback("Draw Areas", CallBDraw, &scene);
-		ret = DrawAreasOfInterest("Draw Areas", &scene);
+        cv::destroyWindow(winname);
+        winname = "Draw Areas";
+		cv::namedWindow(winname);
+        cv::moveWindow(winname, 10, 10);
+		cv::setMouseCallback(winname, CallBDraw, &scene);
+		ret = DrawAreasOfInterest(winname, &scene);
 		if (ret < 0) {
 			return FAIL;
 		}
-		cv::destroyWindow("Draw Areas");
-		cv::namedWindow("Result",1);
-		cv::imshow("Result", scene.out);
+		cv::destroyWindow(winname);
+        winname = "Result";
+		cv::namedWindow(winname);
+        cv::moveWindow(winname, 10, 10);
+		cv::imshow(winname, scene.out);
+        std::cout << "Showing selection result, press any key to continue." << std::endl;
+
 		cv::waitKey();
+        cv::destroyWindow(winname);
 		aux_mask = scene.mask;
         mask_crosswalk = scene.mask_crosswalks;
         mask_sidewalk = scene.mask_sidewalks;
         mask_streets = scene.mask_streets;
+        
+        /*for(auto && i:mask_crosswalk){
+            std::string winname = "Crosswalk " + std::to_string(n);
+            n++;
+            cv::namedWindow(winname);
+            cv::moveWindow(winname, 10, 10);
+            cv::imshow(winname, i);
+            cv::waitKey();
+            cv::destroyWindow(winname);
+        }*/
 
 		cv::bitwise_and(scene.orig,scene.mask,first_frame_masked);
-		cv::imshow("Result", first_frame_masked);
-		cv::waitKey();
+		//cv::imshow("Result", first_frame_masked);
+		//cv::waitKey();
 	}
 
         

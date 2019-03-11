@@ -205,7 +205,6 @@ int isInsideMask(cv::Mat * mask, cv::Point2f * pos)
 {
 	cv::Mat gray;
 	cv::cvtColor(*mask, gray, cv::COLOR_BGR2GRAY);
-	cv::Canny(gray, gray, 100, 200, 3);
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours( gray, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 	std::vector<double> r_values;
@@ -247,7 +246,6 @@ void SingleTracker::assignArea(std::vector<cv::Mat>* mask_sw, std::vector<cv::Ma
 			}
 		}
 	}
-
 	if (mask_cw != nullptr) {
 		for (auto && mask: *mask_cw) {
 			ret = isInsideMask(&mask, &pos);
@@ -257,7 +255,6 @@ void SingleTracker::assignArea(std::vector<cv::Mat>* mask_sw, std::vector<cv::Ma
 			}
 		}
 	}
-
 	if (mask_str != nullptr) {
 		for (auto mask: *mask_str) {
 			ret = isInsideMask(&mask.first, &pos);
