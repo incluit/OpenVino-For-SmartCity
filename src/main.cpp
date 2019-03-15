@@ -275,51 +275,41 @@ int main(int argc, char *argv[]) {
         // Add check
 	if (FLAGS_show_selection){
 		int ret = 0;
-        std::string winname;
-        winname = "Crop";
+		std::string winname;
+		winname = "Crop";
 		cv::namedWindow(winname);
-        cv::moveWindow(winname, 10, 10);
+		cv::moveWindow(winname, 10, 10);
 		cv::setMouseCallback(winname, CallBCrop, &scene);
 		ret = CropFrame(winname, &scene);
 		if (ret < 0) {
 			return FAIL;
 		}
-        cv::destroyWindow(winname);
-        winname = "Draw Areas";
+		cv::destroyWindow(winname);
+		winname = "Draw Areas";
 		cv::namedWindow(winname);
-        cv::moveWindow(winname, 10, 10);
+		cv::moveWindow(winname, 10, 10);
 		cv::setMouseCallback(winname, CallBDraw, &scene);
 		ret = DrawAreasOfInterest(winname, &scene);
 		if (ret < 0) {
 			return FAIL;
 		}
 		cv::destroyWindow(winname);
-        winname = "Result";
+		winname = "Result";
 		cv::namedWindow(winname);
-        cv::moveWindow(winname, 10, 10);
+		cv::moveWindow(winname, 10, 10);
 		cv::imshow(winname, scene.out);
-        std::cout << "Showing selection result, press any key to continue." << std::endl;
+		std::cout << "Showing selection result, press any key to continue." << std::endl;
 
 		cv::waitKey();
-        cv::destroyWindow(winname);
 		aux_mask = scene.mask;
-        mask_crosswalk = scene.mask_crosswalks;
-        mask_sidewalk = scene.mask_sidewalks;
-        mask_streets = scene.mask_streets;
-        
-        /*for(auto && i:mask_crosswalk){
-            std::string winname = "Crosswalk " + std::to_string(n);
-            n++;
-            cv::namedWindow(winname);
-            cv::moveWindow(winname, 10, 10);
-            cv::imshow(winname, i);
-            cv::waitKey();
-            cv::destroyWindow(winname);
-        }*/
+		mask_crosswalk = scene.mask_crosswalks;
+		mask_sidewalk = scene.mask_sidewalks;
+		mask_streets = scene.mask_streets;
 
-		cv::bitwise_and(scene.orig,scene.mask,first_frame_masked);
-		//cv::imshow("Result", first_frame_masked);
-		//cv::waitKey();
+		cv::bitwise_and(scene.orig,aux_mask,first_frame_masked);
+		cv::imshow(winname, first_frame_masked);
+		cv::waitKey();
+		cv::destroyWindow(winname);
 	}
 
         

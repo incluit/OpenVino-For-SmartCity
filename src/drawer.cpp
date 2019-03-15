@@ -139,6 +139,9 @@ int CropFrame(const cv::String & winname, RegionsOfInterest *scn) {
 	bool finished = false;
 	RegionsOfInterest* scene = (RegionsOfInterest*) scn;
 	RegionsOfInterest& sceneRef = *scene;
+	cv::Mat roi(cv::Size(sceneRef.orig.cols, sceneRef.orig.rows), sceneRef.orig.type(), cv::Scalar(0));
+	cv::rectangle(roi,cv::Point(1,1),cv::Point(sceneRef.orig.cols-2,sceneRef.orig.rows-2),cv::Scalar(255,255,255),cv::FILLED);
+	sceneRef.mask = roi;
 
 	std::cout<<"Select rectangle to crop image. Click, drag and drop. Press 'F' to continue." << std::endl;
 	while(!finished){
@@ -149,6 +152,7 @@ int CropFrame(const cv::String & winname, RegionsOfInterest *scn) {
 				break;
 			case 8: // Del
 				sceneRef.aux = sceneRef.orig.clone();
+				sceneRef.mask = roi;
 				break;
 			case 27: // Esc
 				return -1;
