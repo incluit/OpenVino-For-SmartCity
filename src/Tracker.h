@@ -4,6 +4,7 @@
 #include <string>
 #include <chrono>
 #include <mutex>
+#include <ctime>
 
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -63,6 +64,14 @@ typedef struct
 			std::string objectClass = "";
 		}PipeItem;
 typedef std::vector<PipeItem> Pipe;
+
+typedef struct
+{
+	long int timestamp = 0;
+	int event_id = 0;
+	int intersection_id = 0; //has to change from device to device. Review
+}PipeEvent;
+typedef std::vector<PipeEvent> PipeEvents;
 /* ==========================================================================
 
 Class : SingleTracker
@@ -286,12 +295,15 @@ class TrackingSystem
 		mongocxx::client conn{mongocxx::uri{}};
 		mongocxx::v_noabi::collection  	tracker;
 		mongocxx::v_noabi::collection  	collisions;
-		mongocxx::v_noabi::collection	events; 	
+		mongocxx::v_noabi::collection	events; 
+		mongocxx::v_noabi::collection	aws_iot_events; 	
+
 		std::mutex dbWrite_mutex;
 #endif
 		Pipe buffer_tracker;
 		Pipe buffer_collisions;
 		Pipe buffer_events;
+		PipeEvents buffer_aws_iot;
 	public:
 		/* Constructor */
 		TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
@@ -345,6 +357,7 @@ class TrackingSystem
 	//clear Mongo collections
 	void setUpCollections();
 
-	void dbWrite(mongocxx::v_noabi::collection* col, Pipe* buffer_ptr);
+	//void dbWrite(mongocxx::v_noabi::collection* col, Pipe* buffer_ptr);
+	void dbWrite(mongocxx::v_noabi::collection* col, PipeEvents* buffer_ptr);
 #endif
 };

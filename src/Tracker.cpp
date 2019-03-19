@@ -311,7 +311,7 @@ int SingleTracker::doSingleTracking(cv::Mat* _mat_img, std::vector<cv::Mat>* mas
 	this->markForDeletion();
 
 #ifdef ENABLED_DB
-	if(dbEnable){
+	/*if(dbEnable){
 		PipeItem document;
 		document.frame = *totalFrames; 
 		document.Id = this->getTargetID();
@@ -323,7 +323,7 @@ int SingleTracker::doSingleTracking(cv::Mat* _mat_img, std::vector<cv::Mat>* mas
 		document.acc = this->getAcc_q()[0]; 
 		document.objectClass = getLabelStr(this->getLabel());
 		buffer->push_back(document);
-	}
+	}*/
 #endif
 	
 	return SUCCESS;
@@ -386,7 +386,7 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 			document.frame = *totalFrames;
 			document.event = "Start being tracked";
 			document.objectClass = getLabelStr(_label);
-			buffer -> push_back(document); 
+			//buffer -> push_back(document); 
 		}
 #endif
 		a = "========================== Notice! ==========================";
@@ -470,7 +470,7 @@ If success to find return that index, or return new index if no coincidence
 ----------------------------------------------------------------------------------- */
 int TrackerManager::findTracker(cv::Rect rect, int label)
 {
-	double max_overlap_thresh = 0.75;
+	double max_overlap_thresh = 0.35;
 	double dist_thresh = rect.height*rect.width>>1; // Pixels^2 -> adjust properly (maybe a proportion of the img size?)
 	std::vector<std::shared_ptr<SingleTracker>> selection;
 	std::shared_ptr<SingleTracker> best = NULL;
@@ -543,14 +543,14 @@ int TrackerManager::deleteTracker(int _target_id, std::string *last_event, bool*
 {
 	int result_idx = this->findTrackerByID(_target_id);
 #ifdef ENABLED_DB
-	if(*dbEnable){
+	/*if(*dbEnable){
 		PipeItem document;
 		document.Id = _target_id;
 		document.frame = *totalFrames;
 		document.event = "Stop being tracked";
 		document.objectClass = getLabelStr(this->getTrackerLabel(result_idx));
 		buffer -> push_back(document); 
-	}
+	}*/
 #endif
 
 	if (result_idx == FAIL)
@@ -675,7 +675,7 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 		}
 	}
 #ifdef ENABLED_DB
-	this->dbWrite(&this->events, &this->buffer_events);
+	//this->dbWrite(&this->events, &this->buffer_events);
 #endif
 	return SUCCESS;
 }
@@ -736,7 +736,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 		thread_pool[i].join();
 
 #ifdef ENABLED_DB
-	std::thread t1(&TrackingSystem::dbWrite, this, &this->tracker, &this->buffer_tracker);
+	//std::thread t1(&TrackingSystem::dbWrite, this, &this->tracker, &this->buffer_tracker);
 #endif
 	bool person_cw = false;
 	bool car_cw = false;
@@ -764,6 +764,13 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 						this->saveCrosswalk(roi);
 					}
 					std::cout<<"OBJECT "<<i->getTargetID()<<" IN CROSSWALK!!!"<<std::endl;
+					if(this -> dbEnable){
+						PipeEvent document;
+						document.event_id = 4;
+						document.timestamp = (long int)std::time(0);
+						this -> buffer_aws_iot.push_back(document);
+						this -> dbWrite(&this->aws_iot_events, &this->buffer_aws_iot);
+					}
 				}
 			}
 		}
@@ -773,8 +780,8 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 		int a = manager.deleteTracker(i,this->last_event, &this->dbEnable, &this->totalFrames, &this->buffer_events);
 	}
 #ifdef ENABLED_DB
-	this->dbWrite(&this->events, &this->buffer_events);
-	t1.join();
+	//this->dbWrite(&this->events, &this->buffer_events);
+	//t1.join();
 #endif
 
 	return SUCCESS;
@@ -916,30 +923,20 @@ bool isValidCollision(std::pair<double, int> area1, std::pair<double, int> area2
 }
 
 #ifdef ENABLED_DB
-void TrackingSystem::dbWrite(mongocxx::v_noabi::collection* col, Pipe* buffer_ptr){
+void TrackingSystem::dbWrite(mongocxx::v_noabi::collection* col, PipeEvents* buffer_ptr){
 	//std::this_thread::sleep_for(std::chrono::microseconds(10));
 	if(buffer_ptr->size() != 0){
 		
 	std::vector<bsoncxx::document::value> documents;
 	while(buffer_ptr->size() != 0){
         //std::cout << "thread" << buffer_ptr->size() << std::endl;
-		PipeItem aux = buffer_ptr->back();
+		PipeEvent aux = buffer_ptr->back();
 		buffer_ptr -> pop_back();
 		documents.push_back(
 			bsoncxx::builder::stream::document{} 
-			<< "frame" << aux.frame
-			<< "Id" << aux.Id
-			<< "vel_x" << aux.vel_x
-			<< "vel_y" << aux.vel_y 
-			<< "vel" << aux.vel
-			<< "acc_x" << aux.acc_x
-			<< "acc_y" << aux.acc_y 
-			<< "acc" << aux.acc
-			<< "ob1" << aux.ob1
-			<< "ob2" << aux.ob2
-			<< "event" << aux.event
-			<< "nearMiss" << aux.nearMiss
-			<< "class" << aux.objectClass
+			<< "event_id" << aux.event_id
+			<< "timestamp" << aux.timestamp
+			<< "intersection_id" << aux.intersection_id
 			<< bsoncxx::builder::stream::finalize
 		);
 		}
@@ -953,16 +950,7 @@ void TrackingSystem::dbWrite(mongocxx::v_noabi::collection* col, Pipe* buffer_pt
 void TrackingSystem::setUpCollections(){
 	this -> conn.start_session();
 	this -> dbEnable = true;
-	this -> tracker = this -> conn["smart_city_metadata"]["tracker_data"];
-	this -> tracker.drop();
-	this -> tracker.insert_one({});
-	this -> collisions = this -> conn["smart_city_metadata"]["collisions_data"];
-	this -> collisions.drop();
-	this -> collisions.insert_one({});
-	this -> events = this -> conn["smart_city_metadata"]["events"];
-	this -> events.drop();
-	this -> events.insert_one({});
-
+	this -> aws_iot_events = this -> conn["smart_city_metadata"]["aws_iot_events"];
 }
 #endif
 
@@ -1031,33 +1019,6 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		double threshold_x = std::abs(sign_x*std::abs(iRef.getAcc_X()) - (avg_acc_x));
 		double threshold_y = std::abs(sign_y*std::abs(iRef.getAcc_Y()) - (avg_acc_y));												
 		
-		/*typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
-
-		std::chrono::high_resolution_clock::time_point tracker_db_time_t0,tracker_db_time_t1;
-		tracker_db_time_t0 = std::chrono::high_resolution_clock::now();*/
-		/*bsoncxx::builder::stream::document document{};
-		document << "frame" << this -> totalFrames; 
-		document << "Id" << iRef.getTargetID();
-		document << "vel_x" << vel_x[0];
-		document << "vel_y" << vel_y[0]; 
-		document << "vel" << vel[0]; 
-		document << "acc_x" << acc_x[0];
-		document << "acc_y" << acc_y[0]; 
-		document << "acc" << iRef.getAcc_q()[0]; 
-		document << "th_x" << threshold_x;
-		document << "th_y" << threshold_y;
-		document << "th" << sqrt(threshold_x*threshold_x+threshold_y*threshold_y);
-		
-		this -> collection_tracker.insert_one(document.view());
-		document.clear();*/
-		/*tracker_db_time_t1 = std::chrono::high_resolution_clock::now();
-		ms detection_time;
-        detection_time = std::chrono::duration_cast<ms>(tracker_db_time_t1 - tracker_db_time_t0);
-		std::cout << "DB Tracker time: " << detection_time.count() << std::endl;
-
-		tracker_db_time_t0 = std::chrono::high_resolution_clock::now();*/
-		//this->buffer_tracker.push_back(totalFrames);
-		//std::thread t1(&TrackingSystem::dbWrite, this, &this->tracker, &this->buffer_tracker);
 		BOOST_LOG_TRIVIAL(info) << "#" << this -> totalFrames << ',' 
 								<< iRef.getTargetID() << ',' 
 								<< vel_x[0] << ',' 
@@ -1070,22 +1031,15 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 								<< threshold_y << ','
 								<< sqrt(threshold_x*threshold_x+threshold_y*threshold_y);
 		
-		/*tracker_db_time_t1 = std::chrono::high_resolution_clock::now();
-		detection_time = std::chrono::duration_cast<ms>(tracker_db_time_t1 - tracker_db_time_t0);
-		std::cout << "BOOST_LOG Tracker time: " << detection_time.count() << std::endl;
-		*/
 		if (threshold_x > 4 || threshold_y >= 3 /*&& !same_sign && !inc_speed*/) {
 #ifdef ENABLED_DB
 			if(this -> dbEnable && !iRef.getNearMiss()){
-				PipeItem document;
-				document.frame = totalFrames;
-				document.Id = iRef.getTargetID();
-				document.event = "Strong speed change";
-				document.nearMiss = true;
-				document.objectClass = getLabelStr(iRef.getLabel());
-				this->buffer_events.push_back(document); 
+				PipeEvent document;
+				document.event_id = 2; //set macro
+				document.timestamp = (long int)std::time(0);
+				this->buffer_aws_iot.push_back(document); 
 			}
-			std::thread t3(&TrackingSystem::dbWrite, this, &this->events, &this->buffer_events);
+			std::thread t3(&TrackingSystem::dbWrite, this, &this->aws_iot_events, &this->buffer_aws_iot);
 #endif
 			iRef.setNearMiss(true);
 			for (auto j = trackerVec.begin(); j != trackerVec.end(); ++j) {
@@ -1108,14 +1062,18 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 						ob1 = jRef.getTargetID();
 					}
 					if(this -> dbEnable){
-						PipeItem document;
+						/*PipeItem document;
 						document.frame = totalFrames;
 						document.ob1 = ob1;
 						document.ob2 = ob2;
-						this->buffer_collisions.push_back(document); 
+						this->buffer_collisions.push_back(document);*/
+						PipeEvent document;
+						document.event_id = 0,
+						document.timestamp = (long int)std::time(0);
+						this -> buffer_aws_iot.push_back(document);
 					}
 #ifdef ENABLED_DB
-					std::thread t2(&TrackingSystem::dbWrite, this, &this->collisions, &this->buffer_collisions);
+					std::thread t2(&TrackingSystem::dbWrite, this, &this->aws_iot_events, &this->buffer_aws_iot);
 #endif
 					BOOST_LOG_TRIVIAL(error)<< "$" << totalFrames << "$Collision between object $"<<iRef.getTargetID()<<"$ and $"<< jRef.getTargetID() << "$";
 					
