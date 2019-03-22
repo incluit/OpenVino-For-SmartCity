@@ -70,6 +70,7 @@ typedef struct
 	long int timestamp = 0;
 	int event_id = 0;
 	int intersection_id = 0; //has to change from device to device. Review
+	int totalDetections = 0;
 }PipeEvent;
 typedef std::vector<PipeEvent> PipeEvents;
 /* ==========================================================================
@@ -290,6 +291,7 @@ class TrackingSystem
 		std::vector<cv::Mat>		d_cws;
 		int 			totalFrames;
 		bool dbEnable;
+		int				totalDetections;
 #ifdef ENABLED_DB
 		mongocxx::instance inst{};
 		mongocxx::client conn{mongocxx::uri{}};
@@ -307,7 +309,7 @@ class TrackingSystem
 	public:
 		/* Constructor */
 		TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
-					mask_sidewalks(nullptr),mask_streets(nullptr),mask_crosswalks(nullptr), totalFrames(0),dbEnable(false){
+					mask_sidewalks(nullptr),mask_streets(nullptr),mask_crosswalks(nullptr), totalFrames(0),dbEnable(false), totalDetections(0){
 					};
 
 	/* Get Function */

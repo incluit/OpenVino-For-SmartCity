@@ -624,6 +624,7 @@ int TrackingSystem::initTrackingSystem()
 			BOOST_LOG_TRIVIAL(error) << "=============================================================";
 			return FAIL;
 		}
+		this -> totalDetections++;
 		index++;
 	}
 	return SUCCESS;
@@ -762,14 +763,14 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 						cv::Mat roi(cv::Size(_mat_img.cols, _mat_img.rows), _mat_img.type(), cv::Scalar(0,0,255));
 						cv::bitwise_and(roi,crosswalk,roi);
 						this->saveCrosswalk(roi);
-					}
-					std::cout<<"OBJECT "<<i->getTargetID()<<" IN CROSSWALK!!!"<<std::endl;
-					if(this -> dbEnable){
-						PipeEvent document;
-						document.event_id = 4;
-						document.timestamp = (long int)std::time(0);
-						this -> buffer_aws_iot.push_back(document);
-						this -> dbWrite(&this->aws_iot_events, &this->buffer_aws_iot);
+						if(this -> dbEnable){
+							PipeEvent document;
+							document.event_id = 4;
+							document.timestamp = (long int)std::time(0);
+							document.totalDetections = this ->totalDetections;
+							this -> buffer_aws_iot.push_back(document);
+							this -> dbWrite(&this->aws_iot_events, &this->buffer_aws_iot);
+						}
 					}
 				}
 			}
@@ -937,6 +938,7 @@ void TrackingSystem::dbWrite(mongocxx::v_noabi::collection* col, PipeEvents* buf
 			<< "event_id" << aux.event_id
 			<< "timestamp" << aux.timestamp
 			<< "intersection_id" << aux.intersection_id
+			<< "totalDetections" << aux.totalDetections
 			<< bsoncxx::builder::stream::finalize
 		);
 		}
@@ -1037,6 +1039,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 				PipeEvent document;
 				document.event_id = 2; //set macro
 				document.timestamp = (long int)std::time(0);
+				document.totalDetections = this ->totalDetections;
 				this->buffer_aws_iot.push_back(document); 
 			}
 			std::thread t3(&TrackingSystem::dbWrite, this, &this->aws_iot_events, &this->buffer_aws_iot);
@@ -1070,6 +1073,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 						PipeEvent document;
 						document.event_id = 0,
 						document.timestamp = (long int)std::time(0);
+						document.totalDetections = this -> totalDetections;
 						this -> buffer_aws_iot.push_back(document);
 					}
 #ifdef ENABLED_DB
