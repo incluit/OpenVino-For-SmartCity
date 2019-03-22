@@ -43,12 +43,19 @@ def events_list():
         {'$lookup':{'from':'eventsMappings','localField':'event_id','foreignField':'event_id','as':'em'}},
         {'$unwind': '$em'},
         {'$replaceRoot': {'newRoot':'$em'}},
-        {'$project':{'weight':1}}
+        {'$group':{'_id':{},'total':{'$sum':'$weight'}}},
+        {'$project':{'total':1,'_id':0}}
     ])
-    el = list(events)
-    pprint.pprint(el)
-    return el
+    magicSum = list(events)[0]['total']
+    print(magicSum)
+    return
+def totalDetections():
+    events = iot_collection.aggregate([
+        {'$match':{'event_id':{'$exists':1}}},
+    ])
+    pprint.pprint(list(events)[-1])
 
+totalDetections()
 def defineEventsMappings():
     eventsMappings_list=[
         {'event_id':0, 'weight':45},
