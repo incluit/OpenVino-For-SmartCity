@@ -624,8 +624,8 @@ int TrackingSystem::initTrackingSystem()
 			BOOST_LOG_TRIVIAL(error) << "=============================================================";
 			return FAIL;
 		}
-		this -> totalDetections++;
 		index++;
+		this -> totalDetections++;
 	}
 	return SUCCESS;
 }
@@ -665,6 +665,9 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 			continue;
 		index = this->manager.findTracker(i.first, label);
 		if ( index != -1) {
+			if (this->totalDetections < index)
+				this -> totalDetections = index;
+			std::cout<<this->totalDetections<<std::endl;
 			if (this->manager.insertTracker(i.first, color, index, label, true,this->last_event, &this->dbEnable,&this->totalFrames, &this->buffer_events) == FAIL)
 			{
 				BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================";
@@ -767,7 +770,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 							PipeEvent document;
 							document.event_id = 4;
 							document.timestamp = (long int)std::time(0);
-							document.totalDetections = this ->totalDetections;
+							document.totalDetections = this -> totalDetections;
 							this -> buffer_aws_iot.push_back(document);
 							this -> dbWrite(&this->aws_iot_events, &this->buffer_aws_iot);
 						}
@@ -1039,7 +1042,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 				PipeEvent document;
 				document.event_id = 2; //set macro
 				document.timestamp = (long int)std::time(0);
-				document.totalDetections = this ->totalDetections;
+				document.totalDetections = this -> totalDetections;
 				this->buffer_aws_iot.push_back(document); 
 			}
 			std::thread t3(&TrackingSystem::dbWrite, this, &this->aws_iot_events, &this->buffer_aws_iot);
