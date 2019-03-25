@@ -265,7 +265,7 @@ Step by step instructions can be found on the https://github.com/incluit/OpenVin
 
 We integrated our program to the Intel® IoT DevCloud platform. This developer tool enabled us to run the inference proccess on different hardware targets. The following is the comparison graph where greater is better:
 
-image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Performance-intel-cloud[areas]
+image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Performance-intel-cloud.jpeg[areas]
 
 == Dashboard
 
