@@ -86,9 +86,9 @@
 void WriteStats(std::string job_id, int totalFrames, double totalTime)
 {
 	std::ofstream stats;
-	stats.open("../results/stats_"+job_id+".txt");
+	stats.open("results/stats_"+job_id+".txt");
+	stats<<std::to_string(totalTime/1000.0)+'\n';
 	stats<<std::to_string(totalFrames)+'\n';
-	stats<<totalTime<<'\n';
 	stats.close();
 }
 
