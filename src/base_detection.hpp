@@ -69,7 +69,7 @@ class BaseDetection {
     FramePipelineFifo S1toS2;
 
     struct Result {
-	    int batchIndex;
+        int batchIndex;
         int label;
         float confidence;
         cv::Rect location;

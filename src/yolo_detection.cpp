@@ -1,9 +1,5 @@
 #include "yolo_detection.hpp"
 
-#define yolo_scale_13 13
-#define yolo_scale_26 26
-#define yolo_scale_52 52
-
 void FrameToBlob(const cv::Mat &frame, InferenceEngine::InferRequest::Ptr &inferRequest, const std::string &inputName, bool auto_resize) {
     if (auto_resize) {
         /* Just set input blob containing read image. Resize and layout conversion will be done automatically */

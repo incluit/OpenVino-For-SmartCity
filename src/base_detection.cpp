@@ -59,8 +59,10 @@ void BaseDetection::printPerformanceCounts() {
     ::printPerformanceCounts(this -> requests[idx]->GetPerformanceCounts(), std::cout, false);
 }
 
+// Explicitely override it for children classes
 void BaseDetection::enqueue(const cv::Mat &frame){}
 
+// Explicitely override it for children classes
 void BaseDetection::fetchResults(int inputBatchSize){}
 
 void BaseDetection::run_inferrence(FramePipelineFifo *in_fifo){

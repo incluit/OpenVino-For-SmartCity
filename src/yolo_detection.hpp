@@ -2,9 +2,9 @@
 
 #include "base_detection.hpp"
 
-#define yolo_scale_13 13
-#define yolo_scale_26 26
-#define yolo_scale_52 52
+constexpr size_t yolo_scale_13 = 13;
+constexpr size_t yolo_scale_26 = 26;
+constexpr size_t yolo_scale_52 = 52;
 
 void FrameToBlob(const cv::Mat &frame, InferenceEngine::InferRequest::Ptr &inferRequest, const std::string &inputName);
 

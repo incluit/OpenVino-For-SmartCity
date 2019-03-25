@@ -28,19 +28,19 @@
 #include <mongocxx/instance.hpp>
 #endif
 
-#define FAIL		-1
-#define SUCCESS		1
-#define FALSE		0
-#define TRUE		1
+constexpr int FAIL = -1;
+constexpr int SUCCESS = 1;
+constexpr int FALSE = 0;
+constexpr int TRUE =1;
 
-#define OUT_OF_FRAME	2
+constexpr int OUT_OF_FRAME = 2;
 
-#define ENTER		13
-#define ESC		27
+constexpr int ENTER = 13;
+constexpr int ESC = 27;
 
-#define FLAG_SW 1
-#define FLAG_CW 1<<1
-#define FLAG_STR 1<<2
+constexpr int FLAG_SW = 1;
+constexpr int FLAG_CW = 1<<1;
+constexpr int FLAG_STR = 1<<2;
 
 const int n_frames = 5; // Number of positions to save in the circular buffer
 const int n_frames_pos = 50; // Number of positions to save in the circular buffer
@@ -294,7 +294,7 @@ class TrackingSystem
 		Pipe buffer_events;
 	public:
 		/* Constructor */
-		TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
+		explicit TrackingSystem(std::string *last_event):last_event(last_event),mask(nullptr),
 					mask_sidewalks(nullptr),mask_streets(nullptr),mask_crosswalks(nullptr), totalFrames(0),dbEnable(false){
 					};
 

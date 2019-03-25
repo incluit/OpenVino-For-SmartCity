@@ -343,10 +343,10 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 	// Exceptions
 	if (_init_rect.area() == 0)
 	{
-		BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ====================== ";
-		BOOST_LOG_TRIVIAL(error) << "Function : int SingleTracker::initTracker";
-		BOOST_LOG_TRIVIAL(error) << "Parameter cv::Rect _init_rect's area is 0";
-		BOOST_LOG_TRIVIAL(error) << "=============================================================";
+		BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ====================== " << "\n"
+					 << "Function : int SingleTracker::initTracker" << "\n"
+					 << "Parameter cv::Rect _init_rect's area is 0" << "\n"
+					 << "=============================================================";
 
 		return FAIL;
 	}
@@ -358,10 +358,10 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 
 	if (result_idx != FAIL)	{
 		if (!update) {
-			BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ======================";
-			BOOST_LOG_TRIVIAL(error) << "Function : int SingleTracker::initTracker";
-			BOOST_LOG_TRIVIAL(error) << "_target_id already exists!";
-			BOOST_LOG_TRIVIAL(error) << "=============================================================";
+			BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ======================" << "\n"
+						 << "Function : int SingleTracker::initTracker" << "\n"
+						 << "_target_id already exists!" << "\n"
+						 << "=============================================================";
 
 			return FAIL;
 		} else {
@@ -406,10 +406,10 @@ int TrackerManager::insertTracker(std::shared_ptr<SingleTracker> new_single_trac
 	//Exception
 	if (new_single_tracker == nullptr)
 	{
-		BOOST_LOG_TRIVIAL(error) << "======================== Error Occured! ===================== ";
-		BOOST_LOG_TRIVIAL(error) << "Function : int TrackerManager::insertTracker";
-		BOOST_LOG_TRIVIAL(error) << "Parameter shared_ptr<SingleTracker> new_single_tracker is nullptr";
-		BOOST_LOG_TRIVIAL(error) << "=============================================================";
+		BOOST_LOG_TRIVIAL(error) << "======================== Error Occured! ===================== " << "\n"
+					 << "Function : int TrackerManager::insertTracker" << "\n"
+					 << "Parameter shared_ptr<SingleTracker> new_single_tracker is nullptr" << "\n"
+					 << "=============================================================";
 
 		return FAIL;
 	}
@@ -418,10 +418,10 @@ int TrackerManager::insertTracker(std::shared_ptr<SingleTracker> new_single_trac
 	int result_idx = findTrackerByID(new_single_tracker.get()->getTargetID());
 	if (result_idx != FAIL) {
 		if (!update) {
-			BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================";
-			BOOST_LOG_TRIVIAL(error) << "Function : int SingleTracker::insertTracker";
-			BOOST_LOG_TRIVIAL(error) << "_target_id already exists!";
-			BOOST_LOG_TRIVIAL(error) << "=============================================================";
+			BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================" << "\n"
+						 << "Function : int SingleTracker::insertTracker" << "\n"
+						 << "_target_id already exists!" << "\n"
+						 << "=============================================================";
 
 			return FAIL;
 		} else {
@@ -450,7 +450,7 @@ If success to find return that iterator, or return TrackerManager::tracker_vec.e
 ----------------------------------------------------------------------------------- */
 int TrackerManager::findTrackerByID(int _target_id)
 {
-	auto target = find_if(tracker_vec.begin(), tracker_vec.end(), [&, _target_id](std::shared_ptr<SingleTracker> ptr) -> bool {
+	auto target = find_if(tracker_vec.begin(), tracker_vec.end(), [&_target_id](std::shared_ptr<SingleTracker> ptr) -> bool {
 		return (ptr.get() -> getTargetID() == _target_id);
 	});
 
@@ -703,7 +703,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 
 	// For all SingleTracker, do SingleTracker::startSingleTracking.
 	// Function startSingleTracking should be done before doSingleTracking
-	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&](std::shared_ptr<SingleTracker> ptr) {
+	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&_mat_img](std::shared_ptr<SingleTracker> ptr) {
 		if (!(ptr.get()->getIsTrackingStarted()))
 		{
 			ptr.get()->startSingleTracking(_mat_img);
@@ -726,7 +726,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 	bool dbEn = this->dbEnable;
 
 	// Multi thread
-	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&](std::shared_ptr<SingleTracker> ptr) {
+	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&thread_pool, &_mat_img, &mask_sw, &mask_cw, &mask_str, &buffer, &tFrames, &dbEn](std::shared_ptr<SingleTracker> ptr) {
 		thread_pool.emplace_back([ptr, &_mat_img, &mask_sw, &mask_cw, &mask_str, &buffer, &tFrames, dbEn]() {
 		 ptr.get()->doSingleTracking(&_mat_img, mask_sw, mask_cw, mask_str, buffer, tFrames, dbEn);
 		});
