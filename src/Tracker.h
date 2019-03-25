@@ -71,6 +71,7 @@ typedef struct
 	int event_id = 0;
 	int intersection_id = 0; //has to change from device to device. Review
 	int totalDetections = 0;
+	std::string location = "-31.414499, -64.180416";
 }PipeEvent;
 typedef std::vector<PipeEvent> PipeEvents;
 /* ==========================================================================

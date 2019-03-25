@@ -942,6 +942,7 @@ void TrackingSystem::dbWrite(mongocxx::v_noabi::collection* col, PipeEvents* buf
 			<< "timestamp" << aux.timestamp
 			<< "intersection_id" << aux.intersection_id
 			<< "totalDetections" << aux.totalDetections
+			<< "location" << aux.location
 			<< bsoncxx::builder::stream::finalize
 		);
 		}
