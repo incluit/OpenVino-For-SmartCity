@@ -263,6 +263,10 @@ Step by step instructions can be found on the https://github.com/incluit/OpenVin
 
 === Performance analysis (in progress)
 
+We integrated our program to the Intel® IoT DevCloud platform. This developer tool enabled us to run the inference proccess on different hardware targets. The following is the comparison graph where greater is better:
+
+image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Performance-intel-cloud[areas]
+
 == Dashboard
 
 We notice that in order get a deeper understanding of the near miss identification, it was mandatory to view the progress of the variables metioned above (speed, acceleration). A real-time dashboard of collision and relevant events was develop as available feature as a response to this issue.
@@ -277,8 +281,8 @@ Step by step instructions to install and run the dashboard can be found on the h
 
 * [x] Short README with usage examples
 * [x] Travis + Sonarcloud
-* [ ] Include diagrams and images
-* [ ] Elaborate on the wiki
+* [X] Include diagrams and images
+* [X] Elaborate on the wiki
 
 === Development
 
@@ -291,5 +295,5 @@ Step by step instructions to install and run the dashboard can be found on the h
 * [x] Calculate objects velocities
 * [x] Calculate objects accelerations
 * [x] Detect collisions
-* [ ] Elaborate on dangerous situations to be detected (near misses)
-* [ ] Detect these situations
+* [X] Elaborate on dangerous situations to be detected (near misses)
+* [X] Detect these situations
