@@ -167,16 +167,17 @@ loopCount = 1
 while True:
     time.sleep(10)
     if args.mode == 'both' or args.mode == 'publish':
-        weightedSum = eventsWeightedSum()
+        """weightedSum = eventsWeightedSum()
         le = lastEvent()
         total = le['totalDetections']
         metric = 0
         if total != 0:
-            metric = weightedSum / total
+            metric = weightedSum / total"""
         message = {}
-        message['location'] = "-31.385234, -64.229727" #le['location']
-        message['intersection_id'] = 1
-        message['metric'] = 11.5
+        message['location'] = "-31.406530, -64.189353"#"-31.385234, -64.229727" #le['location']
+        message['intersection_id'] = 2
+        message['metric'] = 5.4
+        message['timestamp'] = time.time() - 24*60*60 - loopCount * 3600
         messageJson = json.dumps(message)
         myAWSIoTMQTTClient.publish(topic, messageJson, 1)
         if args.mode == 'publish':
