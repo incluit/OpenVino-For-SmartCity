@@ -49,41 +49,6 @@
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
 
-/*int blabla(cv::Mat * mask, cv::Point2f * pos)
-{
-	cv::Mat gray;
-	cv::cvtColor(*mask, gray, cv::COLOR_BGR2GRAY);
-	//cv::Canny(gray, gray, 100, 200, 3);
-    cv::imshow("gray", gray);
-	std::vector<std::vector<cv::Point>> contours;
-	cv::findContours( gray, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
-    int count = 0 ;
-    std::cout << "Countours size: " << contours.size() << std::endl;
-    for(auto && i:contours){
-        cv::Mat aux = cv::Mat::zeros(mask -> size(), CV_8UC3);
-        cv::drawContours(aux,contours,count,(255,255,255),3);
-        cv::imshow("contour " + std::to_string(count), aux);
-        count++;
-    }
-	std::vector<double> r_values;
-	for(auto && i : contours){
-		double aux;
-		aux = cv::pointPolygonTest(i,*pos,false);
-        std::cout << aux << std::endl;
-		r_values.push_back(aux);
-	}
-	bool band = FALSE;
-	for(auto && i :r_values){
-		if (i == 1){
-			band = TRUE;
-			std::cout << "Object over crosswalk" << std::endl;
-		} else {
-			band = FALSE;
-		}
-	}
-	return band;
-}*/
-
 // -------------------------Generic routines for detection networks-------------------------------------------------
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
@@ -96,9 +61,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     if (FLAGS_i.empty()) {
         throw std::invalid_argument("Parameter -i is not set");
     }
-    /*if (!(FLAGS_m.empty() && FLAGS_m_p.empty() && !FLAGS_m_y.empty()) && !(!FLAGS_m.empty() && !FLAGS_m_p.empty() && FLAGS_m_y.empty())) {
-        throw std::invalid_argument("Check the models combinations.");
-    }*/
     if (FLAGS_auto_resize) {
         BOOST_LOG_TRIVIAL(warning) << "auto_resize=1, forcing all batch sizes to 1";
         FLAGS_n = 1;
@@ -117,6 +79,7 @@ std::string return_current_time_and_date(){
     ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d_%X");
     return ss.str();
 }
+
 void init_logging(std::string base)
 {
     std::stringstream fileName;
@@ -160,8 +123,6 @@ int main(int argc, char *argv[]) {
         if (!(FLAGS_i == "cam" ? cap.open(0) : cap.open(FLAGS_i))) {
             throw std::invalid_argument("Cannot open input file or camera: " + FLAGS_i);
         }
-        //const size_t width  = (size_t) cap.get(cv::CAP_PROP_FRAME_WIDTH);
-        //const size_t height = (size_t) cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 
         // ---------------------Load plugins for inference engine------------------------------------------------
         std::map<std::string, InferenceEngine::InferencePlugin> pluginsForDevices;
@@ -258,7 +219,8 @@ int main(int argc, char *argv[]) {
             inputFramePtrs.push(&inputFrames[fi]);
             inputFramePtrs_clean.push(&inputFrames2[fi]);
         }
-		//-----------------------Define regions of interest-----------------------------------------------------
+
+	//-----------------------Define regions of interest-----------------------------------------------------
         RegionsOfInterest scene;
 
 	cap.read(scene.orig);
@@ -266,9 +228,9 @@ int main(int argc, char *argv[]) {
 	scene.aux = scene.orig.clone();
 	scene.out = scene.orig.clone();
 	cv::Mat aux_mask;
-    std::vector<cv::Mat> mask_sidewalk;
-    std::vector<cv::Mat> mask_crosswalk;
-    std::vector<std::pair<cv::Mat, int>> mask_streets;
+	std::vector<cv::Mat> mask_sidewalk;
+	std::vector<cv::Mat> mask_crosswalk;
+	std::vector<std::pair<cv::Mat, int>> mask_streets;
 
         cv::Mat first_frame_masked = scene.orig.clone();
 
@@ -500,7 +462,6 @@ int main(int argc, char *argv[]) {
                     outputFrame2_clean = ps1ys4i.outputFrame_clean;
 
                     for (auto && loc : ps1ys4i.resultsLocations) {
-                        //std::cout << "Confidence: " << loc.first
                         if(loc.second == 1){
                             loc.second = LABEL_PERSON;
                         }else if(loc.second == 0){
@@ -545,10 +506,10 @@ int main(int argc, char *argv[]) {
                         break;
                     }
                     if (tracking_system.getTrackerManager().getTrackerVec().size() != 0){
-                        tracking_system.drawTrackingResult(outputFrame_clean);
 			if (FLAGS_collision) {
-				tracking_system.detectCollisions(outputFrame_clean);
+				tracking_system.detectCollisions();
 			}
+                        tracking_system.drawTrackingResult(outputFrame_clean);
                     }
                 }
                 if(update_counter == update_frame){
@@ -585,18 +546,7 @@ int main(int argc, char *argv[]) {
                                 break;
                         }
                     }
-                    /*int clear = std::system("clear");
-                    std::cout << "Frame n°:[" << totalFrames << "]" << std::endl;
-                    std::cout << "Amount of infered objects: " << firstResults.size() << std::endl; 
-                    std::cout << "Person:       " << n_person << std::endl; 
-                    std::cout << "Cars:         " << n_car << std::endl; 
-                    std::cout << "Bus:          " << n_bus << std::endl; 
-                    std::cout << "Truck:        " << n_truck << std::endl; 
-                    std::cout << "Bicycle:      " << n_bike << std::endl; 
-                    std::cout << "Motorbike:    " << n_motorbike << std::endl; 
-                    std::cout << "Unknown:      " << n_ukn << std::endl; 
-                    std::cout << last_event << std::endl;*/
-                }
+               }
 
                 firstFrameWithDetections = false;
                 firstResults.clear();
@@ -613,22 +563,6 @@ int main(int argc, char *argv[]) {
 				std::ostringstream out1;
 				std::ostringstream out2;
 
-				/*if (VehicleDetection.maxBatch > 1) {
-                    out1 << "OpenCV cap/render (avg) Vehicles time: " << std::fixed << std::setprecision(2)
-                        << (ocv_decode_time_vehicle / numSyncFrames + ocv_render_time / totalFrames) << " ms";
-                } else {
-                    out1 << "OpenCV cap/render Vehicles time: " << std::fixed << std::setprecision(2)
-                        << (ocv_decode_time_vehicle + ocv_render_time) << " ms";
-                    ocv_render_time = 0;
-                }
-                if (PedestriansDetection.maxBatch > 1) {
-                    out2 << "OpenCV cap/render (avg) pedestrians time: " << std::fixed << std::setprecision(2)
-                        << (ocv_decode_time_pedestrians / numSyncFrames + ocv_render_time / totalFrames) << " ms";
-                } else {
-                    out2 << "OpenCV cap/render pedestrians time: " << std::fixed << std::setprecision(2)
-                        << (ocv_decode_time_pedestrians + ocv_render_time) << " ms";
-                    ocv_render_time = 0;
-                }*/
                 ocv_decode_time_pedestrians = 0;
                 ocv_decode_time_vehicle = 0;
 
@@ -722,10 +656,6 @@ int main(int argc, char *argv[]) {
         }
 
         delete [] inputFrames;
-
-        if(FLAGS_show_graph){
-            //int ret = system("../scripts/show_graph.sh"); // file should be chmod +x
-        }
 
     }
     catch (const std::exception& error) {

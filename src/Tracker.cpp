@@ -338,10 +338,10 @@ If you are about to track new person, need to use this function.
 
 ------------------------------------------------------------------------- */
 
-int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool update, std::string *last_event, bool* dbEnable, int* totalFrames, Pipe* buffer)
+int TrackerManager::insertTracker(cv::Rect* _init_rect, cv::Scalar* _color, int _target_id, int _label, bool update, std::string *last_event, bool* dbEnable, int* totalFrames, Pipe* buffer)
 {
 	// Exceptions
-	if (_init_rect.area() == 0)
+	if (_init_rect->area() == 0)
 	{
 		BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ====================== " << "\n"
 					 << "Function : int SingleTracker::initTracker" << "\n"
@@ -354,7 +354,7 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 	// if _target_id already exists
 	int result_idx = findTrackerByID(_target_id);
 	// Create new SingleTracker object and insert it to the vector
-	std::shared_ptr<SingleTracker> new_tracker(new SingleTracker(_target_id, _init_rect, _color, _label));
+	std::shared_ptr<SingleTracker> new_tracker(new SingleTracker(_target_id, *_init_rect, *_color, _label));
 
 	if (result_idx != FAIL)	{
 		if (!update) {
@@ -366,12 +366,12 @@ int TrackerManager::insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _t
 			return FAIL;
 		} else {
 			this->tracker_vec[result_idx]->setCenter(new_tracker->getCenter());
-			this->tracker_vec[result_idx]->setRect(_init_rect);
+			this->tracker_vec[result_idx]->setRect(*_init_rect);
 			this->tracker_vec[result_idx]->setUpdateFromDetection(update);
 			this->tracker_vec[result_idx]->setNoUpdateCounter(0);
 			if (tracker_vec[result_idx]->getLabel() == LABEL_UNKNOWN) {
 				this->tracker_vec[result_idx]->setLabel(_label);
-				this->tracker_vec[result_idx]->setColor(_color);
+				this->tracker_vec[result_idx]->setColor(*_color);
 			}
 		}
 	} else {
@@ -492,10 +492,7 @@ int TrackerManager::findTracker(cv::Rect rect, int label)
 		cv::Point n_center = cv::Point(rect.x + (rect.width) / 2, rect.y + (rect.height) / 2);
 		cv::Point diff = s_tracker.get()->getCenter() - n_center;
 		double distance = diff.x*diff.x + diff.y*diff.y;
-		if (best == NULL && distance < dist_thresh) {
-			min_distance = distance;
-			best = s_tracker;
-		} else if ( best != NULL && distance < min_distance ) {
+		if ((best == NULL && distance < dist_thresh) || (best != NULL && distance < min_distance)) {
 			min_distance = distance;
 			best = s_tracker;
 		}
@@ -616,7 +613,7 @@ int TrackingSystem::initTrackingSystem()
 		label = i.second;
 		if ((double)i.first.area()/(double)(getFrameWidth()*getFrameHeight()) < 0.009 && label == LABEL_CAR)
 			continue;
-		if (this->manager.insertTracker(i.first, color, index, label, false, this->last_event, &this->dbEnable,&this->totalFrames, &this->buffer_events) == FAIL)
+		if (this->manager.insertTracker(&i.first, &color, index, label, false, this->last_event, &this->dbEnable,&this->totalFrames, &this->buffer_events) == FAIL)
 		{
 			BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================";
 			BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::initTrackingSystem";
@@ -663,15 +660,12 @@ int TrackingSystem::updateTrackingSystem(std::vector<std::pair<cv::Rect, int>> u
 		if ((double)i.first.area()/(double)(getFrameWidth()*getFrameHeight()) < 0.009 && label == LABEL_CAR)
 			continue;
 		index = this->manager.findTracker(i.first, label);
-		if ( index != -1) {
-			if (this->manager.insertTracker(i.first, color, index, label, true,this->last_event, &this->dbEnable,&this->totalFrames, &this->buffer_events) == FAIL)
-			{
+		if ( index != -1 && this->manager.insertTracker(&i.first, &color, index, label, true,this->last_event, &this->dbEnable,&this->totalFrames, &this->buffer_events) == FAIL ) {
 				BOOST_LOG_TRIVIAL(error) << "====================== Error Occured! =======================";
 				BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::updateTrackingSystem";
 				BOOST_LOG_TRIVIAL(error) << "Sth went wrong";
 				BOOST_LOG_TRIVIAL(error) << "=============================================================";
 				return FAIL;
-			}
 		}
 	}
 #ifdef ENABLED_DB
@@ -751,7 +745,7 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 		}
 		if(this -> mask_crosswalks != nullptr){
 			for(auto && crosswalk: *this->mask_crosswalks) {
-				if (i->getAreas().second == &crosswalk and &crosswalk != nullptr) {
+				if (i->getAreas().second == &crosswalk && &crosswalk != nullptr) {
 					if (i->getLabel() == LABEL_PERSON) {
 						person_cw = true;
 					}
@@ -763,7 +757,6 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 						cv::bitwise_and(roi,crosswalk,roi);
 						this->saveCrosswalk(roi);
 					}
-					std::cout<<"OBJECT "<<i->getTargetID()<<" IN CROSSWALK!!!"<<std::endl;
 				}
 			}
 		}
@@ -789,10 +782,10 @@ Deallocate all memory and close the program.
 ----------------------------------------------------------------------------------- */
 int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 {
-	TrackerManager manager = this->getTrackerManager();
+	TrackerManager l_manager = this->getTrackerManager();
 
 	// Exception
-	if (manager.getTrackerVec().size() == 0)
+	if (l_manager.getTrackerVec().size() == 0)
 	{
 		BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ======================";
 		BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::drawTrackingResult";
@@ -801,7 +794,7 @@ int TrackingSystem::drawTrackingResult(cv::Mat& _mat_img)
 		return FAIL;
 	}
 
-	std::for_each(manager.getTrackerVec().begin(), manager.getTrackerVec().end(), [&_mat_img](std::shared_ptr<SingleTracker> ptr) {
+	std::for_each(l_manager.getTrackerVec().begin(), l_manager.getTrackerVec().end(), [&_mat_img](std::shared_ptr<SingleTracker> ptr) {
 		// Draw all rectangles
 		cv::rectangle(_mat_img, ptr.get()->getRect(), ptr.get()->getColor(), ptr.get()->getRectWidth());
 		if (ptr.get()->getCenters_q().size() == 5) {
@@ -973,12 +966,12 @@ Function : detectCollisions
 Draw red circle when collision is detected and write to log.
 
 ----------------------------------------------------------------------------------- */
-int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
+int TrackingSystem::detectCollisions()
 {
-	TrackerManager manager = this->getTrackerManager();
+	TrackerManager l_manager = this->getTrackerManager();
 
 	// Exception
-	if (manager.getTrackerVec().size() == 0)
+	if (l_manager.getTrackerVec().size() == 0)
 	{
 		BOOST_LOG_TRIVIAL(error) << "======================= Error Occured! ======================";
 		BOOST_LOG_TRIVIAL(error) << "Function : int TrackingSystem::detectCollisions";
@@ -986,7 +979,7 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		BOOST_LOG_TRIVIAL(error) << "=============================================================";
 		return FAIL;
 	}
-	std::vector<std::shared_ptr<SingleTracker>> trackerVec = manager.getTrackerVec();
+	std::vector<std::shared_ptr<SingleTracker>> trackerVec = l_manager.getTrackerVec();
 	for (auto i = trackerVec.begin(); i != trackerVec.end(); ++i) {
 		SingleTracker& iRef = *(*i);
 		if (iRef.getLabel() == LABEL_PERSON) {
@@ -1008,8 +1001,8 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 
 		bool inc_speed = (vel[0]-vel[5] > 0 ? true : false);
 
-		bool same_sign_x = ((acc_x[0] > 0) - (acc_x[0] < 0)) == ((vel_x[0] > 0) - (vel_x[0] < 0));
-		bool same_sign_y = ((acc_y[0] > 0) - (acc_y[0] < 0)) == ((vel_y[0] > 0) - (vel_y[0] < 0));
+		bool same_sign_x = ((acc_x[0] > 0) - (acc_x[0] < 0)) == ((vel_x[0] > 0) - (vel_x[0] < 0)); // NOSONAR
+		bool same_sign_y = ((acc_y[0] > 0) - (acc_y[0] < 0)) == ((vel_y[0] > 0) - (vel_y[0] < 0)); // NOSONAR
 		int sign_x = (same_sign_x ? 1 : -1);
 		int sign_y = (same_sign_y ? 1 : -1);
 
@@ -1017,12 +1010,12 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 		if (acc_x.size() > 1) {
 			int lim = std::min((int)acc_x.size(),3);
 			for (int i = 1; i < lim; i++) {
-				bool same_sign_x = ((acc_x[i] > 0) - (acc_x[i] < 0)) == ((vel_x[i] > 0) - (vel_x[i] < 0));
-				bool same_sign_y = ((acc_y[i] > 0) - (acc_y[i] < 0)) == ((vel_y[i] > 0) - (vel_y[i] < 0));
-				int sign_x = (same_sign_x ? 1 : -1);
-				int sign_y = (same_sign_y ? 1 : -1);
-				avg_acc_x = avg_acc_x + sign_x*std::abs(acc_x.at(i));
-				avg_acc_y = avg_acc_y + sign_y*std::abs(acc_y.at(i));
+				bool same_sign_x_i = ((acc_x[i] > 0) - (acc_x[i] < 0)) == ((vel_x[i] > 0) - (vel_x[i] < 0)); // NOSONAR
+				bool same_sign_y_i = ((acc_y[i] > 0) - (acc_y[i] < 0)) == ((vel_y[i] > 0) - (vel_y[i] < 0)); // NOSONAR
+				int sign_x_i = (same_sign_x_i ? 1 : -1);
+				int sign_y_i = (same_sign_y_i ? 1 : -1);
+				avg_acc_x = avg_acc_x + sign_x_i*std::abs(acc_x.at(i));
+				avg_acc_y = avg_acc_y + sign_y_i*std::abs(acc_y.at(i));
 			}
 		avg_acc_x = avg_acc_x / lim;
 		avg_acc_y = avg_acc_y / lim;
@@ -1030,34 +1023,6 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 
 		double threshold_x = std::abs(sign_x*std::abs(iRef.getAcc_X()) - (avg_acc_x));
 		double threshold_y = std::abs(sign_y*std::abs(iRef.getAcc_Y()) - (avg_acc_y));												
-		
-		/*typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
-
-		std::chrono::high_resolution_clock::time_point tracker_db_time_t0,tracker_db_time_t1;
-		tracker_db_time_t0 = std::chrono::high_resolution_clock::now();*/
-		/*bsoncxx::builder::stream::document document{};
-		document << "frame" << this -> totalFrames; 
-		document << "Id" << iRef.getTargetID();
-		document << "vel_x" << vel_x[0];
-		document << "vel_y" << vel_y[0]; 
-		document << "vel" << vel[0]; 
-		document << "acc_x" << acc_x[0];
-		document << "acc_y" << acc_y[0]; 
-		document << "acc" << iRef.getAcc_q()[0]; 
-		document << "th_x" << threshold_x;
-		document << "th_y" << threshold_y;
-		document << "th" << sqrt(threshold_x*threshold_x+threshold_y*threshold_y);
-		
-		this -> collection_tracker.insert_one(document.view());
-		document.clear();*/
-		/*tracker_db_time_t1 = std::chrono::high_resolution_clock::now();
-		ms detection_time;
-        detection_time = std::chrono::duration_cast<ms>(tracker_db_time_t1 - tracker_db_time_t0);
-		std::cout << "DB Tracker time: " << detection_time.count() << std::endl;
-
-		tracker_db_time_t0 = std::chrono::high_resolution_clock::now();*/
-		//this->buffer_tracker.push_back(totalFrames);
-		//std::thread t1(&TrackingSystem::dbWrite, this, &this->tracker, &this->buffer_tracker);
 		BOOST_LOG_TRIVIAL(info) << "#" << this -> totalFrames << ',' 
 								<< iRef.getTargetID() << ',' 
 								<< vel_x[0] << ',' 
@@ -1070,10 +1035,6 @@ int TrackingSystem::detectCollisions(cv::Mat& _mat_img)
 								<< threshold_y << ','
 								<< sqrt(threshold_x*threshold_x+threshold_y*threshold_y);
 		
-		/*tracker_db_time_t1 = std::chrono::high_resolution_clock::now();
-		detection_time = std::chrono::duration_cast<ms>(tracker_db_time_t1 - tracker_db_time_t0);
-		std::cout << "BOOST_LOG Tracker time: " << detection_time.count() << std::endl;
-		*/
 		if (threshold_x > 4 || threshold_y >= 3 /*&& !same_sign && !inc_speed*/) {
 #ifdef ENABLED_DB
 			if(this -> dbEnable && !iRef.getNearMiss()){

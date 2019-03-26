@@ -116,10 +116,10 @@ public:
 		// Exception
 		if (_init_rect.area() == 0)
 		{
-			std::cout << "======================= Error Occured! ======================" << std::endl;
-			std::cout << "Function : Constructor of SingleTracker" << std::endl;
-			std::cout << "Parameter cv::Rect _init_rect's area is 0" << std::endl;
-			std::cout << "=============================================================" << std::endl;
+			std::cout << "======================= Error Occured! ======================" << std::endl
+				  << "Function : Constructor of SingleTracker" << std::endl
+				  << "Parameter cv::Rect _init_rect's area is 0" << std::endl
+				  << "=============================================================" << std::endl;
 		}
 		else
 		{
@@ -238,7 +238,7 @@ public:
 
 	/* Core Function */
 	// Insert new SingleTracker shared pointer into the TrackerManager::tracker_vec
-	int insertTracker(cv::Rect _init_rect, cv::Scalar _color, int _target_id, int _label, bool update, std::string *last_event, bool* dbEnable, int* totalFrames, Pipe* buffer);
+	int insertTracker(cv::Rect* _init_rect, cv::Scalar* _color, int _target_id, int _label, bool update, std::string *last_event, bool* dbEnable, int* totalFrames, Pipe* buffer);
 	int insertTracker(std::shared_ptr<SingleTracker> new_single_tracker, bool _update);
 
 	// Find SingleTracker by similarity and return id, return new id if no coincidence
@@ -336,7 +336,7 @@ class TrackingSystem
 	int drawTrackingResult(cv::Mat& _mat_img);
 
 	// Detect collisions
-	int detectCollisions(cv::Mat& _mat_img);
+	int detectCollisions();
 
 	// Terminate program
 	void terminateSystem();

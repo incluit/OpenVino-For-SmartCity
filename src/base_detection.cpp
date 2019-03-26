@@ -72,12 +72,8 @@ void BaseDetection::run_inferrence(FramePipelineFifo *in_fifo){
         in.pop();
         for(auto &&  i: ps0i.batchOfInputFrames){
             cv::Mat* curFrame = i;
-            //t0 = std::chrono::high_resolution_clock::now();
             this -> enqueue(*curFrame);
-            //t1 = std::chrono::high_resolution_clock::now();
-            //ocv_decode_time_vehicle += std::chrono::duration_cast<ms>(t1 - t0).count();
         }
-        //t0 = std::chrono::high_resolution_clock::now();
         this -> submitRequest();
         this -> S1toS2.push(ps0i);
         this -> next_pipe = true;
@@ -102,18 +98,11 @@ void BaseDetection::wait_results(FramePipelineFifo *o){
     
     if (((this -> maxSubmittedRequests == 1) && this -> requestsInProcess()) || this -> resultIsReady()) {
         this -> wait();
-        //t1 = std::chrono::high_resolution_clock::now();
-        //detection_time = std::chrono::duration_cast<ms>(t1 - t0);
         FramePipelineFifoItem ps0s1i = in.front();
         in.pop();
         this -> fetchResults(ps0s1i.batchOfInputFrames.size());
         // prepare a FramePipelineFifoItem for each batched frame to get its detection results
         std::vector<FramePipelineFifoItem> batchedFifoItems;
-        /*for (auto && bFrame : ps0s1i.batchOfInputFrames_clean) {
-            FramePipelineFifoItem fpfi;
-            fpfi.outputFrame = bFrame;
-            batchedFifoItems.push_back(fpfi);
-        }*/
 
         for(int i = 0; i < ps0s1i.batchOfInputFrames.size(); i++){
             FramePipelineFifoItem fpfi;

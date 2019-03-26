@@ -171,39 +171,39 @@ DEFINE_string(d_vp, "CPU", target_device_message_vp);
 * \brief This function show a help message
 */
 static void showUsage() {
-    std::cout << std::endl;
-    std::cout << "car_detection_tutorial [OPTION]" << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << std::endl;
-    std::cout << "\t-h\t\t\t\t\t" << help_message << std::endl;
-    std::cout << "\t-i \"<path>\"\t\t\t" << video_message << std::endl;
-    std::cout << "\t-m \"<path>\"\t\t\t" << vehicle_detection_model_message<< std::endl;
-    std::cout << "\t-m_p \"<path>\"\t\t\t" << pedestrians_model_message << std::endl;
-    std::cout << "\t-m_y \"<path>\"\t\t\t" << yolo_model_message << std::endl;
-    std::cout << "\t-m_vp \"<path>\"\t\t\t" << vp_model_message << std::endl;
-    std::cout << "\t\t-l \"<absolute_path>\"\t" << custom_cpu_library_message << std::endl;
-    std::cout << "\t\t\tOr" << std::endl;
-    std::cout << "\t\t-c \"<absolute_path>\"\t" << custom_cldnn_message << std::endl;
-    std::cout << "\t-d \"<device>\"\t\t\t" << target_device_message << std::endl;
-    std::cout << "\t-n \"<num>\"\t\t\t" << num_batch_message << std::endl;
-    std::cout << "\t-d_p \"<device>\"\t\t\t" << target_device_message_pedestrians << std::endl;
-    std::cout << "\t-n_p \"<num>\"\t\t\t" << num_batch_va_message << std::endl;
-    std::cout << "\t-d_y \"<device>\"\t\t\t" << target_device_message_yolo << std::endl;
-    std::cout << "\t-n_y \"<num>\"\t\t\t" << num_batch_va_message << std::endl;
-    std::cout << "\t-d_vp \"<device>\"\t\t\t" << target_device_message_vp << std::endl;
-    std::cout << "\t-n_vp \"<num>\"\t\t\t" << num_batch_va_message << std::endl;
-    std::cout << "\t-dyn_va\t\t\t\t" << dyn_va_message << std::endl;
-    std::cout << "\t-n_aysnc \"<num>\"\t\t\t" << async_depth_message << std::endl;
-    std::cout << "\t-auto_resize\t\t\t\t" << auto_resize_message << std::endl;
-    std::cout << "\t-no_wait\t\t\t\t" << no_wait_for_keypress_message << std::endl;
-    std::cout << "\t-no_show\t\t\t\t" << no_show_processed_video << std::endl;
-    std::cout << "\t-show_selection\t\t\t\t" << show_interest_areas_selection << std::endl;
-    std::cout << "\t-tracking\t\t\t\t" << do_tracking << std::endl;
-    std::cout << "\t-collision\t\t\t\t" << do_collision << std::endl;
-    std::cout << "\t-show_graph\t\t\t\t" << show_graph_message << std::endl;
-    std::cout << "\t-yolo\t\t\t\t" << run_yolo << std::endl;
+    std::cout << std::endl; // NOSONAR
+    std::cout << "car_detection_tutorial [OPTION]" << std::endl; // NOSONAR
+    std::cout << "Options:" << std::endl; // NOSONAR
+    std::cout << std::endl; // NOSONAR
+    std::cout << "\t-h\t\t\t\t\t" << help_message << std::endl; // NOSONAR
+    std::cout << "\t-i \"<path>\"\t\t\t" << video_message << std::endl; // NOSONAR
+    std::cout << "\t-m \"<path>\"\t\t\t" << vehicle_detection_model_message<< std::endl; // NOSONAR
+    std::cout << "\t-m_p \"<path>\"\t\t\t" << pedestrians_model_message << std::endl; // NOSONAR
+    std::cout << "\t-m_y \"<path>\"\t\t\t" << yolo_model_message << std::endl; // NOSONAR
+    std::cout << "\t-m_vp \"<path>\"\t\t\t" << vp_model_message << std::endl; // NOSONAR
+    std::cout << "\t\t-l \"<absolute_path>\"\t" << custom_cpu_library_message << std::endl; // NOSONAR
+    std::cout << "\t\t\tOr" << std::endl; // NOSONAR
+    std::cout << "\t\t-c \"<absolute_path>\"\t" << custom_cldnn_message << std::endl; // NOSONAR
+    std::cout << "\t-d \"<device>\"\t\t\t" << target_device_message << std::endl; // NOSONAR
+    std::cout << "\t-n \"<num>\"\t\t\t" << num_batch_message << std::endl; // NOSONAR
+    std::cout << "\t-d_p \"<device>\"\t\t\t" << target_device_message_pedestrians << std::endl; // NOSONAR
+    std::cout << "\t-n_p \"<num>\"\t\t\t" << num_batch_va_message << std::endl; // NOSONAR
+    std::cout << "\t-d_y \"<device>\"\t\t\t" << target_device_message_yolo << std::endl; // NOSONAR
+    std::cout << "\t-n_y \"<num>\"\t\t\t" << num_batch_va_message << std::endl; // NOSONAR
+    std::cout << "\t-d_vp \"<device>\"\t\t\t" << target_device_message_vp << std::endl; // NOSONAR
+    std::cout << "\t-n_vp \"<num>\"\t\t\t" << num_batch_va_message << std::endl; // NOSONAR
+    std::cout << "\t-dyn_va\t\t\t\t" << dyn_va_message << std::endl; // NOSONAR
+    std::cout << "\t-n_aysnc \"<num>\"\t\t\t" << async_depth_message << std::endl; // NOSONAR
+    std::cout << "\t-auto_resize\t\t\t\t" << auto_resize_message << std::endl; // NOSONAR
+    std::cout << "\t-no_wait\t\t\t\t" << no_wait_for_keypress_message << std::endl; // NOSONAR
+    std::cout << "\t-no_show\t\t\t\t" << no_show_processed_video << std::endl; // NOSONAR
+    std::cout << "\t-show_selection\t\t\t\t" << show_interest_areas_selection << std::endl; // NOSONAR
+    std::cout << "\t-tracking\t\t\t\t" << do_tracking << std::endl; // NOSONAR
+    std::cout << "\t-collision\t\t\t\t" << do_collision << std::endl; // NOSONAR
+    std::cout << "\t-show_graph\t\t\t\t" << show_graph_message << std::endl; // NOSONAR
+    std::cout << "\t-yolo\t\t\t\t" << run_yolo << std::endl; // NOSONAR
     std::cout << "\t-iou_t\t\t\t\t" << intersection_over_union_yolo << std::endl;
-    std::cout << "\t-pc\t\t\t\t" << performance_counter_message << std::endl;
-    std::cout << "\t-r\t\t\t\t" << raw_output_message << std::endl;
-    std::cout << "\t-t\t\t\t\t" << thresh_output_message << std::endl;
+    std::cout << "\t-pc\t\t\t\t" << performance_counter_message << std::endl; // NOSONAR
+    std::cout << "\t-r\t\t\t\t" << raw_output_message << std::endl; // NOSONAR
+    std::cout << "\t-t\t\t\t\t" << thresh_output_message << std::endl; // NOSONAR
 }
