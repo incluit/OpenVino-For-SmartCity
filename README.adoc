@@ -279,7 +279,7 @@ Step by step instructions to install and run the dashboard can be found on the h
 
 As we focus on delivered a POC that could be productized in the near future, we unterstood that integrate that a distributed application should have the possibility to compare two different intersection dangerouness.
 To address this, we developed a metric that weight each type of near miss and took into account the total ammount of detection on each street. This metric is evaluated once every 30 seconds and broadcasted throught MQTT to AWS IoT Core.
-To learn more about cloud integration using AWS, follow this link to our wiki.
+To learn more about cloud integration using AWS, follow  https://github.com/incluit/OpenVino-For-SmartCity/wiki/9-AWS-cloud-integration[this link] to our wiki.
 
 == To Do
 
