@@ -176,8 +176,8 @@ while True:
         message = {}
         message['location'] = "-31.406530, -64.189353"#"-31.385234, -64.229727" #le['location']
         message['intersection_id'] = 2
-        message['metric'] = 5.4
-        message['timestamp'] = time.time() - 24*60*60 - loopCount * 3600
+        message['metric'] = 7.2
+        #message['timestamp'] = time.time() - 24*60*60 * 5
         messageJson = json.dumps(message)
         myAWSIoTMQTTClient.publish(topic, messageJson, 1)
         if args.mode == 'publish':
