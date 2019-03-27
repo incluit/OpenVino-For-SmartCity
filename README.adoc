@@ -7,12 +7,29 @@
 :sectnums:
 :toc: macro
 :toclevels: 6
-:toc-title: Table of Contents
+:toc-title: 
 
 https://travis-ci.org/incluit/OpenVino-For-SmartCity#[image:https://travis-ci.org/incluit/OpenVino-For-SmartCity.svg?branch=master[Build
 Status]]
 https://sonarcloud.io/dashboard?id=incluit_OpenVino-For-SmartCity[image:https://sonarcloud.io/api/project_badges/measure?project=incluit_OpenVino-For-SmartCity&metric=alert_status[Sonarcloud
 Status]]
+
+|===
+|Details |
+
+|Target OS:
+|Ubuntu 16.4
+
+|Programming language
+|C++
+
+|Time to complete
+|1 hrs
+|===
+
+image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/collision.gif[collision]
+
+== Table of contents
 
 toc::[]
 
