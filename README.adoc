@@ -240,11 +240,11 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/grap
 
 In the image above, we can assume that the white van goes at constant speed before getting to the intersection, we can see this plotted as a red line in the chart. Then, it tries to break (we can see a small down peak) and then the black car crashes into it, increasing its speed. The yellow line represents the acceleration of the van, we can clearly see that we could define a threshold on the acceleration to define a hard crash like this one.
 
-===== Near misses (In Progress)
+===== Near misses
 
 We define near misses as an "extension" of collisions, in the way that we can identify thresholds in speed and acceleration and search for other vehicles in the neighborhood of the offender. We could then detect near misses. These situations and other dangerous ones are further explored in the https://github.com/incluit/OpenVino-For-SmartCity/wiki/4-Near-Misses[wiki].
 
-==== Areas of Interest (In Progress)
+==== Areas of Interest
 
 To draw areas of interest you should run the command with the `-show_selection` argument.
 
@@ -261,7 +261,7 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/area
 
 Step by step instructions can be found on the https://github.com/incluit/OpenVino-For-SmartCity/wiki/0---Areas-of-Interest[wiki].
 
-=== Performance analysis (in progress)
+=== Performance analysis
 
 We integrated our program to the Intel® IoT DevCloud platform. This developer tool enabled us to run the inference proccess on different hardware targets. The following is the comparison graph where greater is better:
 
