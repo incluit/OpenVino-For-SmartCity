@@ -13,11 +13,8 @@
 #include <vector>
 #include <queue>
 #include <utility>
-
 #include <inference_engine.hpp>
-
 #include <samples/ocv_common.hpp>
-
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <ext_list.hpp>
