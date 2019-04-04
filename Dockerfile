@@ -3,7 +3,7 @@ FROM ubuntu:16.04
 ADD . /app
 WORKDIR /app
 
-ARG INSTALL_DIR=/opt/intel/computer_vision_sdk
+ARG INSTALL_DIR=/opt/openvino/computer_vision_sdk
 
 RUN apt-get update && apt-get -y upgrade && apt-get autoremove
 
