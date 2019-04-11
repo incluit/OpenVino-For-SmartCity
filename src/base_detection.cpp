@@ -1,3 +1,5 @@
+#include <opencv2/opencv.hpp>
+
 #include "base_detection.hpp"
 
 void BaseDetection::submitRequest() 

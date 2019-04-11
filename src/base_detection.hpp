@@ -13,15 +13,8 @@
 #include <vector>
 #include <queue>
 #include <utility>
-
 #include <inference_engine.hpp>
-
-#define INTEL_LAST_VER 5
-
-#if (INTEL_CVSDK_VER >= INTEL_LAST_VER)
 #include <samples/ocv_common.hpp>
-#endif
-
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <ext_list.hpp>
@@ -30,6 +23,7 @@
 #include <boost/log/expressions.hpp>
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include <opencv2/opencv.hpp>
 
 typedef struct {
             std::vector<cv::Mat*> batchOfInputFrames;

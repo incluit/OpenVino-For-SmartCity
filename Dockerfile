@@ -3,7 +3,7 @@ FROM ubuntu:16.04
 ADD . /app
 WORKDIR /app
 
-ARG INSTALL_DIR=/opt/intel/computer_vision_sdk
+ARG INSTALL_DIR=/opt/intel/openvino
 
 RUN apt-get update && apt-get -y upgrade && apt-get autoremove
 
@@ -25,7 +25,7 @@ RUN pip3 install --upgrade pip setuptools wheel
 
 # installing OpenVINO dependencies
 RUN cd /app/l_openvino_toolkit* && \
-    ./install_cv_sdk_dependencies.sh
+    ./install_openvino_dependencies.sh
 
 ## installing OpenVINO itself
 RUN cd /app/l_openvino_toolkit* && \
