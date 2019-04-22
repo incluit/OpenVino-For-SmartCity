@@ -4,10 +4,17 @@
 # check for variable set by setupvars.sh in the SDK, need it to find models
 : ${InferenceEngine_DIR:?"Must source the setupvars.sh in the SDK to set InferenceEngine_DIR"}
 
+# 4 = 2018 R4
+# 5 = 2018 R5
+# 6 = 2019 R1
+
 if (echo $INTEL_CVSDK_DIR | grep -q "\.5\."); then
 	export INTEL_CVSDK_VER=5
+else if (echo $INTEL_CVSDK_DIR | grep -q "openvino"); then
+	export INTEL_CVSDK_VER=6
 else
 	export INTEL_CVSDK_VER=4
+fi
 fi
 
 modelDir=$InferenceEngine_DIR/../../intel_models
