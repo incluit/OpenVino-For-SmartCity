@@ -732,19 +732,22 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 #ifdef ENABLED_DB
 	std::thread t1(&TrackingSystem::dbWrite, this, &this->tracker, &this->buffer_tracker);
 #endif
-	bool person_cw = false;
-	bool car_cw = false;
-
-	// If target is going out of the frame, delete that tracker.
 	std::vector<int> tracker_erase;
-	for(auto && i: manager.getTrackerVec()){
-		if (i->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight(), this->mask) == FALSE || i->getDelete())
-		{
+	for(auto && i: manager.getTrackerVec()) {
+		if (i->isTargetInsideFrame(this->getFrameWidth(), this->getFrameHeight(), this->mask) == FALSE || i->getDelete()) {
 			int target_id = i.get()->getTargetID();
 			tracker_erase.push_back(target_id);
 		}
-		if(this -> mask_crosswalks != nullptr){
-			for(auto && crosswalk: *this->mask_crosswalks) {
+	}
+
+	for(auto && i : tracker_erase)
+		int a = manager.deleteTracker(i,this->last_event, &this->dbEnable, &this->totalFrames, &this->buffer_events);
+
+	if(this -> mask_crosswalks != nullptr){
+		for(auto && crosswalk: *this->mask_crosswalks) {
+			bool person_cw = false;
+			bool car_cw = false;
+			for(auto && i: manager.getTrackerVec()) {
 				if (i->getAreas().second == &crosswalk && &crosswalk != nullptr) {
 					if (i->getLabel() == LABEL_PERSON) {
 						person_cw = true;
@@ -762,9 +765,6 @@ int TrackingSystem::startTracking(cv::Mat& _mat_img)
 		}
 	}
 
-	for(auto && i : tracker_erase){
-		int a = manager.deleteTracker(i,this->last_event, &this->dbEnable, &this->totalFrames, &this->buffer_events);
-	}
 #ifdef ENABLED_DB
 	this->dbWrite(&this->events, &this->buffer_events);
 	t1.join();
