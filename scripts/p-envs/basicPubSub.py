@@ -163,9 +163,16 @@ myAWSIoTMQTTClient.connect()
 time.sleep(2)"""
 
 # Publish to the same topic in a loop forever
-loopCount = 1
-while True:
-    time.sleep(10)
+intersection_ids = [0, 1, 2, 3]
+locations = ["-31.406530, -64.189353", "-31.4148881, -64.1812478", "-31.4084131,-64.2029407", "-31.3978032, -64.217442"]
+events_ids = [0, 1, 2, 3, 4, 5, 6]
+scores_events = [0.45, 0.55, 0.05, 0.02, 0.12, 0.17, 0.20]
+detected_objs = {"0":1, "1":1, "2":1, "3":1}
+weekdays = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+loopCount = 0
+day = 1
+while (day < 30):
+    time.sleep(1)
     if args.mode == 'both' or args.mode == 'publish':
         """weightedSum = eventsWeightedSum()
         le = lastEvent()
@@ -174,11 +181,24 @@ while True:
         if total != 0:
             metric = weightedSum / total"""
         message = {}
-        message['location'] = "-31.406530, -64.189353"#"-31.385234, -64.229727" #le['location']
-        message['intersection_id'] = 2
-        message['metric'] = 7.2
-        #message['timestamp'] = time.time() - 24*60*60 * 5
+#        message['location'] = "-31.406530, -64.189353"#"-31.385234, -64.229727" #le['location']
+#        message['intersection_id'] = 2
+#        message['metric'] = 7.2
+#        message['timestamp'] = time.time() - 24*60*60 * 5
+        n_intersection = intersection_ids[random.randint(0,len(intersection_ids)-1)]
+        message['intersection_id'] = n_intersection
+        message['location'] = locations[n_intersection]
+        n_event = events_ids[random.randint(0,len(events_ids)-1)]
+        message['events_id'] = n_event
+        message['score'] = scores_events[n_event]
+        message['total_detections'] = random.randint(20,200)
+        message['timestamp'] = (time.time() - (24*60*60 * day))*1000
+        message['weekday'] = weekdays[day % 7]
         messageJson = json.dumps(message)
         myAWSIoTMQTTClient.publish(topic, messageJson, 1)
-        if args.mode == 'publish':
-            print('Published topic %s: %s\n' % (topic, messageJson))
+        loopCount = loopCount + 1
+        if (loopCount == 20):
+            day = day + 1
+            loopCount = 0
+        print('Remaining days: %d\n' % (30-day))
+        print('Published topic %s: %s\n' % (topic, messageJson))
