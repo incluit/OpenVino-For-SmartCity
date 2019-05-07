@@ -68,7 +68,7 @@ A summary of what is needed:
 
 * OpenVINO™ toolkit supported Linux operating system. This tutorial was run on 64-bit Ubuntu 16.04.1 LTS updated to kernel 4.15.0-43 following the OpenVINO™ toolkit installation instructions.
 
-* The latest OpenVINO™ toolkit installed and verified. This tutorial was written using version 2018 R4.0. However, version 2018 R5.0 is also supported.
+* The latest OpenVINO™ toolkit installed and verified. Supported versions +2018 R4.0. (Lastest version supported 2019 R1.0.1) 
 
 * Git(git) for downloading from the GitHub repository.
 
@@ -271,7 +271,7 @@ Step by step instructions can be found on the https://github.com/incluit/OpenVin
 
 We integrated our program to the Intel® IoT DevCloud platform. This developer tool enabled us to run the inference proccess on different hardware targets. The following is the comparison graph where greater is better:
 
-image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Performance-intel-cloud.jpeg[areas]
+image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Performance-intel-cloud.png[areas]
 
 == Dashboarding
 
@@ -293,8 +293,8 @@ To learn more about cloud integration using AWS, follow  https://github.com/incl
 
 * [x] Short README with usage examples
 * [x] Travis + Sonarcloud
-* [X] Include diagrams and images
-* [X] Elaborate on the wiki
+* [x] Include diagrams and images
+* [x] Elaborate on the wiki
 
 === Development
 
@@ -307,5 +307,5 @@ To learn more about cloud integration using AWS, follow  https://github.com/incl
 * [x] Calculate objects velocities
 * [x] Calculate objects accelerations
 * [x] Detect collisions
-* [X] Elaborate on dangerous situations to be detected (near misses)
-* [X] Detect these situations
+* [x] Elaborate on dangerous situations to be detected (near misses)
+* [x] Detect these situations
