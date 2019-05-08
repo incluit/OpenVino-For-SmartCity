@@ -287,7 +287,7 @@ As we focus on delivered a POC that could be productized in the near future, we 
 To address this, we developed a metric that weight each type of near miss and took into account the total ammount of detection on each street. This metric is evaluated once every 30 seconds and broadcasted throught MQTT to AWS IoT Core.
 To learn more about cloud integration using AWS, follow  https://github.com/incluit/OpenVino-For-SmartCity/wiki/9-AWS-cloud-integration[this link] to our wiki.
 
-image:: https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/new%20dashboard.png [Metric Display]
+image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/new%20dashboard.png[MetricDisplay]
 
 == To Do
 
