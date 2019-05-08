@@ -108,6 +108,14 @@ toolkit by sourcing the "setupvars.sh" script.
 
 [source,bash]
 ----
+source  /opt/intel/openvino/bin/setupvars.sh
+----
+
+For older versions than 2019 R1, OpenVINO was installed in a different dir, run
+this instead:
+
+[source,bash]
+----
 source  /opt/intel/computer_vision_sdk/bin/setupvars.sh
 ----
 
