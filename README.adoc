@@ -19,6 +19,10 @@ toc::[]
 == Foreword
 This is a follow-up on the OpenVino's inference tutorials:
 
+Version 2019 R1.0
+
+https://github.com/intel-iot-devkit/inference-tutorials-generic/tree/openvino_toolkit_2019_r1_0
+
 Version 2018 R5.0
 
 https://github.com/intel-iot-devkit/inference-tutorials-generic/tree/openvino_toolkit_r5_0
