@@ -305,7 +305,7 @@ We notice that in order get a deeper understanding of the near miss identificati
 
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/Dashboard.png[areas]
 
-Step by step instructions to install and run the dashboard can be found on the https://github.com/incluit/OpenVino-For-SmartCity/wiki/0---Areas-of-Interest[wiki].
+Step by step instructions to install and run the dashboard can be found on the https://github.com/incluit/OpenVino-For-SmartCity/wiki/7---Dashboard[wiki].
 
 == Cloud integration
 
