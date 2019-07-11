@@ -209,13 +209,15 @@ image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/dete
 
 [quote]
 If you want to execute a detection scenario by using a web camera, we suggest you to perform it with the following command:
+----
 1) If using the native camera:
 /intel64/Release/smart_city_tutorial -m_vp $vehicle232
-./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -i cam
-
+or  ./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -i cam
+----
+----
 2) If using an usb camera:
 ./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -i /dev/video1
-
+----
 ==== Other models
 
 You can also experiment by using different detection models, being the ones available up to now:
