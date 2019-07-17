@@ -330,6 +330,7 @@ Near misses has been optimized for having compatibility with OpenVINO’s releas
 In first instance, 2019 releases do not have the detection model’s binaries included within the toolkit; the user will have to follow the instructions described in the Open Model Zoo link suggested at the “Foreword” section of this installation guide. Be aware that if you choose to download them in a different path than the default, our “scripts/setupenv.sh” will not fully work and you will have to add the path to the models yourself when running the program.
 In case of using the OpenVINO’s 2019 R1.0 or greater, before continuing, if you have not manually downloaded all the models before, it is necessary to download the vehicle-bike-detection-crossroad-0078 detection model.
 
+[source,bash]
 ----
 sudo /opt/intel/<openvino_path>/deployment_tools/tools/model_downloader/downloader.py --name person-vehicle-bike-detection-crossroad-0078
 ----
