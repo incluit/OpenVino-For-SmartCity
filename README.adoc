@@ -143,6 +143,13 @@ mkdir build
 cd build
 ----
 
+[quote]
+In case of using the OpenVINO’s 2019 R1.0 or greater, before continuing, if you have not manually downloaded all the models before, it is necessary to download the vehicle-bike-detection-crossroad-0078 detection model.
+[source,bash]
+----
+sudo /opt/intel/openvino/deployment_tools/tools/model_downloader/downloader.py --name person-vehicle-bike-detection-crossroad-0078
+----
+
 **5.** Before running each of the following sections, be sure to source the
 helper script. That will make it easier to use environment variables
 instead of long names to the models:
