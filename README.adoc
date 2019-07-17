@@ -352,8 +352,8 @@ apt-get install libboost-log-dev
 In third place, it is fundamental for the building process to configure de build environment for the OpenCV toolkit by executing the following command:
 
 ----	
-  2019 R1.X     source  /opt/intel/openvino/bin/setupvars.sh
-	2018 R4-R5    source  /opt/intel/computer_vision_sdk/bin/setupvars.sh
+2019 R1.X     source  /opt/intel/openvino/bin/setupvars.sh
+2018 R4-R5    source  /opt/intel/computer_vision_sdk/bin/setupvars.sh
 ----
 
 Finally, before executing the compilation process be sure to source the helper script. That will make it easier to use environment variables instead of long names to the models: source ../scripts/setupenv.sh
