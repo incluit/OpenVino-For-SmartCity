@@ -317,6 +317,61 @@ To learn more about cloud integration using AWS, follow  https://github.com/incl
 
 image::https://github.com/incluit/OpenVino-For-SmartCity/blob/master/images/new%20dashboard.png[MetricDisplay]
 
+== FAQ
+=== OpenVINO’s releases compatibility
+Near misses has been optimized for having compatibility with OpenVINO’s releases 2018’s (R4, R5) and 2019’s (Lastest version tested 2019 R1.0.1).It is important for the user to be aware that some changes regarding detection models had been introduced between releases from 2018 and 2019. 
+In first instance, 2019 releases do not have the detection model’s binaries included within the toolkit; the user will have to follow the instructions described in the Open Model Zoo link suggested at the “Foreword” section of this installation guide. Be aware that if you choose to download them in a different path than the default, our “scripts/setupenv.sh” will not fully work and you will have to add the path to the models yourself when running the program.
+In case of using the OpenVINO’s 2019 R1.0 or greater, before continuing, if you have not manually downloaded all the models before, it is necessary to download the vehicle-bike-detection-crossroad-0078 detection model.
+
+----
+sudo /opt/intel/openvino/deployment_tools/tools/model_downloader/downloader.py --name person-vehicle-bike-detection-crossroad-0078
+----
+
+After, the user will be able to initiate the building process and to start using Near Misses.
+
+=== Problems with compilation process
+Firstly, in order to successfully execute the building process, please make sure that all the declared prerequisites –hardware and software- has been met. 
+In particular, regarding software prerequisites, is fundamental that the OpenVINO’s toolkit version had been downloaded by following the Intel’s intrucctions described in the following links:
+
+•	Version 2019 R1.144 (latest)
+https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html
+•	Version 2019 R1.01
+https://docs.openvinotoolkit.org/2019_R1.01/_docs_install_guides_installing_openvino_linux.html
+•	Version 2019 R1.0
+https://docs.openvinotoolkit.org/2019_R1/_docs_install_guides_installing_openvino_linux.html
+•	Version 2018 R5.0
+https://docs.openvinotoolkit.org/2018_R5/_docs_install_guides_installing_openvino_linux.html
+
+Secondly, make sure that “BOOST” library has been downloaded. If not, execute the following commands:
+
+----
+apt-get install libboost-dev
+apt-get install libboost-log-dev
+----
+
+In third place, it is fundamental for the building process to configure de build environment for the OpenCV toolkit by executing the following command:
+
+----	
+  2019 R1.X     source  /opt/intel/openvino/bin/setupvars.sh
+	2018 R4-R5    source  /opt/intel/computer_vision_sdk/bin/setupvars.sh
+----
+
+Finally, before executing the compilation process be sure to source the helper script. That will make it easier to use environment variables instead of long names to the models: source ../scripts/setupenv.sh
+
+=== Executing Near Misses by using external camera
+In case of executing a Near Miss Detection Scenario by using a web camera, the user will be able to perform this through the following command: 
+
+If using the native camera:
+----
+/intel64/Release/smart_city_tutorial -m_vp $vehicle232 
+./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -i cam
+----
+
+If using an USB camera:
+----
+./intel64/Release/smart_city_tutorial -m_vp $vehicle232 -i /dev/video1
+----
+
 == To Do
 
 === README
