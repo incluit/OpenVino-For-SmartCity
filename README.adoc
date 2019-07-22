@@ -147,7 +147,8 @@ cd build
 In case of using the OpenVINO’s 2019 R1.0 or greater, before continuing, if you have not manually downloaded all the models before, it is necessary to download the vehicle-bike-detection-crossroad-0078 detection model.
 [source,bash]
 ----
-sudo /opt/intel/<openvino_path>/deployment_tools/tools/model_downloader/downloader.py --name person-vehicle-bike-detection-crossroad-0078
+cd /opt/intel/<openvino_path>/deployment_tools/tools/model_downloader/
+sudo ./downloader.py --name person-vehicle-bike-detection-crossroad-0078
 ----
 
 **5.** Before running each of the following sections, be sure to source the
@@ -332,7 +333,8 @@ In case of using the OpenVINO’s 2019 R1.0 or greater, before continuing, if yo
 
 [source,bash]
 ----
-sudo /opt/intel/<openvino_path>/deployment_tools/tools/model_downloader/downloader.py --name person-vehicle-bike-detection-crossroad-0078
+cd /opt/intel/<openvino_path>/deployment_tools/tools/model_downloader/
+sudo ./downloader.py --name person-vehicle-bike-detection-crossroad-0078
 ----
 
 After, the user will be able to initiate the building process and to start using Near Misses.
