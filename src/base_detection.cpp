@@ -49,15 +49,6 @@ bool BaseDetection::enabled() const  {
     }
     return this -> _enabled;
 }
-void BaseDetection::printPerformanceCounts() {
-    if (!this -> enabled()) {
-        return;
-    }
-    // use last request used
-    int idx = std::max(0, (this -> inputRequestIdx)-1);
-    BOOST_LOG_TRIVIAL(info) << "Performance counts for " << this -> topoName;
-    ::printPerformanceCounts(this -> requests[idx]->GetPerformanceCounts(), std::cout, false);
-}
 
 // Explicitely override it for children classes
 void BaseDetection::enqueue(const cv::Mat &frame){}

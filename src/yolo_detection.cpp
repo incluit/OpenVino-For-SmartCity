@@ -170,8 +170,8 @@ InferenceEngine::CNNNetwork YoloDetection::read() {
         throw std::logic_error("This demo accepts networks that have only one input");
     }
     InferenceEngine::InputInfo::Ptr& input = inputInfo.begin()->second;
-    this -> resized_im_h = input.get()->getDims()[0];
-    this -> resized_im_w = input.get()->getDims()[1];
+    this -> resized_im_h = input.get()->getTensorDesc().getDims()[0];
+    this -> resized_im_w = input.get()->getTensorDesc().getDims()[1];
     auto inputName = inputInfo.begin()->first;
     this -> input_name = inputName;
     input->setPrecision(InferenceEngine::Precision::U8);

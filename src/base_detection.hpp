@@ -56,7 +56,7 @@ class BaseDetection {
     std::string topoName;
     int maxBatch;
     int maxSubmittedRequests;
-    InferenceEngine::InferencePlugin * plugin;
+    InferenceEngine::Core * plugin;
     int inputRequestIdx;
     InferenceEngine::InferRequest::Ptr outputRequest;
     std::vector<InferenceEngine::InferRequest::Ptr> requests;
@@ -112,7 +112,6 @@ class BaseDetection {
     bool canSubmitRequest();
 
     bool enabled() const;
-    void printPerformanceCounts();
 };
 
 class Load {
@@ -120,14 +119,14 @@ class Load {
 	BaseDetection& detector;
     explicit Load(BaseDetection& detector) : detector(detector) { }
 
-    void into(InferenceEngine::InferencePlugin & plg, bool enable_dynamic_batch = false) const {
+    void into(InferenceEngine::Core & plg, std::string& deviceName, bool enable_dynamic_batch = false) const {
         if (detector.enabled()) {
             std::map<std::string, std::string> config;
             // if specified, enable Dynamic Batching
             if (enable_dynamic_batch) {
                 config[InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED] = InferenceEngine::PluginConfigParams::YES;
             }
-            detector.net = plg.LoadNetwork(detector.read(), config);
+            detector.net = plg.LoadNetwork(detector.read(), deviceName, config);
             detector.plugin = &plg;
         }
     }

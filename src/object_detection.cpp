@@ -48,7 +48,7 @@ InferenceEngine::CNNNetwork ObjectDetection::read() {
         throw std::domain_error(msg);
     }
     auto& inputInfoFirst = inputInfo.begin()->second;
-    inputInfoFirst->setInputPrecision(InferenceEngine::Precision::U8);
+    inputInfoFirst->setPrecision(InferenceEngine::Precision::U8);
 	if (this -> auto_resize) {
         // set resizing algorithm
         inputInfoFirst->getPreProcess().setResizeAlgorithm(InferenceEngine::RESIZE_BILINEAR);
@@ -65,10 +65,10 @@ InferenceEngine::CNNNetwork ObjectDetection::read() {
         throw std::domain_error(msg);
     }
     auto& _output = outputInfo.begin()->second;
-    const InferenceEngine::SizeVector outputDims = _output->dims;
+    const InferenceEngine::SizeVector outputDims = _output->getTensorDesc().getDims();
     this -> output = outputInfo.begin()->first;
-    this -> maxProposalCount = outputDims[1];
-    this -> objectSize = outputDims[0];
+    this -> maxProposalCount = outputDims[2];
+    this -> objectSize = outputDims[3];
     if (this -> objectSize != 7) {
         throw std::domain_error("Output should have 7 as a last dimension");
     }

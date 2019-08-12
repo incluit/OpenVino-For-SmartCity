@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
         }
 
         // ---------------------Load plugins for inference engine------------------------------------------------
-        std::map<std::string, InferenceEngine::InferencePlugin> pluginsForDevices;
+        std::map<std::string, InferenceEngine::Core> pluginsForDevices;
         std::vector<std::pair<std::string, std::string>> cmdOptions = {
             {FLAGS_d, FLAGS_m}, {FLAGS_d_p, FLAGS_m_p}, {FLAGS_d_y, FLAGS_m_y}, {FLAGS_d_vp, FLAGS_m_vp}
         };
@@ -171,41 +171,32 @@ int main(int argc, char *argv[]) {
                 continue;
             }
             BOOST_LOG_TRIVIAL(info) << "Loading plugin " << deviceName;
-            InferenceEngine::InferencePlugin plugin = InferenceEngine::PluginDispatcher({"../../../lib/intel64", ""}).getPluginByDevice(deviceName);
+            InferenceEngine::Core core;
 
-            std::stringstream aux;
             /** Printing plugin version **/
-            printPluginVersion(plugin, aux);
-            BOOST_LOG_TRIVIAL(info) << aux.str();
+            std::cout << core.GetVersions(deviceName);
             /** Load extensions for the CPU plugin **/
             if (deviceName.find("CPU") != std::string::npos) {
-                plugin.AddExtension(std::make_shared<InferenceEngine::Extensions::Cpu::CpuExtensions>());
+                core.AddExtension(std::make_shared<InferenceEngine::Extensions::Cpu::CpuExtensions>(), deviceName);
 
                 if (!FLAGS_l.empty()) {
                     // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
                     auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
-                    plugin.AddExtension(extension_ptr);
+                    core.AddExtension(extension_ptr, deviceName);
                 }
             } else if (!FLAGS_c.empty()) {
                 // Load Extensions for other plugins not CPU
-                plugin.SetConfig({ { InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c } });
+                core.SetConfig({{InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, deviceName);
             }
 
-            pluginsForDevices[deviceName] = plugin;
-        }
-
-        /** Per layer metrics **/
-        if (FLAGS_pc) {
-            for (auto && plugin : pluginsForDevices) {
-                plugin.second.SetConfig({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}});
-            }
+            pluginsForDevices[deviceName] = core;
         }
 
         // --------------------Load networks (Generated xml/bin files)-------------------------------------------
-        Load(VehicleDetection).into(pluginsForDevices[FLAGS_d], false);
-        Load(PedestriansDetection).into(pluginsForDevices[FLAGS_d_p], false);
-        Load(GeneralDetection).into(pluginsForDevices[FLAGS_d_y], false);
-        Load(VPDetection).into(pluginsForDevices[FLAGS_d_vp], false);
+        Load(VehicleDetection).into(pluginsForDevices[FLAGS_d], FLAGS_d, false);
+        Load(PedestriansDetection).into(pluginsForDevices[FLAGS_d_p], FLAGS_d_p, false);
+        Load(GeneralDetection).into(pluginsForDevices[FLAGS_d_y], FLAGS_d_y, false);
+        Load(VPDetection).into(pluginsForDevices[FLAGS_d_vp], FLAGS_d_vp, false);
 
 
         // read input (video) frames, need to keep multiple frames stored
@@ -649,11 +640,6 @@ int main(int argc, char *argv[]) {
         BOOST_LOG_TRIVIAL(info) << "   Average time per frame:" << std::fixed << std::setprecision(2)
                     << avgTimePerFrameMs << " ms "
                     << "(" << 1000.0F / avgTimePerFrameMs << " fps)";
-
-        // ---------------------------Some perf data--------------------------------------------------
-        if (FLAGS_pc) {
-            VehicleDetection.printPerformanceCounts();
-        }
 
         delete [] inputFrames;
 
