@@ -135,8 +135,9 @@ source  /opt/intel/computer_vision_sdk/bin/setupvars.sh
 cd OpenVino-For-SmartCity
 ----
 
-**4.** OpenVINO's Release R2 compatibility
-If using OpenVINO's Release R2 you will need to execute the following script
+**4.** OpenVINO's Release R2 or greater compatibility
+
+If you are using OpenVINO's Release R2 or greater you will need to execute the following script:
 
 [source,bash]
 ----
