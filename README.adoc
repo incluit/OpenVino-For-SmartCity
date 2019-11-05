@@ -135,7 +135,23 @@ source  /opt/intel/computer_vision_sdk/bin/setupvars.sh
 cd OpenVino-For-SmartCity
 ----
 
-**4.** Create a directory to build the tutorial in and change to it.
+**4.** OpenVINO's Release R2 compatibility
+If using OpenVINO's Release R2 you will need to execute the following script
+
+[source,bash]
+----
+bash scripts/download_models.sh
+----
+
+[quote]
+In case of using the OpenVINO’s 2019 R1.0, before continuing, if you have not manually downloaded all the models before, it is necessary to download the vehicle-bike-detection-crossroad-0078 detection model.
+[source,bash]
+----
+cd /opt/intel/<openvino_path>/deployment_tools/tools/model_downloader/
+sudo ./downloader.py --name person-vehicle-bike-detection-crossroad-0078
+----
+
+**5.** Create a directory to build the tutorial in and change to it.
 
 [source,bash]
 ----
@@ -143,15 +159,7 @@ mkdir build
 cd build
 ----
 
-[quote]
-In case of using the OpenVINO’s 2019 R1.0 or greater, before continuing, if you have not manually downloaded all the models before, it is necessary to download the vehicle-bike-detection-crossroad-0078 detection model.
-[source,bash]
-----
-cd /opt/intel/<openvino_path>/deployment_tools/tools/model_downloader/
-sudo ./downloader.py --name person-vehicle-bike-detection-crossroad-0078
-----
-
-**5.** Before running each of the following sections, be sure to source the
+**6.** Before running each of the following sections, be sure to source the
 helper script. That will make it easier to use environment variables
 instead of long names to the models:
 
@@ -160,7 +168,7 @@ instead of long names to the models:
 source ../scripts/setupenv.sh
 ----
 
-**6.** Compile:
+**7.** Compile:
 
 [source,bash]
 ----
