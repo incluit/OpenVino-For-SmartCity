@@ -4,6 +4,8 @@
 # check for variable set by setupvars.sh in the SDK, need it to find models
 : ${InferenceEngine_DIR:?"Must source the setupvars.sh in the SDK to set InferenceEngine_DIR"}
 
+export INTEL_CVSDK_VER=20
+
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
 PROJECT_PATH=$parent_path/../
