@@ -135,9 +135,12 @@ source  /opt/intel/computer_vision_sdk/bin/setupvars.sh
 cd OpenVino-For-SmartCity
 ----
 
-**4.** OpenVINO's Release R2 or greater compatibility
+**4.** OpenVINO's Release R2020.1 or greater compatibility
 
-If you are using OpenVINO's Release R2 or greater you will need to execute the following script:
+If you are using OpenVINO's Release R2020.1 or greater you don't need download the models.
+
+[quote]
+If you are using OpenVINO's Release >= R2 and < R2020.1 you will need to execute the following script:
 
 [source,bash]
 ----
