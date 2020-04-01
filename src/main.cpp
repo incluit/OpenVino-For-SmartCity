@@ -179,16 +179,16 @@ int main(int argc, char *argv[]) {
             std::cout << core.GetVersions(deviceName);
             /** Load extensions for the CPU plugin **/
             if (deviceName.find("CPU") != std::string::npos) {
-                #if (OPENVINO_VER==2019)
+#if (OPENVINO_VER==2019)
                 core.AddExtension(std::make_shared<InferenceEngine::Extensions::Cpu::CpuExtensions>(), deviceName);
-                #endif
+#endif
                 if (!FLAGS_l.empty()) {
                     // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
-                    #if (OPENVINO_VER==2019)
+#if (OPENVINO_VER==2019)
                     auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
-                    #else
+#else
                     IExtensionPtr extension_ptr = make_so_pointer<IExtension>(FLAGS_l);
-                    #endif
+#endif
                     core.AddExtension(extension_ptr, deviceName);
                 }
             } else if (!FLAGS_c.empty()) {
