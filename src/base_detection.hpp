@@ -24,9 +24,6 @@
 
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
-#if (OPENVINO_VER == 2019)
-#include <ext_list.hpp>
-#endif
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
